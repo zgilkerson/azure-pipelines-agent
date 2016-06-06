@@ -1,3 +1,4 @@
+#!/bin/bash
 user_id=`id -u`
 
 if [ $user_id -eq 0 ]; then
@@ -5,24 +6,16 @@ if [ $user_id -eq 0 ]; then
     exit 1
 fi
 
-# Ensure the execute bit is set for Agent.Listener.
-if [ ! -x ./bin/Agent.Listener ]; then
-    echo chmod +x ./bin/Agent.Listener
-    chmod +x ./bin/Agent.Listener
-fi
+# Ensure the permissions script can be executed by sudo.
+chmod +rx ./bin/permissions.sh
 
-# Ensure the execute bit is set for Agent.Worker.
-if [ ! -x ./bin/Agent.Worker ]; then
-    echo chmod +x ./bin/Agent.Worker
-    chmod +x ./bin/Agent.Worker
-fi
-
+# Export the env variables.
 source ./env.sh
 
 if [[ "$1" == "remove" ]]; then
-    sudo ./bin/Agent.Listener unconfigure
+    # Ensure permissions then defer to Agent.Listener to unconfigure.
+    sudo ( ./bin/permissions.sh ; ./bin/Agent.Listener unconfigure )
 else
-    # user_name=`id -nu $user_id`
-
-    sudo ./bin/Agent.Listener configure $*
+    # Ensure permissions then defer to Agent.Listener to configure.
+    sudo ( ./bin/permissions.sh ; ./bin/Agent.Listener configure $* )
 fi
