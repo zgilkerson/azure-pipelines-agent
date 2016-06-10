@@ -72,7 +72,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
                 {
                     string clientFileName = $"Test{IOUtil.ExeExtension}";
                     jobProcess = new Process();
-                    jobProcess.StartInfo.FileName = clientFileName;
+                    jobProcess.StartInfo.FileName = System.IO.Path.Combine(IOUtil.GetBinPath(), clientFileName);
                     jobProcess.StartInfo.Arguments = "spawnclient " + p1 + " " + p2;
                     jobProcess.EnableRaisingEvents = true;                    
                     jobProcess.Start();

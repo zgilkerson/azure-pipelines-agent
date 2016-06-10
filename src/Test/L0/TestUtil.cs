@@ -21,14 +21,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
 
         public static string GetSrcPath()
         {
-            string srcDir =
-                Path.GetDirectoryName(
+            string srcDir =            
                     Path.GetDirectoryName(
                         Path.GetDirectoryName(
                             Path.GetDirectoryName(
                                 Path.GetDirectoryName(
                                     Path.GetDirectoryName(
-                                        IOUtil.GetBinPath()))))));
+                                        IOUtil.GetBinPath())))));
             Assert.Equal(Src, Path.GetFileName(srcDir));
             return srcDir;
         }

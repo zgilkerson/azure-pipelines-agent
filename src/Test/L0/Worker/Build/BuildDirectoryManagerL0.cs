@@ -214,7 +214,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.Build
             // Create a random work path.
             var configStore = new Mock<IConfigurationStore>();
             _workFolder = Path.Combine(
-                Path.GetDirectoryName(Assembly.GetEntryAssembly().Location),
+                Path.GetDirectoryName(typeof(TestHostContext).GetTypeInfo().Assembly.Location),
                 $"_work_{Path.GetRandomFileName()}");
             var settings = new AgentSettings() { WorkFolder = _workFolder };
             configStore.Setup(x => x.GetSettings()).Returns(settings);

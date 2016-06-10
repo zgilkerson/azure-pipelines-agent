@@ -34,9 +34,7 @@
         "System.Threading.ThreadPool": "4.0.10-rc3-24125-01",
         "moq.netcore": "4.4.0-beta8",
         "xunit": "2.1.0",
-        "xunit.console.netcore": "1.0.2-prerelease-00326-03",
-        "xunit.netcore.extensions": "1.0.0-prerelease-00326-03",
-        "xunit.runner.utility": "2.1.0",
+        "dotnet-test-xunit": "1.0.0-*",
         "Agent.Listener": { "target": "project", "version": "1.0.0-*" },
         "vss-api-netcore": "0.5.19-private",
         "Microsoft.VisualStudio.Services.Agent": { "target": "project", "version": "1.0.0-*" },
@@ -47,6 +45,8 @@
           "imports": ["dnxcore50", "portable-net451+win8"]
         }
     },
+
+    "testRunner": "xunit",
 
     "runtimes": {
         "win7-x64": { },

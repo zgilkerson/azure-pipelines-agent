@@ -46,7 +46,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
 
         public static string GetBinPath()
         {
-            return Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+            return Path.GetDirectoryName(typeof(IOUtil).GetTypeInfo().Assembly.Location);
         }
 
         public static string GetDiagPath()

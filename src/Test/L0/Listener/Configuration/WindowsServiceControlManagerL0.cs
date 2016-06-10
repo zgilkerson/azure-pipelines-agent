@@ -70,7 +70,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
                         "--windowslogonpassword", _expectedLogonPassword,
                         "--unattended"
                     });
-                serviceControlManager.ConfigureService(agentSettings, command);
+                try
+                {
+                    serviceControlManager.ConfigureService(agentSettings, command);
+                }
+                finally
+                {
+                    Agent.Util.IOUtil.DeleteFile(Agent.Util.IOUtil.GetServiceConfigFilePath());
+                }
                 Assert.Equal("vstsagent.server.myagent", serviceControlManager.ServiceName);
                 Assert.Equal("VSTS Agent (server.myagent)", serviceControlManager.ServiceDisplayName);
             }

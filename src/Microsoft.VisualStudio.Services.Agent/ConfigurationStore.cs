@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Threading;
 using Microsoft.VisualStudio.Services.Agent.Util;
+using System.Reflection;
 
 namespace Microsoft.VisualStudio.Services.Agent
 {
@@ -64,7 +65,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         {
             base.Initialize(hostContext);
 
-            var currentAssemblyLocation = System.Reflection.Assembly.GetEntryAssembly().Location;
+            var currentAssemblyLocation = typeof(ConfigurationStore).GetTypeInfo().Assembly.Location;
             Trace.Info("currentAssemblyLocation: {0}", currentAssemblyLocation);
 
             _binPath = IOUtil.GetBinPath();
