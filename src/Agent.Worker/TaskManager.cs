@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -131,7 +132,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             // Deserialize the JSON.
             string file = Path.Combine(definition.Directory, Constants.Path.TaskJsonFile);
             Trace.Info($"Loading task definition '{file}'.");
-            string json = File.ReadAllText(file);
+            string json = File.ReadAllText(file, Encoding.UTF8);
             definition.Data = JsonConvert.DeserializeObject<DefinitionData>(json);
 
             // Replace the macros within the handler data sections.

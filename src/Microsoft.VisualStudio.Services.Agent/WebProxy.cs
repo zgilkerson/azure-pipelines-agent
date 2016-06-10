@@ -3,6 +3,7 @@ using Microsoft.VisualStudio.Services.Common;
 using System;
 using System.IO;
 using System.Net;
+using System.Text;
 
 namespace Microsoft.VisualStudio.Services.Agent
 {
@@ -27,9 +28,9 @@ namespace Microsoft.VisualStudio.Services.Agent
         public Uri GetProxy(Uri destination) => ProxyAddress;
 
         public bool IsBypassed(Uri uri)
-        { 
+        {
             return false;
-        }        
+        }
 
         public static void ApplyProxySettings()
         {
@@ -37,6 +38,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             {
                 return;
             }
+
             _proxySettingsApplied = true;
             var proxyFilePath = IOUtil.GetProxyConfigFilePath();
             bool proxyConfigured = (new FileInfo(proxyFilePath)).Exists;
@@ -44,7 +46,8 @@ namespace Microsoft.VisualStudio.Services.Agent
             {
                 return;
             }
-            string proxyURI = File.ReadAllText(proxyFilePath);
+
+            string proxyURI = File.ReadAllText(proxyFilePath, Encoding.UTF8);
             VssHttpMessageHandler.DefaultWebProxy = new WebProxy(new Uri(proxyURI));
         }
     }

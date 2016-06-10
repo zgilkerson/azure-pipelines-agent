@@ -1,7 +1,7 @@
+using Microsoft.VisualStudio.Services.Agent.Util;
 using System;
 using System.IO;
-
-using Microsoft.VisualStudio.Services.Agent.Util;
+using System.Text;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 {
@@ -35,7 +35,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Trace.Entering();
             try
             {
-                var commName = File.ReadAllText(InitFileCommandLocation).Trim();
+                var commName = File.ReadAllText(InitFileCommandLocation, Encoding.UTF8).Trim();
                 return commName.Equals("systemd", StringComparison.OrdinalIgnoreCase);
             }
             catch (Exception ex)

@@ -6,6 +6,7 @@ using Newtonsoft.Json.Serialization;
 using System;
 using System.Globalization;
 using System.IO;
+using System.Text;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 {
@@ -49,7 +50,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             else
             {
                 topLevelConfig = JsonConvert.DeserializeObject<TopLevelTrackingConfig>(
-                    value: File.ReadAllText(topLevelFile));
+                    value: File.ReadAllText(topLevelFile, Encoding.UTF8));
             }
 
             // Update the top-level tracking config.
@@ -79,7 +80,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 
             // Load the content and distinguish between tracking config file
             // version 1 and file version 2.
-            string content = File.ReadAllText(file);
+            string content = File.ReadAllText(file, Encoding.UTF8);
             string fileFormatVersionJsonProperty = StringUtil.Format(
                 @"""{0}""",
                 TrackingConfig.FileFormatVersionJsonProperty);

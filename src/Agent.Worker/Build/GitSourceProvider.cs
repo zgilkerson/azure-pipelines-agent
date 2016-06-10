@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.Services.Agent.Util;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -395,12 +396,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 string gitConfig = Path.Combine(repositoryPath, ".git/config");
                 if (File.Exists(gitConfig))
                 {
-                    string gitConfigContent = File.ReadAllText(Path.Combine(repositoryPath, ".git", "config"));
+                    string gitConfigContent = File.ReadAllText(Path.Combine(repositoryPath, ".git", "config"), Encoding.UTF8);
                     Uri urlWithCred;
                     if (_credentialUrlCache.TryGetValue(repositoryUrl.AbsoluteUri, out urlWithCred))
                     {
                         gitConfigContent = gitConfigContent.Replace(urlWithCred.AbsoluteUri, repositoryUrl.AbsoluteUri);
-                        File.WriteAllText(gitConfig, gitConfigContent);
+                        File.WriteAllText(gitConfig, gitConfigContent, Encoding.UTF8);
                     }
                 }
             }

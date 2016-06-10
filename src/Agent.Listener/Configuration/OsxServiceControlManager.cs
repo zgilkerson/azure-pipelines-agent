@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Services.Agent.Util;
@@ -29,7 +30,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
                 // TODO: encoding?
                 // TODO: Loc strings formatted into MSG_xxx vars in shellscript
-                string svcShContent = File.ReadAllText(Path.Combine(IOUtil.GetBinPath(), _shTemplate));
+                string svcShContent = File.ReadAllText(Path.Combine(IOUtil.GetBinPath(), _shTemplate), Encoding.UTF8);
                 var tokensToReplace = new Dictionary<string, string>
                                           {
                                               { "{{SvcDescription}}", ServiceDisplayName },
@@ -41,7 +42,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     (current, item) => current.Replace(item.Key, item.Value));
 
                 //TODO: encoding?
-                File.WriteAllText(svcShPath, svcShContent);
+                File.WriteAllText(svcShPath, svcShContent, Encoding.UTF8);
 
                 var unixUtil = HostContext.CreateService<IUnixUtil>();
                 unixUtil.ChmodAsync("755", svcShPath).GetAwaiter().GetResult();

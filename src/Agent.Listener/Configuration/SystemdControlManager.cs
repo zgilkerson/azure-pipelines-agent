@@ -28,7 +28,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 CalculateServiceName(settings, ServiceNamePattern, ServiceDisplayNamePattern);
                 string svcShPath = Path.Combine(IOUtil.GetRootPath(), _shName);
 
-                string svcShContent = File.ReadAllText(Path.Combine(IOUtil.GetBinPath(), _shTemplate));
+                string svcShContent = File.ReadAllText(Path.Combine(IOUtil.GetBinPath(), _shTemplate), Encoding.UTF8);
                 var tokensToReplace = new Dictionary<string, string>
                                           {
                                               { "{{SvcDescription}}", ServiceDisplayName },
@@ -39,7 +39,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     svcShContent,
                     (current, item) => current.Replace(item.Key, item.Value));
 
-                File.WriteAllText(svcShPath, svcShContent, new UTF8Encoding(false));
+                File.WriteAllText(svcShPath, svcShContent, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
                 var unixUtil = HostContext.CreateService<IUnixUtil>();
                 unixUtil.ChmodAsync("755", svcShPath).GetAwaiter().GetResult();

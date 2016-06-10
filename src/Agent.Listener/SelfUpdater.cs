@@ -278,7 +278,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 IOUtil.DeleteFile(updateScript);
             }
 
-            File.WriteAllText(updateScript, scriptBuilder.ToString());
+            File.WriteAllText(updateScript, scriptBuilder.ToString(), Encoding.UTF8);
 
             return updateScript;
         }
@@ -372,7 +372,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 IOUtil.DeleteFile(updateScript);
             }
 
-            File.WriteAllText(updateScript, scriptBuilder.ToString());
+            File.WriteAllText(updateScript, scriptBuilder.ToString(), Encoding.UTF8);
 
             return updateScript;
         }

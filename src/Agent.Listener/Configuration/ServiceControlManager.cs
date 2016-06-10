@@ -60,7 +60,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         protected void SaveServiceSettings()
         {
             string serviceConfigPath = IOUtil.GetServiceConfigFilePath();
-            File.WriteAllText(serviceConfigPath, ServiceName, new UTF8Encoding(false));
+            File.WriteAllText(serviceConfigPath, ServiceName, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             File.SetAttributes(serviceConfigPath, File.GetAttributes(serviceConfigPath) | FileAttributes.Hidden);
         }
 

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.ServiceProcess;
+using System.Text;
 using System.Threading;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
@@ -104,7 +105,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         public override void UnconfigureService()
         {
             string serviceConfigPath = IOUtil.GetServiceConfigFilePath();
-            string serviceName = File.ReadAllText(serviceConfigPath);
+            string serviceName = File.ReadAllText(serviceConfigPath, Encoding.UTF8);
             if (CheckServiceExists(serviceName))
             {
                 StopService();
