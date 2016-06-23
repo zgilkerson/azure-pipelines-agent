@@ -123,6 +123,17 @@ namespace Microsoft.VisualStudio.Services.Agent
             public static readonly string WorkDirectory = "_work";
         }
 
+        public static class Release
+        {
+            public static class Path
+            {
+                public static readonly string ArtifactsDirectory = "a";
+                public static readonly string DefinitionMapping = "DefinitionMapping.json";
+                public static readonly string ReleaseDirectoryPrefix = "r";
+                public static readonly string RootMappingDirectory = "ReleaseRootMapping";
+            }
+        }
+
         public static class Variables
         {
             public static readonly string MacroPrefix = "$(";
@@ -227,18 +238,6 @@ namespace Microsoft.VisualStudio.Services.Agent
             public static class Task
             {
                 public static readonly string DisplayName = "task.displayname";
-            }
-        }
-
-        public class Release
-        {
-            public class Path
-            {
-                public static readonly string ReleaseDirectoryPrefix = "r";
-                public static readonly string ArtifactsDirectory = "a";
-                public static readonly string RootMappingDirectory = "RootMapping";
-                public static readonly string MappingsFile = "Mappings.json";
-                public static readonly string DefinitionMapping = "DefinitionMapping.json";
             }
         }
     }
