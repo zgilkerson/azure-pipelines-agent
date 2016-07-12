@@ -296,6 +296,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                 message += Environment.NewLine;
                 message += ex.InnerException.Message;
             }
+            _executionContext.Output("##vso[task.logissue type=error;TaskName=VSTest;code=Publish failed: " + message + "]");
             _executionContext.Warning(StringUtil.Loc("FailedToPublishTestResults", message));
         }
     }
