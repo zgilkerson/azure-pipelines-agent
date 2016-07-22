@@ -28,7 +28,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
         public TestRunData ReadResults(IExecutionContext executionContext, string filePath, TestRunContext runContext = null)
         {
             // http://windyroad.com.au/dl/Open%20Source/JUnit.xsd
-
+            
             XmlDocument doc = new XmlDocument();
             try
             {
@@ -58,8 +58,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                 runUserIdRef = new IdentityRef() { DisplayName = runUser };
             }
 
-            //read data from testsuite nodes
+            var presentTime = DateTime.UtcNow;
+            runSummary.TimeStamp = DateTime.MaxValue;
+            var maxCompletedTime = DateTime.MinValue;
 
+            //read data from testsuite nodes
             XmlNode testSuitesNode = doc.SelectSingleNode("testsuites");
             if (testSuitesNode != null)
             {
@@ -69,11 +72,24 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                 {
                     foreach (XmlNode testSuiteNode in testSuiteNodeList)
                     {
+                        //for each available suites get all suite details
                         TestSuiteSummary testSuiteSummary = ReadTestSuite(testSuiteNode, runUserIdRef);
-                        runSummary.Duration = runSummary.Duration.Add(testSuiteSummary.Duration);
-                        runSummary.Results.AddRange(testSuiteSummary.Results);
+
+                        // sum up testsuite durations and test case durations, decision on what to use will be taken later
+                        runSummary.TotalTestCaseDuration = runSummary.TotalTestCaseDuration.Add(testSuiteSummary.TotalTestCaseDuration);
+                        runSummary.TestSuiteDuration = runSummary.TestSuiteDuration.Add(testSuiteSummary.TestSuiteDuration);
+                        runSummary.SuiteTimeDataAvailable = runSummary.SuiteTimeDataAvailable && testSuiteSummary.SuiteTimeDataAvailable;
+                        runSummary.SuiteTimeStampAvailable = runSummary.SuiteTimeStampAvailable && testSuiteSummary.SuiteTimeStampAvailable;
                         runSummary.Host = testSuiteSummary.Host;
                         runSummary.Name = testSuiteSummary.Name;
+                        //stop calculating timestamp information, if timestamp data is not avilable for even one test suite
+                        if (testSuiteSummary.SuiteTimeStampAvailable)
+                        {
+                            runSummary.TimeStamp = runSummary.TimeStamp > testSuiteSummary.TimeStamp ? testSuiteSummary.TimeStamp : runSummary.TimeStamp;
+                            DateTime completedTime = testSuiteSummary.TimeStamp.AddTicks(testSuiteSummary.TestSuiteDuration.Ticks);
+                            maxCompletedTime = maxCompletedTime < completedTime ? completedTime : maxCompletedTime;
+                        }
+                        runSummary.Results.AddRange(testSuiteSummary.Results);
                     }
 
                     if (testSuiteNodeList.Count > 1)
@@ -84,10 +100,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             }
             else
             {
+                executionContext.Debug("Only single Test Suite found, parsing its information");
                 XmlNode testSuiteNode = doc.SelectSingleNode("testsuite");
                 if (testSuiteNode != null)
                 {
                     runSummary = ReadTestSuite(testSuiteNode, runUserIdRef);
+                    //only if start time is available then only we need to calculate completed time
+                    if (runSummary.TimeStamp != DateTime.MaxValue)
+                    {
+                        DateTime completedTime = runSummary.TimeStamp.AddTicks(runSummary.TestSuiteDuration.Ticks);
+                        maxCompletedTime = maxCompletedTime < completedTime ? completedTime : maxCompletedTime;
+                    }
+                    else
+                    {
+                        runSummary.SuiteTimeStampAvailable = false;
+                    }
                 }
             }
 
@@ -95,18 +122,30 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             {
                 runSummary.Name = runContext.RunName;
             }
-
-            if (runSummary.Results.Count > 0)
+            //logging the duration calculation behavior
+            if (!runSummary.SuiteTimeStampAvailable)
             {
-                //first testsuite starteddate is the starteddate of the run
-                runSummary.TimeStamp = runSummary.Results[0].StartedDate;
+                executionContext.Debug("Timestamp is not available for one or more testsuites. Total run duration is being calculated as the sum of time durations of detected testsuites");
+
+                if (!runSummary.SuiteTimeDataAvailable)
+                {
+                    executionContext.Debug("Time is not available for one or more testsuites. Total run duration is being calculated as the sum of time durations of detected testcases");
+                }
             }
+
+            //if start time is not calculated then it should be initialized as present time
+            runSummary.TimeStamp = runSummary.TimeStamp == DateTime.MaxValue ? presentTime : runSummary.TimeStamp;
+            //if suite timestamp data is not available even for single testsuite, then fallback to testsuite run time
+            //if testsuite run time is not available even for single testsuite, then fallback to total test case duration
+            maxCompletedTime = !runSummary.SuiteTimeStampAvailable || maxCompletedTime == DateTime.MinValue ? runSummary.TimeStamp.Add(runSummary.SuiteTimeDataAvailable ? runSummary.TestSuiteDuration : runSummary.TotalTestCaseDuration) : maxCompletedTime;
+
+            executionContext.Debug(string.Format("Obtained Junit Test Run Start Date: {0} and Completed Date: {1}", runSummary.TimeStamp.ToString("o"), maxCompletedTime.ToString("o")));
 
             //create test run data
             var testRunData = new TestRunData(
                 name: runSummary.Name,
                 startedDate: runSummary.TimeStamp.ToString("o"),
-                completedDate: runSummary.TimeStamp.Add(runSummary.Duration).ToString("o"),
+                completedDate: maxCompletedTime.ToString("o"),
                 state: TestRunState.InProgress.ToString(),
                 isAutomated: true,
                 buildId: runContext != null ? runContext.BuildId : 0,
@@ -161,10 +200,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                 }
             }
 
-            totalTestSuiteDuration = GetTimeSpan(rootNode);
+            if (timestampFromXml == DateTime.MinValue)
+            {
+                testSuiteSummary.SuiteTimeStampAvailable = false;
+            }
 
-            DateTime testSuiteStartTime = testSuiteSummary.TimeStamp;
+            bool SuiteTimeDataAvalilable = false;
+            totalTestSuiteDuration = GetTimeSpan(rootNode, out SuiteTimeDataAvalilable);
+            testSuiteSummary.SuiteTimeDataAvailable = SuiteTimeDataAvalilable;
 
+            var testSuiteStartTime = testSuiteSummary.TimeStamp;
             //find test case nodes in JUnit result xml
             XmlNodeList testCaseNodes = rootNode.SelectNodes("./testcase");
             if (testCaseNodes != null)
@@ -189,7 +234,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                     }
 
                     //test case duration
-                    TimeSpan testCaseDuration = GetTimeSpan(testCaseNode);
+                    bool TestCaseTimeDataAvalilable = false;
+                    var testCaseDuration = GetTimeSpan(testCaseNode, out TestCaseTimeDataAvalilable);
+                    totalTestCaseDuration = totalTestCaseDuration + testCaseDuration;
                     resultCreateModel.DurationInMs = testCaseDuration.TotalMilliseconds;
 
                     resultCreateModel.StartedDate = testCaseStartTime;
@@ -241,18 +288,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                 }
             }
 
-            if (TimeSpan.Compare(totalTestSuiteDuration, totalTestCaseDuration) < 0)
-            {
-                totalTestSuiteDuration = totalTestCaseDuration; //run duration may not be set in the xml, so use total test case duration 
-            }
-            testSuiteSummary.Duration = totalTestSuiteDuration;
+            testSuiteSummary.TestSuiteDuration = totalTestSuiteDuration;
+            testSuiteSummary.TotalTestCaseDuration = totalTestCaseDuration;
 
             return testSuiteSummary;
         }
 
-        private TimeSpan GetTimeSpan(XmlNode rootNode)
+        private static TimeSpan GetTimeSpan(XmlNode rootNode, out bool TimeDataAvailable)
         {
             var time = TimeSpan.Zero;
+            TimeDataAvailable = false;
             if (rootNode.Attributes["time"] != null)
             {
                 var timeValue = rootNode.Attributes["time"].Value;
@@ -262,6 +307,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                     if (double.TryParse(timeValue, out timeInSeconds))
                     {
                         time = TimeSpan.FromSeconds(timeInSeconds);
+                        TimeDataAvailable = true;
                     }
                 }
             }
@@ -291,17 +337,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
 
             public DateTime TimeStamp { get; set; }
 
-            public TimeSpan Duration { get; set; }
+            public TimeSpan TestSuiteDuration { get; set; }
 
             public List<TestCaseResultData> Results { get; set; }
+
+            public TimeSpan TotalTestCaseDuration { get; set; }
+
+            public bool SuiteTimeDataAvailable { get; set; }
+
+            public bool SuiteTimeStampAvailable { get; set; }
 
             public TestSuiteSummary(string name)
             {
                 Name = name;
                 Host = string.Empty;
                 TimeStamp = DateTime.Now;
-                Duration = TimeSpan.Zero;
+                TestSuiteDuration = TimeSpan.Zero;
+                SuiteTimeDataAvailable = true;
+                SuiteTimeStampAvailable = true;
                 Results = new List<TestCaseResultData>();
+                TotalTestCaseDuration = TimeSpan.Zero;
             }
         }
     }
