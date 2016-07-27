@@ -11,6 +11,7 @@ using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Contracts;
 using Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts;
 using Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts.Definition;
+using Newtonsoft.Json;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
 {
@@ -80,10 +81,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             return rootedPath;
         }
 
-        // TODO: This method seems not relevant to Release Extension, refactor it
         public void ConvertLocalPath(IExecutionContext context, string localPath, out string repoName, out string sourcePath)
         {
-            throw new NotImplementedException();
+            Trace.Info($"Received localpath {localPath}");
+            repoName = string.Empty;
+            sourcePath = string.Empty;
         }
 
         public ReleaseJobExtension()
@@ -147,16 +149,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             var releaseServer = new ReleaseServer(vssEndpoint.Url, ApiUtil.GetVssCredential(vssEndpoint), teamProjectId);
 
             // TODO: send correct cancellation token
-            List<AgentArtifactDefinition> releaseArtifacts =
-                releaseServer.GetReleaseArtifactsFromService(releaseId).ToList();
-
-            releaseArtifacts.ForEach(x => Trace.Info($"Found Artifact = {x.Alias} of type {x.ArtifactType}"));
+            List<AgentArtifactDefinition> releaseArtifacts = releaseServer.GetReleaseArtifactsFromService(releaseId).ToList();
+            var filteredReleaseArtifacts = FilterArtifactDefintions(releaseArtifacts);
+            filteredReleaseArtifacts.ToList().ForEach(x => Trace.Info($"Found Artifact = {x.Alias} of type {x.ArtifactType}"));
 
             CleanUpArtifactsFolder(executionContext, artifactsWorkingFolder);
-            await DownloadArtifacts(executionContext, releaseArtifacts, artifactsWorkingFolder);
+            await DownloadArtifacts(executionContext, filteredReleaseArtifacts, artifactsWorkingFolder);
         }
 
-        private async Task DownloadArtifacts(IExecutionContext executionContext, List<AgentArtifactDefinition> agentArtifactDefinitions, string artifactsWorkingFolder)
+        private async Task DownloadArtifacts(IExecutionContext executionContext, IList<AgentArtifactDefinition> agentArtifactDefinitions, string artifactsWorkingFolder)
         {
             Trace.Entering();
 
@@ -360,6 +361,36 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             issue.Data.Add("TaskId", DownloadArtifactsTaskId.ToString());
 
             executionContext.AddIssue(issue);
+        }
+
+        private IList<AgentArtifactDefinition> FilterArtifactDefintions(IList<AgentArtifactDefinition> agentArtifactDefinitions)
+        {
+            var definitions = new List<AgentArtifactDefinition>();
+            foreach (var agentArtifactDefinition in agentArtifactDefinitions)
+            {
+                if (agentArtifactDefinition.ArtifactType != AgentArtifactType.Custom)
+                {
+                    definitions.Add(agentArtifactDefinition);
+                }
+                else
+                {
+                    string artifactType = string.Empty;
+                    var artifactDetails = JsonConvert.DeserializeObject<Dictionary<string, string>>(agentArtifactDefinition.Details);
+                    if (artifactDetails.TryGetValue("ArtifactType", out artifactType))
+                    {
+                        if (artifactType == null || artifactType.Equals("Build", StringComparison.OrdinalIgnoreCase))
+                        {
+                            definitions.Add(agentArtifactDefinition);
+                        }
+                    }
+                    else
+                    {
+                        definitions.Add(agentArtifactDefinition);
+                    }
+                }
+            }
+
+            return definitions;
         }
     }
 }
