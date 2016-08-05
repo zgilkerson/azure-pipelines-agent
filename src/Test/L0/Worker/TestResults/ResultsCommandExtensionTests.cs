@@ -215,7 +215,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.TestResults
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "PublishTestResults")]
-        public void VerifyStartEndTestRunTimeWhenPublishingToSingleTestRun()
+        public void VerifyStartEndTestRunTimeWhenPublishingToSingleTestRunWithDatesNotAvailable()
         {
             SetupMocks();
             var resultCommand = new ResultsCommandExtension();
@@ -226,28 +226,95 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.TestResults
             command.Properties.Add("mergeResults", bool.TrueString);
             var resultsFiles = new List<string> { "file1.trx", "file2.trx" };
             var durationInMs = 10;
+
             var testRunData = new TestRunData();
             var testCaseResultData = new TestCaseResultData();
             testCaseResultData.DurationInMs = durationInMs;
-
             testRunData.Results = new TestCaseResultData[] { testCaseResultData, testCaseResultData };
             testRunData.Attachments = new string[] { "attachment1", "attachment2" };
+
+            var expectedDurationInMs = resultsFiles.Count * testRunData.Results.Length * durationInMs;
+            VerifyDurationWhenPublishingToSingleTestRun(expectedDurationInMs, new List<TestRunData> { testRunData, testRunData });
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "PublishTestResults")]
+        public void VerifyMinStartMaxEndTestRunTimeWhenPublishingToSingleTestRun()
+        {
+            SetupMocks();
+            var durationInMs = 1000;
+            var expectedDurationInMs = 3 * durationInMs;
+            var testCaseResultData = new TestCaseResultData();
+            testCaseResultData.DurationInMs = durationInMs;
+            DateTime present = DateTime.UtcNow;
+
+            var testRunData1 = new TestRunData(startedDate: present.ToString("o"), completedDate: present.AddMilliseconds(2 * durationInMs).ToString("o"));
+            testRunData1.Results = new TestCaseResultData[] { testCaseResultData, testCaseResultData };
+            testRunData1.Attachments = new string[] { "attachment1", "attachment2" };
+
+            var testRunData2 = new TestRunData(startedDate: present.AddMilliseconds(durationInMs).ToString("o"), completedDate: present.AddMilliseconds(3 * durationInMs).ToString("o"));
+            testRunData2.Results = new TestCaseResultData[] { testCaseResultData, testCaseResultData };
+            testRunData2.Attachments = new string[] { "attachment1", "attachment2" };
+            VerifyDurationWhenPublishingToSingleTestRun(expectedDurationInMs, new List<TestRunData> { testRunData1, testRunData2 });
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "PublishTestResults")]
+        public void VerifyStartEndTestRunTimeWhenPublishingToSingleTestRunWithStartDateUnparseable()
+        {
+            SetupMocks();
+            var durationInMs = 1000;
+            var expectedDurationInMs = 4 * durationInMs;
+            var testCaseResultData = new TestCaseResultData();
+            testCaseResultData.DurationInMs = durationInMs;
+            DateTime present = DateTime.UtcNow;
+
+            var testRunData1 = new TestRunData(startedDate: present.ToString("o"), completedDate: present.AddMilliseconds(2 * durationInMs).ToString("o"));
+            testRunData1.Results = new TestCaseResultData[] { testCaseResultData, testCaseResultData };
+            testRunData1.Attachments = new string[] { "attachment1", "attachment2" };
+
+            var testRunData2 = new TestRunData(startedDate: "unparseableDateString", completedDate: present.AddMilliseconds(3 * durationInMs).ToString("o"));
+            testRunData2.Results = new TestCaseResultData[] { testCaseResultData, testCaseResultData };
+            testRunData2.Attachments = new string[] { "attachment1", "attachment2" };
+
+            VerifyDurationWhenPublishingToSingleTestRun(expectedDurationInMs, new List<TestRunData> { testRunData1, testRunData2 });
+        }
+
+        private void VerifyDurationWhenPublishingToSingleTestRun(long expectedDurationInMs, List<TestRunData> testRunDataList)
+        {
+            if (testRunDataList == null || testRunDataList.Count < 2)
+                throw new ArgumentException("TestRunData list Should contain atleast 2 values");
+            var testRunData1 = testRunDataList[0];
+            var testRunData2 = testRunDataList[1];
+
+            var resultCommand = new ResultsCommandExtension();
+            resultCommand.Initialize(_hc);
+            var command = new Command("results", "publish");
+            command.Properties.Add("resultFiles", "file1.trx,file2.trx");
+            command.Properties.Add("type", "NUnit");
+            command.Properties.Add("mergeResults", bool.TrueString);
+            var resultsFiles = new List<string> { "file1.trx", "file2.trx" };
 
             _mockTestRunPublisher.Setup(q => q.StartTestRunAsync(It.IsAny<TestRunData>(), It.IsAny<CancellationToken>()))
                 .Callback((TestRunData trd, CancellationToken cancellationToken) =>
                 {
                     var startedDate = DateTime.Parse(trd.StartDate, null, DateTimeStyles.RoundtripKind);
                     var endedDate = DateTime.Parse(trd.CompleteDate, null, DateTimeStyles.RoundtripKind);
-                    Assert.Equal(resultsFiles.Count * testRunData.Results.Length * durationInMs, (endedDate - startedDate).TotalMilliseconds);
+                    Assert.Equal(expectedDurationInMs, (endedDate - startedDate).TotalMilliseconds);
                 });
             _mockTestRunPublisher.Setup(q => q.AddResultsAsync(It.IsAny<TestRun>(), It.IsAny<TestCaseResultData[]>(), It.IsAny<CancellationToken>()))
-                .Callback((TestRun testRun, TestCaseResultData[] tcrd, CancellationToken cancellationToken) =>
-                {
-                });
-            _mockTestRunPublisher.Setup(q => q.ReadResultsFromFile(It.IsAny<TestRunContext>(), It.IsAny<string>()))
-                .Returns(testRunData);
+                            .Callback((TestRun testRun, TestCaseResultData[] tcrd, CancellationToken cancellationToken) =>
+            {
+            });
+            _mockTestRunPublisher.SetupSequence(q => q.ReadResultsFromFile(It.IsAny<TestRunContext>(), It.IsAny<string>()))
+                .Returns(testRunData1)
+                .Returns(testRunData2);
             _mockTestRunPublisher.Setup(q => q.EndTestRunAsync(It.IsAny<TestRunData>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+
+           // var testrunContext = new TestRunContext("owner", "platform", "configuration", 0, "buildUri", "releaseUri", "releaseEnvironmentUri", "runName");
 
             resultCommand.ProcessCommand(_ec.Object, command);
         }
