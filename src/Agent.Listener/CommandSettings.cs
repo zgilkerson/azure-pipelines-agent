@@ -124,11 +124,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 validator: Validators.ServerUrlValidator);
         }
 
-        public string GetQueueName()
+        public string GetMachineGroupName()
         {
             return GetArgOrPrompt(
-                name: Constants.Agent.CommandLine.Args.QueueName,
-                description: StringUtil.Loc("QueueName"),
+                name: Constants.Agent.CommandLine.Args.MachineGroupName,
+                description: StringUtil.Loc("MachineGroupName"),
                 defaultValue: string.Empty,
                 validator: Validators.NonEmptyValidator);
         }

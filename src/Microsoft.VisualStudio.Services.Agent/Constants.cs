@@ -61,7 +61,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string UserName = "username";
                     public static readonly string WindowsLogonAccount = "windowslogonaccount";
                     public static readonly string Work = "work";
-                    public static readonly string QueueName = "queuename";
+                    public static readonly string MachineGroupName = "machinegroupname";
                     public static readonly string ProjectName = "projectname";
                     public static readonly string CollectionName = "collectionname";
 
@@ -94,7 +94,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string RunAsService = "runasservice";
                     public static readonly string Unattended = "unattended";
                     public static readonly string Version = "version";
-                    public static readonly string DeploymentAgent = "configureasdeploymentAgent";
+                    public static readonly string DeploymentAgent = "deploymentagent";
                 }
             }
 

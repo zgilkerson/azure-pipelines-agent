@@ -163,7 +163,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             agentProvider.InitConnection(_agentServer);
             if (!IsHosted(serverUrl))
             {
-                agentProvider.InitConnectionWithCollection(command,serverUrl, creds);
+                agentProvider.InitConnectionWithCollection(command, serverUrl, creds);
             }
             poolId = await agentProvider.GetPoolId(command);
             
@@ -376,6 +376,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     await agentSvr.ConnectAsync(conn);
                     Trace.Info("Connect complete.");
 
+                    Type agentType = command.DeploymentAgent ? typeof(DeploymentAgentConfiguration) : typeof(AutomationAgentConfiguration);
+                    var extensionManager = HostContext.GetService<IExtensionManager>();
+                    IConfigurationProvider agentProvider = (extensionManager.GetExtensions<IConfigurationProvider>()).FirstOrDefault(x => x.GetType() == agentType);
+                    agentProvider.InitConnection(agentSvr);
+
                     List<TaskAgent> agents = await agentSvr.GetAgentsAsync(settings.PoolId, settings.AgentName);
                     if (agents.Count == 0)
                     {
@@ -383,7 +388,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     }
                     else
                     {
-                        await agentSvr.DeleteAgentAsync(settings.PoolId, settings.AgentId);
+                        await agentProvider.DeleteAgentAsync(settings.PoolId, settings.AgentId);
                         _term.WriteLine(StringUtil.Loc("Success") + currentAction);
                     }
                 }
@@ -452,21 +457,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
             _agentServer = HostContext.CreateService<IAgentServer>();
             await _agentServer.ConnectAsync(connection);
-        }
-
-        private async Task<int> GetPoolId(string poolName)
-        {
-            int id = 0;
-            List<TaskAgentPool> pools = await _agentServer.GetAgentPoolsAsync(poolName);
-            Trace.Verbose("Returned {0} pools", pools.Count);
-
-            if (pools.Count == 1)
-            {
-                id = pools[0].Id;
-                Trace.Info("Found pool {0} with id {1}", poolName, id);
-            }
-
-            return id;
         }
 
         private async Task<TaskAgent> GetAgent(string name, int poolId)
