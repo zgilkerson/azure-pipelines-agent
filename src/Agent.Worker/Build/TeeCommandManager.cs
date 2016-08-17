@@ -191,7 +191,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 
         public async Task WorkspaceNewAsync()
         {
-            await RunCommandAsync("workspace", "-new", "-location:server", "-permission:Public", WorkspaceName);
+            await RunCommandAsync("workspace", "-new", "-location:local", "-permission:Public", WorkspaceName);
         }
 
         public async Task<ITfsVCWorkspace[]> WorkspacesAsync(bool matchWorkspaceNameOnAnyComputer = false)
