@@ -687,6 +687,109 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
             }
         }
 
+        /*
+         * Deployment Agent Tests
+        */
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", nameof(CommandSettings))]
+        public void GetsFlagDeploymentAgent()
+        {
+            using (TestHostContext hc = CreateTestContext())
+            {
+                // Arrange.
+                var command = new CommandSettings(hc, args: new string[] { "--deploymentagent" });
+
+                // Act.
+                bool actual = command.DeploymentAgent;
+
+                // Assert.
+                Assert.True(actual);
+            }
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", nameof(CommandSettings))]
+        public void PromptsForProjectName()
+        {
+            using (TestHostContext hc = CreateTestContext())
+            {
+                // Arrange.
+                var command = new CommandSettings(hc, args: new string[0]);
+                _promptManager
+                    .Setup(x => x.ReadValue(
+                        Constants.Agent.CommandLine.Args.ProjectName, // argName
+                        StringUtil.Loc("ProjectName"), // description
+                        false, // secret
+                        string.Empty, // defaultValue
+                        Validators.NonEmptyValidator, // validator
+                        false)) // unattended
+                    .Returns("TestProject");
+
+                // Act.
+                string actual = command.GetProjectName();
+
+                // Assert.
+                Assert.Equal("TestProject", actual);
+            }
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", nameof(CommandSettings))]
+        public void PromptsForMachineGroupName()
+        {
+            using (TestHostContext hc = CreateTestContext())
+            {
+                // Arrange.
+                var command = new CommandSettings(hc, args: new string[0]);
+                _promptManager
+                    .Setup(x => x.ReadValue(
+                        Constants.Agent.CommandLine.Args.MachineGroupName, // argName
+                        StringUtil.Loc("MachineGroupName"), // description
+                        false, // secret
+                        string.Empty, // defaultValue
+                        Validators.NonEmptyValidator, // validator
+                        false)) // unattended
+                    .Returns("Test Machine Group");
+
+                // Act.
+                string actual = command.GetMachineGroupName();
+
+                // Assert.
+                Assert.Equal("Test Machine Group", actual);
+            }
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", nameof(CommandSettings))]
+        public void PromptsForCollectionName()
+        {
+            using (TestHostContext hc = CreateTestContext())
+            {
+                // Arrange.
+                var command = new CommandSettings(hc, args: new string[0]);
+                _promptManager
+                    .Setup(x => x.ReadValue(
+                        Constants.Agent.CommandLine.Args.CollectionName, // argName
+                        StringUtil.Loc("CollectionName"), // description
+                        false, // secret
+                        string.Empty, // defaultValue
+                        Validators.NonEmptyValidator, // validator
+                        false)) // unattended
+                    .Returns("TestCollection");
+
+                // Act.
+                string actual = command.GetCollectionName(string.Empty);
+
+                // Assert.
+                Assert.Equal("TestCollection", actual);
+            }
+        }
+
         private TestHostContext CreateTestContext([CallerMemberName] string testName = "")
         {
             TestHostContext hc = new TestHostContext(this, testName);
