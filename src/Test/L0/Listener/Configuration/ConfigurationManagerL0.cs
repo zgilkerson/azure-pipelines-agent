@@ -2,7 +2,6 @@ using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Listener;
 using Moq;
 using System;
-using System.IO;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -10,7 +9,6 @@ using Microsoft.VisualStudio.Services.Agent.Listener.Capabilities;
 using Xunit;
 using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
 using Microsoft.VisualStudio.Services.WebApi;
-using Microsoft.VisualStudio.Services.Agent.Util;
 using System.Security.Cryptography;
 
 namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
@@ -23,7 +21,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
         private Mock<IConfigurationStore> _store;
         private Mock<IExtensionManager> _extnMgr;
         private Mock<IServiceControlManager> _serviceControlManager;
-        private IRSAKeyManager _rsaKeyManager;
+        private Mock<IRSAKeyManager> _rsaKeyManager;
         private ICapabilitiesManager _capabilitiesManager;
         private DeploymentAgentConfiguration _deploymentAgentConfiguration;
         private string _expectedToken = "expectedToken";
@@ -47,7 +45,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
             _store = new Mock<IConfigurationStore>();
             _extnMgr = new Mock<IExtensionManager>();
             _serviceControlManager = new Mock<IServiceControlManager>();
-            _rsaKeyManager = new RSAEncryptedFileKeyManager();
+            _rsaKeyManager = new Mock<IRSAKeyManager>();
             _capabilitiesManager = new CapabilitiesManager();
 
 
@@ -104,17 +102,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
            tc.SetSingleton<ICapabilitiesManager>(_capabilitiesManager);
            tc.SetSingleton<IServiceControlManager>(_serviceControlManager.Object);
 
-           tc.SetSingleton<IRSAKeyManager>(_rsaKeyManager);
+           tc.SetSingleton<IRSAKeyManager>(_rsaKeyManager.Object);
            tc.EnqueueInstance<IAgentServer>(_agentServer.Object);
 
            return tc;
        }
 
-       [Fact]
-       [Trait("Level", "L0")]
-       [Trait("Category", "ConfigurationManagement")]
-       public void CanEnsureConfigure()
-       {
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "ConfigurationManagement")]
+        public async Task CanEnsureConfigure()
+        {
            using (TestHostContext tc = CreateTestContext())
            {
                Tracing trace = tc.GetTrace();
@@ -129,6 +127,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
                    new[]
                    {
                        "configure",
+#if !OS_WINDOWS
+                       "--acceptteeeula",
+#endif
                        "--url", _expectedServerUrl,
                        "--agent", _expectedAgentName,
                        "--pool", _expectedPoolName,
@@ -143,7 +144,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
                 _extnMgr.Setup(x => x.GetExtensions<IConfigurationProvider>()).Returns(GetConfigurationProviderList(tc));
 
                trace.Info("Ensuring all the required parameters are available in the command line parameter");
-               configManager.ConfigureAsync(command);
+               await configManager.ConfigureAsync(command);
 
                _store.Setup(x => x.IsConfigured()).Returns(true);
 
@@ -164,7 +165,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "ConfigurationManagement")]
-        public void CanEnsureDeploymentAgentConfigureVSTSScenario()
+        public async Task CanEnsureDeploymentAgentConfigureVSTSScenario()
         {
             using (TestHostContext tc = CreateTestContext())
             {
@@ -180,6 +181,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
                     new[]
                     {
                         "configure",
+#if !OS_WINDOWS
+                       "--acceptteeeula",
+#endif
                         "--deploymentagent",
                         "--url", _expectedVSTSServerUrl,
                         "--agent", _expectedAgentName,
