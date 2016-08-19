@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using Microsoft.VisualStudio.Services.WebApi;
 using System.Net.Http;
+using System.Net;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 {
@@ -38,11 +39,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             _containerId = containerId;
             _containerPath = containerPath;
 
-            // default file upload request timeout to 300 seconds
+            // default file upload request timeout to 600 seconds
             var fileContainerClientConnectionSetting = connection.Settings.Clone();
-            if (fileContainerClientConnectionSetting.SendTimeout < TimeSpan.FromSeconds(300))
+            if (fileContainerClientConnectionSetting.SendTimeout < TimeSpan.FromSeconds(600))
             {
-                fileContainerClientConnectionSetting.SendTimeout = TimeSpan.FromSeconds(300);
+                fileContainerClientConnectionSetting.SendTimeout = TimeSpan.FromSeconds(600);
             }
 
             var fileContainerClientConnection = new VssConnection(connection.Uri, connection.Credentials, fileContainerClientConnectionSetting);
@@ -183,8 +184,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             while (_fileUploadQueue.TryDequeue(out fileToUpload))
             {
                 token.ThrowIfCancellationRequested();
-                Interlocked.Increment(ref _filesProcessed);
-
                 using (FileStream fs = File.Open(fileToUpload, FileMode.Open, FileAccess.Read))
                 {
                     string itemPath = (_containerPath.TrimEnd('/') + "/" + fileToUpload.Remove(0, _sourceParentDirectory.Length + 1)).Replace('\\', '/');
@@ -193,11 +192,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                     HttpResponseMessage response = null;
                     try
                     {
-                        response = await _fileContainerHttpClient.UploadFileAsync(_containerId, itemPath, fs, _projectId, token);
+                        response = await _fileContainerHttpClient.UploadFileAsync(_containerId, itemPath, fs, _projectId, token, chunkSize: 4 * 1024 * 1024);
                     }
                     catch (OperationCanceledException) when (token.IsCancellationRequested)
                     {
                         context.Output(StringUtil.Loc("FileUploadCancelled", fileToUpload));
+                        if (response != null)
+                        {
+                            response.Dispose();
+                            response = null;
+                        }
+
                         throw;
                     }
                     catch (Exception ex)
@@ -208,7 +213,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                     }
 
                     uploadTimer.Stop();
-                    if (catchExceptionDuringUpload || response.StatusCode != System.Net.HttpStatusCode.Created)
+                    if (catchExceptionDuringUpload || (response != null && response.StatusCode != HttpStatusCode.Created))
                     {
                         if (response != null)
                         {
@@ -246,7 +251,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                             }
                         }
                     }
+
+                    if (response != null)
+                    {
+                        response.Dispose();
+                        response = null;
+                    }
                 }
+
+                Interlocked.Increment(ref _filesProcessed);
             }
 
             return failedFiles;

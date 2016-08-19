@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net.Http;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker
 {
@@ -46,10 +47,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             Uri jobServerUrl = message.Environment.SystemConnection.Url;
 
             Trace.Info($"Creating job server with URL: {jobServerUrl}");
-            var jobConnection = ApiUtil.CreateConnection(jobServerUrl, jobServerCredential);
+            // jobServerQueue is the throttling reporter.
+            var jobServerQueue = HostContext.GetService<IJobServerQueue>();
+            var jobConnection = ApiUtil.CreateConnection(jobServerUrl, jobServerCredential, new DelegatingHandler[] { new ThrottlingReportHandler(jobServerQueue) });
             await jobServer.ConnectAsync(jobConnection);
 
-            var jobServerQueue = HostContext.GetService<IJobServerQueue>();
             jobServerQueue.Start(message);
 
             IExecutionContext jobContext = null;
@@ -63,6 +65,28 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
                 // Print agent version into log for better diagnostic experience 
                 jobContext.Output(StringUtil.Loc("AgentVersion", Constants.Agent.Version));
+
+                // Print proxy setting information for better diagnostic experience
+                var proxyConfig = HostContext.GetService<IProxyConfiguration>();
+                if (!string.IsNullOrEmpty(proxyConfig.ProxyUrl))
+                {
+                    jobContext.Output(StringUtil.Loc("AgentRunningBehindProxy", proxyConfig.ProxyUrl));
+                }
+
+                // Validate directory permissions.
+                string workDirectory = HostContext.GetDirectory(WellKnownDirectory.Work);
+                Trace.Info($"Validating directory permissions for: '{workDirectory}'");
+                try
+                {
+                    Directory.CreateDirectory(workDirectory);
+                    IOUtil.ValidateExecutePermission(workDirectory);
+                }
+                catch (Exception ex)
+                {
+                    Trace.Error(ex);
+                    jobContext.Error(ex);
+                    return jobContext.Complete(TaskResult.Failed);
+                }
 
                 // Set agent variables.
                 AgentSettings settings = HostContext.GetService<IConfigurationStore>().GetSettings();

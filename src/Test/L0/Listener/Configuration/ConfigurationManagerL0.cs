@@ -2,17 +2,19 @@ using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Listener;
 using Moq;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Services.Agent.Listener.Capabilities;
 using Xunit;
+using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
+using Microsoft.VisualStudio.Services.WebApi;
+using Microsoft.VisualStudio.Services.Agent.Util;
+using System.Security.Cryptography;
 
 namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
 {
-    using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
-    using WebApi;
-
     public class ConfigurationManagerL0
     {
         private Mock<IAgentServer> _agentServer;
@@ -34,8 +36,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
         private string _expectedAuthType = "pat";
         private string _expectedWorkFolder = "_work";
         private int _expectedPoolId = 1;
+        private RSA rsa = null;
         private AgentSettings _configMgrAgentSettings = new AgentSettings();
-
 
         public ConfigurationManagerL0()
         {
@@ -48,11 +50,20 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
             _rsaKeyManager = new RSAEncryptedFileKeyManager();
             _capabilitiesManager = new CapabilitiesManager();
 
+
+#if !OS_WINDOWS
+            string eulaFile = Path.Combine(IOUtil.GetExternalsPath(), Constants.Path.TeeDirectory, "license.html");
+            Directory.CreateDirectory(IOUtil.GetExternalsPath());
+            Directory.CreateDirectory(Path.Combine(IOUtil.GetExternalsPath(), Constants.Path.TeeDirectory));
+            File.WriteAllText(eulaFile, "testeulafile");
+#endif
+
+            _capabilitiesManager = new CapabilitiesManager();
+
             _agentServer.Setup(x => x.ConnectAsync(It.IsAny<VssConnection>())).Returns(Task.FromResult<object>(null));
 
             _store.Setup(x => x.IsConfigured()).Returns(false);
             _store.Setup(x => x.HasCredentials()).Returns(false);
-
             _store.Setup(x => x.GetSettings()).Returns(
                 () => _configMgrAgentSettings
                 );
@@ -62,9 +73,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
                    _configMgrAgentSettings = settings;
                });
 
-           _credMgr.Setup(x => x.GetCredentialProvider(It.IsAny<string>())).Returns(new TestAgentCredential());
+            _credMgr.Setup(x => x.GetCredentialProvider(It.IsAny<string>())).Returns(new TestAgentCredential());
 
-           _serviceControlManager.Setup(x => x.GenerateScripts(It.IsAny<AgentSettings>()));
+            _serviceControlManager.Setup(x => x.GenerateScripts(It.IsAny<AgentSettings>()));
 
             var expectedPools = new List<TaskAgentPool>() { new TaskAgentPool(_expectedPoolName) { Id = _expectedPoolId } };
             _agentServer.Setup(x => x.GetAgentPoolsAsync(It.IsAny<string>())).Returns(Task.FromResult(expectedPools));
@@ -75,6 +86,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
             var expectedAgent = new TaskAgent(_expectedAgentName) { Id = 1 };
             _agentServer.Setup(x => x.AddAgentAsync(It.IsAny<int>(), It.IsAny<TaskAgent>())).Returns(Task.FromResult(expectedAgent));
             _agentServer.Setup(x => x.UpdateAgentAsync(It.IsAny<int>(), It.IsAny<TaskAgent>())).Returns(Task.FromResult(expectedAgent));
+
+            rsa = RSA.Create();
+            rsa.KeySize = 2048;
+
+            _rsaKeyManager.Setup(x => x.CreateKey()).Returns(rsa);
         }
 
        private TestHostContext CreateTestContext([CallerMemberName] String testName = "")
@@ -184,12 +200,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
                 _agentServer.Setup(x => x.GetAgentQueuesAsync(It.IsAny<string>(),It.IsAny<string>())).Returns(Task.FromResult(expectedQueues));
                 
                 trace.Info("Ensuring all the required parameters are available in the command line parameter");
-                configManager.ConfigureAsync(command);
+                await configManager.ConfigureAsync(command);
 
                 _store.Setup(x => x.IsConfigured()).Returns(true);
 
                 trace.Info("Configured, verifying all the parameter value");
                 var s = configManager.LoadSettings();
+                Assert.NotNull(s);
                 Assert.True(s.ServerUrl.Equals(_expectedVSTSServerUrl));
                 Assert.True(s.AgentName.Equals(_expectedAgentName));
                 Assert.True(s.PoolId.Equals(3));
