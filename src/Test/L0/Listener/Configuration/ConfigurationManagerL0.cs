@@ -46,8 +46,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
             _extnMgr = new Mock<IExtensionManager>();
             _serviceControlManager = new Mock<IServiceControlManager>();
             _rsaKeyManager = new Mock<IRSAKeyManager>();
-            _capabilitiesManager = new CapabilitiesManager();
-
 
 #if !OS_WINDOWS
             string eulaFile = Path.Combine(IOUtil.GetExternalsPath(), Constants.Path.TeeDirectory, "license.html");
@@ -67,9 +65,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
                 );
 
            _store.Setup(x => x.SaveSettings(It.IsAny<AgentSettings>())).Callback((AgentSettings settings) =>
-               {
-                   _configMgrAgentSettings = settings;
-               });
+            {
+                _configMgrAgentSettings = settings;
+            });
 
             _credMgr.Setup(x => x.GetCredentialProvider(It.IsAny<string>())).Returns(new TestAgentCredential());
 
@@ -91,22 +89,22 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
             _rsaKeyManager.Setup(x => x.CreateKey()).Returns(rsa);
         }
 
-       private TestHostContext CreateTestContext([CallerMemberName] String testName = "")
-       {
-           TestHostContext tc = new TestHostContext(this, testName);
-           tc.SetSingleton<ICredentialManager>(_credMgr.Object);
-           tc.SetSingleton<IPromptManager>(_promptManager.Object);
-           tc.SetSingleton<IConfigurationStore>(_store.Object);
-           tc.SetSingleton<IExtensionManager>(_extnMgr.Object);
-           tc.SetSingleton<IAgentServer>(_agentServer.Object);
-           tc.SetSingleton<ICapabilitiesManager>(_capabilitiesManager);
-           tc.SetSingleton<IServiceControlManager>(_serviceControlManager.Object);
+        private TestHostContext CreateTestContext([CallerMemberName] String testName = "")
+        {
+            TestHostContext tc = new TestHostContext(this, testName);
+            tc.SetSingleton<ICredentialManager>(_credMgr.Object);
+            tc.SetSingleton<IPromptManager>(_promptManager.Object);
+            tc.SetSingleton<IConfigurationStore>(_store.Object);
+            tc.SetSingleton<IExtensionManager>(_extnMgr.Object);
+            tc.SetSingleton<IAgentServer>(_agentServer.Object);
+            tc.SetSingleton<ICapabilitiesManager>(_capabilitiesManager);
+            tc.SetSingleton<IServiceControlManager>(_serviceControlManager.Object);
 
-           tc.SetSingleton<IRSAKeyManager>(_rsaKeyManager.Object);
-           tc.EnqueueInstance<IAgentServer>(_agentServer.Object);
+            tc.SetSingleton<IRSAKeyManager>(_rsaKeyManager.Object);
+            tc.EnqueueInstance<IAgentServer>(_agentServer.Object);
 
-           return tc;
-       }
+            return tc;
+        }
 
         [Fact]
         [Trait("Level", "L0")]
@@ -150,6 +148,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
 
                trace.Info("Configured, verifying all the parameter value");
                var s = configManager.LoadSettings();
+               Assert.NotNull(s);
                Assert.True(s.ServerUrl.Equals(_expectedServerUrl));
                Assert.True(s.AgentName.Equals(_expectedAgentName));
                Assert.True(s.PoolId.Equals(_expectedPoolId));
