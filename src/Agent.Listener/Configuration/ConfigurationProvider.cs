@@ -27,33 +27,33 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     public abstract class ConfigurationProvider : AgentService
     {
         public Type ExtensionType => typeof(IConfigurationProvider);
-        protected ITerminal Term;
-        protected IAgentServer AgentServer;
+        protected ITerminal _term;
+        protected IAgentServer _agentServer;
 
         public override void Initialize(IHostContext hostContext)
         {
             base.Initialize(hostContext);
-            Term = hostContext.GetService<ITerminal>();
+            _term = hostContext.GetService<ITerminal>();
         }
 
         protected void InitializeServerConnection(IAgentServer agentServer)
         {
-            AgentServer = agentServer;
+            _agentServer = agentServer;
         }
         
         protected Task<TaskAgent> UpdateAgent(int poolId, TaskAgent agent)
         {
-           return AgentServer.UpdateAgentAsync(poolId, agent);
+           return _agentServer.UpdateAgentAsync(poolId, agent);
         }
 
         protected Task<TaskAgent> AddAgent(int poolId, TaskAgent agent)
         {
-            return AgentServer.AddAgentAsync(poolId, agent);
+            return _agentServer.AddAgentAsync(poolId, agent);
         }
 
         protected Task DeleteAgent(int poolId, int agentId)
         {
-            return AgentServer.DeleteAgentAsync(poolId, agentId);
+            return _agentServer.DeleteAgentAsync(poolId, agentId);
         }
     }
 
@@ -82,7 +82,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 }
                 catch (Exception e) when (!command.Unattended)
                 {
-                    Term.WriteError(e);
+                    _term.WriteError(e);
                 }
 
                 if (poolId > 0)
@@ -90,7 +90,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     break;
                 }
 
-                Term.WriteError(StringUtil.Loc("FailedToFindPool"));
+                _term.WriteError(StringUtil.Loc("FailedToFindPool"));
             }
             return poolId;            
         }
@@ -113,7 +113,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         private async Task<int> GetPoolIdAsync(string poolName)
         {
             int poolId = 0;
-            List<TaskAgentPool> pools = await AgentServer.GetAgentPoolsAsync(poolName);
+            List<TaskAgentPool> pools = await _agentServer.GetAgentPoolsAsync(poolName);
             Trace.Verbose("Returned {0} pools", pools.Count);
 
             if (pools.Count == 1)
@@ -138,34 +138,30 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             _collectionAgentServer = agentServer;
         }
 
-        public void InitConnectionWithCollection(CommandSettings command, string tfsUrl, VssCredentials creds)
+        public async void InitConnectionWithCollection(CommandSettings command, string tfsUrl, VssCredentials creds)
         {
             string collectionName;
-            string tfsUrlWithCollection;
-
             Trace.Info("Get the Collection name for tfs and validate the connection");
             // No need to loop for cread, as creds are already validated with ConfigManager!
             while (true)
             {
                 // Get the Collection Name
                 collectionName = command.GetCollectionName("DefaultCollection");
-                if (!tfsUrl.EndsWith("/"))
-                {
-                    tfsUrl += "/";
-                }
-                tfsUrlWithCollection = new Uri(new Uri(tfsUrl), collectionName).ToString();
+
+                UriBuilder uriBuilder = new UriBuilder(new Uri(tfsUrl));
+                uriBuilder.Path = uriBuilder.Path + "/" + collectionName;
+                Trace.Info("Tfs Ulr to connect - {0}", uriBuilder.Uri.AbsoluteUri);
                 try
                 {
                     // Validate can connect.
-                    Task connectTask = TestConnectAsync(tfsUrlWithCollection, creds);
-                    Task.WaitAll(connectTask);
+                    await TestConnectAsync(uriBuilder.Uri.AbsoluteUri, creds);
                     Trace.Info("Connect complete.");
                     break;
                 }
                 catch (Exception e) when (!command.Unattended)
                 {
-                    Term.WriteError(e);
-                    Term.WriteError(StringUtil.Loc("FailedToConnect"));
+                    _term.WriteError(e);
+                    _term.WriteError(StringUtil.Loc("FailedToConnect"));
                 }
             }
         }
@@ -183,7 +179,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 }
                 catch (Exception e) when (!command.Unattended)
                 {
-                    Term.WriteError(e);
+                    _term.WriteError(e);
                 }
 
                 if (poolId > 0)
@@ -191,7 +187,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     break;
                 }
 
-                Term.WriteError(StringUtil.Loc("FailedToFindPool"));
+                _term.WriteError(StringUtil.Loc("FailedToFindPool"));
             }
             
             return poolId;
@@ -233,7 +229,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private async Task TestConnectAsync(string url, VssCredentials creds)
         {
-            Term.WriteLine(StringUtil.Loc("ConnectingToServer"));
+            _term.WriteLine(StringUtil.Loc("ConnectingToServer"));
             VssConnection connection = ApiUtil.CreateConnection(new Uri(url), creds);
 
             _collectionAgentServer = HostContext.CreateService<IAgentServer>();

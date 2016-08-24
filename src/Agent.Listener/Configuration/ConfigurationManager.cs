@@ -329,6 +329,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 PoolName = poolName,
                 ServerUrl = serverUrl,
                 WorkFolder = workFolder,
+                DeploymentAgent = command.DeploymentAgent
             };
 
             _store.SaveSettings(settings);
@@ -401,7 +402,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     await agentSvr.ConnectAsync(conn);
                     Trace.Info("Connect complete.");
 
-                    Type agentType = command.DeploymentAgent ? typeof(DeploymentAgentConfiguration) : typeof(AutomationAgentConfiguration);
+                    Trace.Info("Agent configured as deploymentAgent : {0}", settings.DeploymentAgent.ToString());
+                    Type agentType = settings.DeploymentAgent ? typeof(DeploymentAgentConfiguration) : typeof(AutomationAgentConfiguration);
                     var extensionManager = HostContext.GetService<IExtensionManager>();
                     IConfigurationProvider agentProvider = (extensionManager.GetExtensions<IConfigurationProvider>()).FirstOrDefault(x => x.GetType() == agentType);
                     agentProvider.InitConnection(agentSvr);
