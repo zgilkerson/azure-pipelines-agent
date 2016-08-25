@@ -35,7 +35,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         [DataMember(EmitDefaultValue = false)]
         public string WorkFolder { get; set; }
 
-        // This flag is used to set if agent is confidured as deployment agent or automation agent.
+        // This flag is used to set if agent is configured as deployment agent or automation agent.
         [DataMember(EmitDefaultValue = false)]
         public bool DeploymentAgent { get; set; }
 
