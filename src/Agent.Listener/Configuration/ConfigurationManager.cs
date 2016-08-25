@@ -157,9 +157,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             string agentName = null;
             WriteSection(StringUtil.Loc("RegisterAgentSectionHeader"));
 
-            Type agentType = command.DeploymentAgent ? typeof(DeploymentAgentConfiguration) : typeof(AutomationAgentConfiguration);
+            Constants.Agent.AgentConfigurationProvider agentType = command.DeploymentAgent
+                ? Constants.Agent.AgentConfigurationProvider.DeploymentAgentConfiguration
+                : Constants.Agent.AgentConfigurationProvider.AutomationAgentConfiguration;
+
             var extensionManager = HostContext.GetService<IExtensionManager>();
-            IConfigurationProvider agentProvider = (extensionManager.GetExtensions<IConfigurationProvider>()).FirstOrDefault(x => x.GetType() == agentType);
+            IConfigurationProvider agentProvider = (extensionManager.GetExtensions<IConfigurationProvider>()).FirstOrDefault(x => x.ConfigurationProviderType == agentType);
             agentProvider.InitConnection(_agentServer);
             if (!IsHosted(serverUrl))
             {
@@ -332,6 +335,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 DeploymentAgent = command.DeploymentAgent
             };
 
+            // This is required in case agent is configured as DeploymentAgent. It will make entry for projectName and MachineGroup
+            agentProvider.UpdateAgentSetting(settings);
+
             _store.SaveSettings(settings);
             _term.WriteLine(StringUtil.Loc("SavedSettings", DateTime.UtcNow));
 
@@ -403,9 +409,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     Trace.Info("Connect complete.");
 
                     Trace.Info("Agent configured as deploymentAgent : {0}", settings.DeploymentAgent.ToString());
-                    Type agentType = settings.DeploymentAgent ? typeof(DeploymentAgentConfiguration) : typeof(AutomationAgentConfiguration);
+
+                    Constants.Agent.AgentConfigurationProvider agentType = settings.DeploymentAgent
+                   ? Constants.Agent.AgentConfigurationProvider.DeploymentAgentConfiguration
+                   : Constants.Agent.AgentConfigurationProvider.AutomationAgentConfiguration;
+
                     var extensionManager = HostContext.GetService<IExtensionManager>();
-                    IConfigurationProvider agentProvider = (extensionManager.GetExtensions<IConfigurationProvider>()).FirstOrDefault(x => x.GetType() == agentType);
+                    IConfigurationProvider agentProvider = (extensionManager.GetExtensions<IConfigurationProvider>()).FirstOrDefault(x => x.ConfigurationProviderType == agentType);
                     agentProvider.InitConnection(agentSvr);
 
                     List<TaskAgent> agents = await agentSvr.GetAgentsAsync(settings.PoolId, settings.AgentName);

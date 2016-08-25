@@ -105,6 +105,12 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public const int RetryableError = 2;
                 public const int AgentUpdating = 3;
             }
+
+            public enum AgentConfigurationProvider
+            {
+                AutomationAgentConfiguration,
+                DeploymentAgentConfiguration
+            }
         }
 
         public static class Build

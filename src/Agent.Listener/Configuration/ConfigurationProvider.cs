@@ -11,6 +11,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 {
     public interface IConfigurationProvider : IExtension
     {
+        Constants.Agent.AgentConfigurationProvider ConfigurationProviderType { get; }
+
         void InitConnection(IAgentServer agentServer);
 
         void InitConnectionWithCollection(CommandSettings command, string tfsUrl, VssCredentials creds);
@@ -22,6 +24,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         Task<TaskAgent> AddAgentAsync(int poolId, TaskAgent agent);
 
         Task DeleteAgentAsync(int agentPoolId, int agentId);
+
+        void UpdateAgentSetting(AgentSettings settings);
     }
 
     public abstract class ConfigurationProvider : AgentService
@@ -59,12 +63,20 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
     public sealed class AutomationAgentConfiguration : ConfigurationProvider, IConfigurationProvider
     {
+        public Constants.Agent.AgentConfigurationProvider ConfigurationProviderType
+            => Constants.Agent.AgentConfigurationProvider.AutomationAgentConfiguration;
+
         public void InitConnection(IAgentServer agentServer)
         {
             InitializeServerConnection(agentServer);
         }
 
         public void InitConnectionWithCollection(CommandSettings command, string tfsUrl, VssCredentials creds)
+        {
+            // No implementation required
+        }
+
+        public void UpdateAgentSetting(AgentSettings settings)
         {
             // No implementation required
         }
@@ -130,8 +142,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     public sealed class DeploymentAgentConfiguration : ConfigurationProvider, IConfigurationProvider
     {
         private IAgentServer _collectionAgentServer;
+        private string _projectName;
+        private string _machineGroupName;
+
+        public Constants.Agent.AgentConfigurationProvider ConfigurationProviderType
+            => Constants.Agent.AgentConfigurationProvider.DeploymentAgentConfiguration;
+
         public void InitConnection(IAgentServer agentServer)
         {
+            Trace.Info("Agent is a DeploymentAgent");
             InitializeServerConnection(agentServer);
 
             // Init it with default agent server, if collection flow is required, InitConnectionWithCollection() will take care!
@@ -171,11 +190,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             int poolId = 0;
             while (true)
             {
-                string projectName = command.GetProjectName();
-                string machineGroupName = command.GetMachineGroupName();
+                _projectName = command.GetProjectName();
+                _machineGroupName = command.GetMachineGroupName();
                 try
                 {
-                    poolId =  await GetPoolIdAsync(projectName, machineGroupName);
+                    poolId =  await GetPoolIdAsync(_projectName, _machineGroupName);
                 }
                 catch (Exception e) when (!command.Unattended)
                 {
@@ -208,6 +227,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         public Task DeleteAgentAsync(int agentPoolId, int agentId)
         {
             return DeleteAgent(agentPoolId, agentId);
+        }
+
+        public void UpdateAgentSetting(AgentSettings settings)
+        {
+            settings.MachineGroupName = _machineGroupName;
+            settings.ProjectName = _projectName;
         }
 
         private async Task<int> GetPoolIdAsync(string projectName, string machineGroupName)
