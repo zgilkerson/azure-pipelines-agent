@@ -74,7 +74,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
             _serviceControlManager.Setup(x => x.GenerateScripts(It.IsAny<AgentSettings>()));
 
             var expectedPools = new List<TaskAgentPool>() { new TaskAgentPool(_expectedPoolName) { Id = _expectedPoolId } };
-            _agentServer.Setup(x => x.GetAgentPoolsAsync(It.IsAny<string>())).Returns(Task.FromResult(expectedPools));
+            _agentServer.Setup(x => x.GetAgentPoolsAsync(It.IsAny<string>(),It.IsAny<TaskAgentPoolType>())).Returns(Task.FromResult(expectedPools));
 
             var expectedAgents = new List<TaskAgent>();
             _agentServer.Setup(x => x.GetAgentsAsync(It.IsAny<int>(), It.IsAny<string>())).Returns(Task.FromResult(expectedAgents));
@@ -199,9 +199,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
 
                 _extnMgr.Setup(x => x.GetExtensions<IConfigurationProvider>()).Returns(GetConfigurationProviderList(tc));
 
-                var expectedQueues = new List<TaskAgentQueue>() { new TaskAgentQueue() { Id = 2 , Pool = new TaskAgentPoolReference(new Guid(), 3) } };
-                _agentServer.Setup(x => x.GetAgentQueuesAsync(It.IsAny<string>(),It.IsAny<string>())).Returns(Task.FromResult(expectedQueues));
-                
+                var expectedMachineGroups = new List<DeploymentMachineGroup>() { new DeploymentMachineGroup() { Id = 2, Pool = new TaskAgentPoolReference(new Guid(), 3) } };
+                _agentServer.Setup(x => x.GetDeploymentMachineGroupsAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.FromResult(expectedMachineGroups));
+
                 trace.Info("Ensuring all the required parameters are available in the command line parameter");
                 await configManager.ConfigureAsync(command);
 

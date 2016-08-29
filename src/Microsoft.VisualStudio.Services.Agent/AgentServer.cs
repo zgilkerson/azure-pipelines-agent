@@ -15,10 +15,12 @@ namespace Microsoft.VisualStudio.Services.Agent
         // Configuration
         Task<TaskAgent> AddAgentAsync(Int32 agentPoolId, TaskAgent agent);
         Task DeleteAgentAsync(int agentPoolId, int agentId);
-        Task<List<TaskAgentPool>> GetAgentPoolsAsync(string agentPoolName);
+
+        Task<List<TaskAgentPool>> GetAgentPoolsAsync(string agentPoolName,
+            TaskAgentPoolType poolType = TaskAgentPoolType.Automation);
         Task<List<TaskAgent>> GetAgentsAsync(int agentPoolId, string agentName = null);
         Task<TaskAgent> UpdateAgentAsync(int agentPoolId, TaskAgent agent);
-        Task<List<TaskAgentQueue>> GetAgentQueuesAsync(string projectName, string queueName);
+        Task<List<DeploymentMachineGroup>> GetDeploymentMachineGroupsAsync(string projectName, string deploymentMachineGroupName);
 
         // messagequeue
         Task<TaskAgentSession> CreateAgentSessionAsync(Int32 poolId, TaskAgentSession session, CancellationToken cancellationToken);
@@ -65,10 +67,10 @@ namespace Microsoft.VisualStudio.Services.Agent
         // Configuration
         //-----------------------------------------------------------------
 
-        public Task<List<TaskAgentPool>> GetAgentPoolsAsync(string agentPoolName)
+        public Task<List<TaskAgentPool>> GetAgentPoolsAsync(string agentPoolName, TaskAgentPoolType poolType = TaskAgentPoolType.Automation)
         {
             CheckConnection();
-            return _taskAgentClient.GetAgentPoolsAsync(agentPoolName);
+            return _taskAgentClient.GetAgentPoolsAsync(poolType, agentPoolName);
         }
 
         public Task<TaskAgent> AddAgentAsync(Int32 agentPoolId, TaskAgent agent)
@@ -95,10 +97,10 @@ namespace Microsoft.VisualStudio.Services.Agent
             return _taskAgentClient.DeleteAgentAsync(agentPoolId, agentId);
         }
 
-        public Task<List<TaskAgentQueue>> GetAgentQueuesAsync(string projectName,string queueName)
+        public Task<List<DeploymentMachineGroup>> GetDeploymentMachineGroupsAsync(string projectName, string deploymentMachineGroupName)
         {
             CheckConnection();
-            return _taskAgentClient.GetAgentQueuesAsync(projectName, queueName);
+            return _taskAgentClient.GetDeploymentMachineGroupsAsync(projectName, deploymentMachineGroupName);
         }
 
         //-----------------------------------------------------------------

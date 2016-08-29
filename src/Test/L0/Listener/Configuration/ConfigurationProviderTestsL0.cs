@@ -69,8 +69,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener.Configuration
                        "--collectionname", _collectionName
                     });
 
-                var expectedQueues = new List<TaskAgentQueue>() { new TaskAgentQueue() { Id = 2, Pool = new TaskAgentPoolReference(new Guid(), _expectedPoolId) } };
-                _agentServer.Setup(x => x.GetAgentQueuesAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.FromResult(expectedQueues));
+                var expectedMachineGroups = new List<DeploymentMachineGroup>() { new DeploymentMachineGroup() { Id = 2, Pool = new TaskAgentPoolReference(new Guid(), _expectedPoolId) } };
+                _agentServer.Setup(x => x.GetDeploymentMachineGroupsAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.FromResult(expectedMachineGroups));
 
                 trace.Info("Init the deployment provider");
                 deploymenProvider.InitConnection(_agentServer.Object);

@@ -238,15 +238,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         private async Task<int> GetPoolIdAsync(string projectName, string machineGroupName)
         {
             int poolId = 0;
-            List<TaskAgentQueue> machineGroup = await _collectionAgentServer.GetAgentQueuesAsync(projectName, machineGroupName);
+            List<DeploymentMachineGroup> machineGroup = await _collectionAgentServer.GetDeploymentMachineGroupsAsync(projectName, machineGroupName);
             Trace.Verbose("Returned {0} machineGroup", machineGroup.Count);
 
             if (machineGroup.Count == 1)
             {
-                int queueId = machineGroup[0].Id;
-                Trace.Info("Found queue {0} with id {1}", machineGroupName, queueId);
+                int machineGroupId = machineGroup[0].Id;
+                Trace.Info("Found machineGroup {0} with id {1}", machineGroupName, machineGroupId);
                 poolId = machineGroup[0].Pool.Id;
-                Trace.Info("Found poolId {0} with queueName {1}", poolId, machineGroupName);
+                Trace.Info("Found poolId {0} with machineGroup {1}", poolId, machineGroupName);
             }
 
             return poolId;
