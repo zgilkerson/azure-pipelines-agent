@@ -14,6 +14,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 {
     public sealed class TfsVCSourceProvider : SourceProvider, ISourceProvider
     {
+        private bool _undoShelvesetPendingChanges = false;
+
         public override string RepositoryType => WellKnownRepositoryTypes.TfsVersionControl;
 
         public async Task GetSourceAsync(
@@ -31,6 +33,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             tf.CancellationToken = cancellationToken;
             tf.Endpoint = endpoint;
             tf.ExecutionContext = executionContext;
+
+            // Setup proxy.
+            if (!string.IsNullOrEmpty(executionContext.Variables.Agent_ProxyUrl))
+            {
+                executionContext.Debug($"Configure '{tf.FilePath}' to work through proxy server '{executionContext.Variables.Agent_ProxyUrl}'.");
+                tf.SetupProxy(executionContext.Variables.Agent_ProxyUrl, executionContext.Variables.Agent_ProxyUsername, executionContext.Variables.Agent_ProxyPassword);
+            }
 
             // Add TF to the PATH.
             string tfPath = tf.FilePath;
@@ -265,6 +274,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 // Unshelve.
                 await tf.UnshelveAsync(shelveset: shelvesetName);
 
+                // Ensure we undo pending changes for shelveset build at the end.
+                _undoShelvesetPendingChanges = true;
+
                 if (!string.IsNullOrEmpty(gatedShelvesetName))
                 {
                     // Create the comment file for reshelve.
@@ -300,11 +312,93 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                     }
                 }
             }
+
+            // Cleanup proxy settings.
+            if (!string.IsNullOrEmpty(executionContext.Variables.Agent_ProxyUrl))
+            {
+                executionContext.Debug($"Remove proxy setting for '{tf.FilePath}' to work through proxy server '{executionContext.Variables.Agent_ProxyUrl}'.");
+                tf.CleanupProxySetting();
+            }
         }
 
-        public Task PostJobCleanupAsync(IExecutionContext executionContext, ServiceEndpoint endpoint)
+        public async Task PostJobCleanupAsync(IExecutionContext executionContext, ServiceEndpoint endpoint)
         {
-            return Task.CompletedTask;
+            if (_undoShelvesetPendingChanges)
+            {
+                string shelvesetName = GetEndpointData(endpoint, Constants.EndpointData.SourceTfvcShelveset);
+                executionContext.Debug($"Undo pending changes left by shelveset '{shelvesetName}'.");
+
+                // Create the tf command manager.
+                var tf = HostContext.CreateService<ITfsVCCommandManager>();
+                tf.CancellationToken = executionContext.CancellationToken;
+                tf.Endpoint = endpoint;
+                tf.ExecutionContext = executionContext;
+
+                // Get the definition mappings.
+                DefinitionWorkspaceMapping[] definitionMappings =
+                    JsonConvert.DeserializeObject<DefinitionWorkspaceMappings>(endpoint.Data[WellKnownEndpointData.TfvcWorkspaceMapping])?.Mappings;
+
+                // Determine the sources directory.
+                string sourcesDirectory = GetEndpointData(endpoint, Constants.EndpointData.SourcesDirectory);
+                ArgUtil.NotNullOrEmpty(sourcesDirectory, nameof(sourcesDirectory));
+
+                try
+                {
+                    if (tf.Features.HasFlag(TfsVCFeatures.GetFromUnmappedRoot))
+                    {
+                        // Undo pending changes.
+                        ITfsVCStatus tfStatus = await tf.StatusAsync(localPath: sourcesDirectory);
+                        if (tfStatus?.HasPendingChanges ?? false)
+                        {
+                            await tf.UndoAsync(localPath: sourcesDirectory);
+
+                            // Cleanup remaining files/directories from pend adds.
+                            tfStatus.AllAdds
+                                .OrderByDescending(x => x.LocalItem) // Sort descending so nested items are deleted before their parent is deleted.
+                                .ToList()
+                                .ForEach(x =>
+                                {
+                                    executionContext.Output(StringUtil.Loc("Deleting", x.LocalItem));
+                                    IOUtil.Delete(x.LocalItem, executionContext.CancellationToken);
+                                });
+                        }
+                    }
+                    else
+                    {
+                        // Perform "undo" for each map.
+                        foreach (DefinitionWorkspaceMapping definitionMapping in definitionMappings ?? new DefinitionWorkspaceMapping[0])
+                        {
+                            if (definitionMapping.MappingType == DefinitionMappingType.Map)
+                            {
+                                // Check the status.
+                                string localPath = definitionMapping.GetRootedLocalPath(sourcesDirectory);
+                                ITfsVCStatus tfStatus = await tf.StatusAsync(localPath: localPath);
+                                if (tfStatus?.HasPendingChanges ?? false)
+                                {
+                                    // Undo.
+                                    await tf.UndoAsync(localPath: localPath);
+
+                                    // Cleanup remaining files/directories from pend adds.
+                                    tfStatus.AllAdds
+                                        .OrderByDescending(x => x.LocalItem) // Sort descending so nested items are deleted before their parent is deleted.
+                                        .ToList()
+                                        .ForEach(x =>
+                                        {
+                                            executionContext.Output(StringUtil.Loc("Deleting", x.LocalItem));
+                                            IOUtil.Delete(x.LocalItem, executionContext.CancellationToken);
+                                        });
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // We can't undo pending changes, log a warning and continue.
+                    executionContext.Debug(ex.ToString());
+                    executionContext.Warning(ex.Message);
+                }
+            }
         }
 
         public override string GetLocalPath(IExecutionContext executionContext, ServiceEndpoint endpoint, string path)
@@ -455,7 +549,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                         .ThenBy(x => !x.Recursive) // Then recursive maps
                         .ThenBy(x => x.NormalizedServerPath) // Then sort by the normalized server path
                         .ToList();
-                    for (int i = 0 ; i < sortedDefinitionMappings.Count ; i++)
+                    for (int i = 0; i < sortedDefinitionMappings.Count; i++)
                     {
                         DefinitionWorkspaceMapping mapping = sortedDefinitionMappings[i];
                         executionContext.Debug($"Definition mapping[{i}]: cloak '{mapping.MappingType == DefinitionMappingType.Cloak}', recursive '{mapping.Recursive}', server path '{mapping.NormalizedServerPath}', local path '{mapping.GetRootedLocalPath(sourcesDirectory)}'");
@@ -468,7 +562,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                         .ThenBy(x => !x.Recursive) // Then recursive maps
                         .ThenBy(x => x.ServerPath) // Then sort by server path
                         .ToList();
-                    for (int i = 0 ; i< sortedTFMappings.Count ; i++)
+                    for (int i = 0; i < sortedTFMappings.Count; i++)
                     {
                         ITfsVCMapping mapping = sortedTFMappings[i];
                         executionContext.Debug($"Found mapping[{i}]: cloak '{mapping.Cloak}', recursive '{mapping.Recursive}', server path '{mapping.ServerPath}', local path '{mapping.LocalPath}'");
@@ -476,7 +570,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 
                     // Compare the mappings.
                     bool allMatch = true;
-                    for (int i = 0 ; i < sortedTFMappings.Count ; i++)
+                    for (int i = 0; i < sortedTFMappings.Count; i++)
                     {
                         ITfsVCMapping tfMapping = sortedTFMappings[i];
                         DefinitionWorkspaceMapping definitionMapping = sortedDefinitionMappings[i];
