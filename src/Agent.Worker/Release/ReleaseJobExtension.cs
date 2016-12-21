@@ -180,8 +180,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
                 executionContext.Output(StringUtil.Loc("RMArtifactDownloadBegin", agentArtifactDefinition.Alias, agentArtifactDefinition.ArtifactType));
 
                 // Get the local path where this artifact should be downloaded. 
-                string downloadFolderPath = Path.GetFullPath(Path.Combine(artifactsWorkingFolder, agentArtifactDefinition.Alias ?? string.Empty));
+                string downloadFolderPath;
 
+                bool? isExecutingBuild = executionContext.Variables.GetBoolean("Release.BuildInRmFlow");
+                if (isExecutingBuild != null && (bool)isExecutingBuild)
+                {
+                    downloadFolderPath = artifactsWorkingFolder;
+                }
+                else
+                {
+                    downloadFolderPath = Path.GetFullPath(Path.Combine(artifactsWorkingFolder, agentArtifactDefinition.Alias ?? string.Empty));
+                }
+                
                 // download the artifact to this path. 
                 RetryExecutor retryExecutor = new RetryExecutor();
                 retryExecutor.ShouldRetryAction = (ex) =>
@@ -261,7 +271,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             executionContext.Output(StringUtil.Loc("RMCleanedUpArtifactsDirectory", artifactsWorkingFolder));
         }
 
-        private void InitializeAgent(IExecutionContext executionContext, out bool skipArtifactsDownload, out Guid teamProjectId, out string artifactsWorkingFolder, out int releaseId)
+        private void InitializeAgent(IExecutionContext executionContext, out bool skipArtifactsDownload, out Guid teamProjectId, out string releaseDirectory, out int releaseId)
         {
             Trace.Entering();
 
@@ -289,23 +299,22 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
                 executionContext.Variables.System_TeamProjectId.ToString(),
                 releaseDefinition);
 
-            artifactsWorkingFolder = Path.Combine(
+            string workDirectory = Path.Combine(
                 IOUtil.GetWorkPath(HostContext),
-                releaseDefinitionToFolderMap.ReleaseDirectory,
-                Constants.Release.Path.ArtifactsDirectory);
-            executionContext.Output($"Release folder: {artifactsWorkingFolder}");
+                releaseDefinitionToFolderMap.ReleaseDirectory);
 
-            SetLocalVariables(executionContext, artifactsWorkingFolder);
+            SetLocalVariables(executionContext, workDirectory);
 
             // Log the environment variables available after populating the variable service with our variables
             LogEnvironmentVariables(executionContext);
 
+            releaseDirectory = executionContext.Variables.Get(Constants.Variables.System.DefaultWorkingDirectory);
             if (skipArtifactsDownload)
             {
                 // If this is the first time the agent is executing a task, we need to create the artifactsFolder
                 // otherwise Process.StartWithCreateProcess() will fail with the error "The directory name is invalid"
                 // because the working folder doesn't exist
-                CreateWorkingFolderIfRequired(executionContext, artifactsWorkingFolder);
+                CreateWorkingFolderIfRequired(executionContext, releaseDirectory);
 
                 // log the message that the user chose to skip artifact download and move on
                 executionContext.Output(StringUtil.Loc("RMUserChoseToSkipArtifactDownload"));
@@ -313,16 +322,41 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             }
         }
 
-        private void SetLocalVariables(IExecutionContext executionContext, string artifactsDirectoryPath)
+        private void SetLocalVariables(IExecutionContext executionContext, string workDirectory)
         {
             Trace.Entering();
 
-            // Always set the AgentReleaseDirectory because this is set as the WorkingDirectory of the task.
-            executionContext.Variables.Set(Constants.Variables.Release.AgentReleaseDirectory, artifactsDirectoryPath);
+            bool? buildPipelineFlow = executionContext.Variables.GetBoolean("Release.BuildInRmFlow");
+            if (buildPipelineFlow != null && (bool) buildPipelineFlow)
+            {
 
-            // Set the ArtifactsDirectory even when artifacts downloaded is skipped. Reason: The task might want to access the old artifact.
-            executionContext.Variables.Set(Constants.Variables.Release.ArtifactsDirectory, artifactsDirectoryPath);
-            executionContext.Variables.Set(Constants.Variables.System.DefaultWorkingDirectory, artifactsDirectoryPath);
+                executionContext.Variables.Set(Constants.Variables.Agent.BuildDirectory, workDirectory);
+                executionContext.Variables.Set(
+                    Constants.Variables.System.ArtifactsDirectory,
+                    Path.Combine(workDirectory, Constants.Build.Path.ArtifactsDirectory));
+                executionContext.Variables.Set(Constants.Variables.Build.StagingDirectory, Path.Combine(workDirectory, Constants.Build.Path.ArtifactsDirectory));
+                executionContext.Variables.Set(
+                    Constants.Variables.Build.ArtifactStagingDirectory,
+                    Path.Combine(workDirectory, Constants.Build.Path.ArtifactsDirectory));
+                executionContext.Variables.Set(Constants.Variables.Build.BinariesDirectory, Path.Combine(workDirectory, Constants.Build.Path.BinariesDirectory));
+                executionContext.Variables.Set(
+                    Constants.Variables.System.DefaultWorkingDirectory,
+                    Path.Combine(workDirectory, Constants.Build.Path.SourcesDirectory));
+                executionContext.Variables.Set(Constants.Variables.Build.SourcesDirectory, Path.Combine(workDirectory, Constants.Build.Path.SourcesDirectory));
+                executionContext.Variables.Set(Constants.Variables.Build.RepoLocalPath, Path.Combine(workDirectory, Constants.Build.Path.SourcesDirectory));
+            }
+            else
+            {
+                string artifactsDirectoryPath = Path.Combine(workDirectory, Constants.Release.Path.ArtifactsDirectory);
+                executionContext.Output($"Release folder: {artifactsDirectoryPath}");
+
+                // Always set the AgentReleaseDirectory because this is set as the WorkingDirectory of the task.
+                executionContext.Variables.Set(Constants.Variables.Release.AgentReleaseDirectory, artifactsDirectoryPath);
+
+                // Set the ArtifactsDirectory even when artifacts downloaded is skipped. Reason: The task might want to access the old artifact.
+                executionContext.Variables.Set(Constants.Variables.Release.ArtifactsDirectory, artifactsDirectoryPath);
+                executionContext.Variables.Set(Constants.Variables.System.DefaultWorkingDirectory, artifactsDirectoryPath);
+            }
         }
 
         private void LogEnvironmentVariables(IExecutionContext executionContext)
