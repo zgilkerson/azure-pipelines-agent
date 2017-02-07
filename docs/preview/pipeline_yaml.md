@@ -20,28 +20,24 @@
 The pipeline process may be defined completely in the repository using YAML as the definition format. A very simple definition may look like the following:
 ```yaml
 pipeline: 
-  resources:
-    - name: repo
-      type: git
-      
   jobs:
     - name: simple-build
       target:
         type: pool
         queue: default
       tasks:
-        - task: "msbuild@1.*"
+        - task: msbuild@1.*
           displayName: Build solution 
           inputs:
-            project: "/src/project.sln"
-            additionalArguments: "/m /v:minimal"
-        - upload: 
+            project: repo/src/project.sln
+            additionalArguments: /m /v:minimal
+        - export: 
             name: drop
             type: artifact
-            parameters:
+            inputs:
               include:
                 - /bin/**/*.dll
               exclude:
                 - /bin/**/*Test*.dll
 ```
-This defines a pipeline with a single job 
+This defines a pipeline with a single job which acts on the current source repository.
