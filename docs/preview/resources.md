@@ -6,9 +6,9 @@
 - **Provide smarter routing for agent pools**: Provide smarter agent allocation based on required resources matched against what already exists on the agent
 - **Provide disk space insights and administration from the server**: Having a concept of resources provides better insight into what is taking space on your agents
 - **Decouple the agent from resource acquisition to reduce required agent updates**: Providing an extensible and clean surface area reduces the coupling between the agent and server for fewer forced updates
-##Resource Contract
+## Resource Contract
 Broken down into the most simple concepts possible, the purpose of the execution engine is to flow variables and data from job to job. and machine to machine. Most importantly, the system doesn't need to understand the internals of the data propagating through different stages within a pipeline, but only how to identify, retrieve, and update the different types of data. For this reason, the proposal outlined here is to formalize the concept of an extensible type known simply as `Resource` with the following properties:
-```
+```yaml
 resource:
 	name: string # A local name by which this resource is referenced
 	type: string # A type of resource for provider selection
@@ -20,50 +20,50 @@ endpointRef:
 	id: guid # The identifier of the managed endpoint
 	type: string # The type of managed endpoint referenced
 ```
-##Resource Identification
+## Resource Identification
 Resources downloaded on the agent, including repositories, build artifacts, nuget packages, etc., should be registered with and tracked by the server to provide better agent routing and visibility for pool administrators to determine which definitions and resources consume the most space. In order to provide this selection, the messages delivered to the agent for running jobs will need to be altered to include a list of the resources which are required for the job. For instance, a pipeline which consumes a build drop artifact, a git repository, and a nugget package may look something like the following:
 
 *Note: The instance identifier is listed as a format string for illustrative purposes and would be computed prior to agent selection or delivery to the agent for matching agent resources to resource requirements*
 ```yaml
 job:
-	resources:
-		- name: build
-		  type: vsts.build
+  resources:
+    - name: build
+      type: vsts.build
       id: "{{data.collectionId}}.{{data.buildId}}.{{data.artifactName}}"
-		  endpoint:
-			  id: system-endpoint-id
-		  data:
-			  collectionId: "45a325da-9ad3-4e34-a044-5a6765528113"
-			  projectId: "ac963673-c64a-48d4-b7f5-28e44a9db45c"
-			  definitionId: 4
-			  buildId: 27
-			  artifactName: drop
-			  
-	  - name: vso
-	    type: git
-	    id: "{{data.url}}"
-	    endpoint:
-	      id: github-endpoint-id
+      endpoint:
+        id: system-endpoint-id
       data:
-	      url: "https://github.com/Microsoft/vsts-tasks.git"
-	      ref: master
+        collectionId: "45a325da-9ad3-4e34-a044-5a6765528113"
+	projectId: "ac963673-c64a-48d4-b7f5-28e44a9db45c"
+        definitionId: 4
+        buildId: 27
+        artifactName: drop
+			  
+    - name: vso
+      type: git
+      id: "{{data.url}}"
+      endpoint:
+        id: github-endpoint-id
+      data:
+        url: "https://github.com/Microsoft/vsts-tasks.git"
+        ref: master
 	      
-	  - name: nuget_refs
-	    type: nuget
-	    id: "{{endpoint.id}}.{{data.feed}}.{{data.pkg}}.{{data.version}}"
-	    endpoint:
-		    id: nuget-endpoint-id
-		  data:
-			  feed: my feed
-			  package: my package
-			  Version: "2.1.0.0"
+    - name: nuget_refs
+      type: nuget
+      id: "{{endpoint.id}}.{{data.feed}}.{{data.pkg}}.{{data.version}}"
+      endpoint:
+        id: nuget-endpoint-id
+      data:
+        feed: my feed
+        package: my package
+        version: "2.1.0.0"
 ```
 When requesting an agent, the system will attach all resources needed for the job to the agent requirements. The pool orchestrator will then take the requested resources into consideration while selecting an agent to attempt to reduce the download time requirements in order to speed up the job. The other advantage to selecting an agent with resources already populated is the propagation of resources throughout the pool should be more restricted than it is today.
-##Resource Download and Upload
+## Resource Download and Upload
 Since the core pipeline engine does not understand how to actually acquire or update specific resources, we will need to provide a pluggable mechanism by which resource providers may inject logic to perform this actions on behalf of the system. The current mechanism for plugging into the agent is tasks and that is the proposed mechanism for extended the agent for resource consumption and production. Similar to the release management artifact extensibility model, resource types will register tasks for both the download and upload actions on a particular resource. The main difference between the release management model and the proposed model is a resource provider **MUST** implement a download task as there will be no known types to the system.  
 
 By analyzing the resources needed in a job, the server will automatically inject the necessary tasks implementations as specified by the provider. The key to representing these as tasks rather than implicit plugins on agent is it allows consumers to rearrange the acquisition of resources with respect to their own custom tasks, where today the artifact and repository acquisitions **MUST** be the first step in the job. A secondary advantage to driving all resource acquisition with tasks is it allows us to decouple the agent from any specific artifact implementation and reduce our schedule of required agent updates short of a security issue, core agent logic bug, or breaking change in the contract between the agent and server.
-##Resource Caching
+## Resource Caching
 When the agent receives a job message from the server that includes a resource list, it will determine up-front where the resource should be located based on a combination of the target definition and the resource identifiers provided by the server. By default, the local folder for resources will be contained within the working folder for a build definition (for instance, `$(Agent.InstallDir)\_work\1\rN`,  where `N` is a generated identifier based on the agent directory manager). 
 
 Prior to execution of a job, the agent will compute and either reference existing folders or create new empty folders for all resources included in the job. For instance, given the resources in the job above the agent might generate the following stucture on disk:
