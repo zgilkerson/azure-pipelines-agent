@@ -1,4 +1,3 @@
-
 # Resources
 ## Goals
 - **Provide generic construct for data flow through a pipeline**: Consume and publish resources which may then be consumed downstream
@@ -6,6 +5,7 @@
 - **Provide smarter routing for agent pools**: Provide smarter agent allocation based on required resources matched against what already exists on the agent
 - **Provide disk space insights and administration from the server**: Having a concept of resources provides better insight into what is taking space on your agents
 - **Decouple the agent from resource acquisition to reduce required agent updates**: Providing an extensible and clean surface area reduces the coupling between the agent and server for fewer forced updates
+
 ## Resource Contract
 Broken down into the most simple concepts possible, the purpose of the execution engine is to flow variables and data from job to job. and machine to machine. Most importantly, the system doesn't need to understand the internals of the data propagating through different stages within a pipeline, but only how to identify, retrieve, and update the different types of data. For this reason, the proposal outlined here is to formalize the concept of an extensible type known simply as `Resource` with the following properties:
 ```yaml
@@ -21,7 +21,7 @@ endpointRef:
 	type: string # The type of managed endpoint referenced
 ```
 ## Resource Identification
-Resources downloaded on the agent, including repositories, build artifacts, nuget packages, etc., should be registered with and tracked by the server to provide better agent routing and visibility for pool administrators to determine which definitions and resources consume the most space. In order to provide this selection, the messages delivered to the agent for running jobs will need to be altered to include a list of the resources which are required for the job. For instance, a pipeline which consumes a build drop artifact, a git repository, and a nugget package may look something like the following:
+ Resources downloaded on the agent, including repositories, build artifacts, nuget packages, etc., should be registered with and tracked by the server to provide better agent routing and visibility for pool administrators to determine which definitions and resources consume the most space. In order to provide this selection, the messages delivered to the agent for running jobs will need to be altered to include a list of the resources which are required for the job. For instance, a pipeline which consumes a build drop artifact, a git repository, and a nugget package may look something like the following:
 
 *Note: The instance identifier is listed as a format string for illustrative purposes and would be computed prior to agent selection or delivery to the agent for matching agent resources to resource requirements*
 ```yaml
@@ -34,7 +34,7 @@ job:
         id: system-endpoint-id
       data:
         collectionId: "45a325da-9ad3-4e34-a044-5a6765528113"
-	projectId: "ac963673-c64a-48d4-b7f5-28e44a9db45c"
+        projectId: "ac963673-c64a-48d4-b7f5-28e44a9db45c"
         definitionId: 4
         buildId: 27
         artifactName: drop
