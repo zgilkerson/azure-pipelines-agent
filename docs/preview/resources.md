@@ -50,7 +50,7 @@ job:
 	      
     - name: nuget_refs
       type: nuget
-      id: "{{endpoint.id}}.{{data.feed}}.{{data.pkg}}.{{data.version}}"
+      id: "{{endpoint.id}}.{{data.feed}}.{{data.package}}.{{data.version}}"
       endpoint:
         id: nuget-endpoint-id
       data:
