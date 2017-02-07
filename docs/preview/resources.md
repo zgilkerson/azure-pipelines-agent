@@ -73,7 +73,7 @@ $(Agent.InstallDir)
 ```            
 The agent will then populate the environment with mappings which translate a resource name to the location on disk allocated for the resource. It is important to note that since the agent itself has no concept of the internals of a resource, it is up to the resource download task to determine what the appropriate behavior is if the current resource folder is detected to be dirty (e.g. re-download, incremental update, etc). 
 
-In order to retain the separation of concerns between the directory manager of the agent and the actual downloading of resources to disk, the task library will be updated to provide the ability to retrieve resources by name. The task library will be updated to provide functions to retrieve a resource by name and mark it as successfully cached to the agent working folder:
+In order to retain the separation of concerns between the directory manager of the agent and the actual downloading of resources to disk, the task library will be updated to provide the ability to retrieve resources by name. The task library will be updated to provide functions to retrieve a resource by name, similar to the way a task can retrieve a service endpoint by ID:
 ```
 // returns the full resource from the job environment
 getResource(name: string): Resource
