@@ -3,6 +3,7 @@ using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.Common;
 using System;
 using System.Linq;
+using Microsoft.VisualStudio.Services.Agent.Worker.Build;
 using Microsoft.VisualStudio.Services.WebApi;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker
@@ -22,6 +23,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             ArgUtil.NotNull(credentials, nameof(credentials));
             VssConnection connection = ApiUtil.CreateConnection(systemConnection.Url, credentials);
             return connection;
+        }
+
+        public static IServiceGateway GetServiceGateway(IExecutionContext context, IHostContext hostContext)
+        {
+            string systemType = context.Variables.Get("ServiceType") ?? string.Empty;
+            var extensionManager = hostContext.GetService<IExtensionManager>();
+            var serviceGateway = extensionManager.GetExtensions<IServiceGateway>().Single(x => x.System == systemType);
+            return serviceGateway;
         }
     }
 }

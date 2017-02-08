@@ -24,7 +24,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.CodeCoverage
         /// <summary>
         /// publish codecoverage files to server
         /// </summary>
-        Task PublishCodeCoverageFilesAsync(IAsyncCommandContext context, Guid projectId, long containerId, List<Tuple<string, string>> files, bool browsable, CancellationToken cancellationToken);
+        Task PublishCodeCoverageFilesAsync(IServiceGateway serviceGateway, IAsyncCommandContext context, Guid projectId, long containerId, List<Tuple<string, string>> files, bool browsable, CancellationToken cancellationToken);
     }
 
     public sealed class CodeCoveragePublisher : AgentService, ICodeCoveragePublisher
@@ -46,7 +46,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.CodeCoverage
             await _codeCoverageServer.PublishCoverageSummaryAsync(_connection, project, _buildId, coverageData, cancellationToken);
         }
 
-        public async Task PublishCodeCoverageFilesAsync(IAsyncCommandContext context, Guid projectId, long containerId, List<Tuple<string, string>> files, bool browsable, CancellationToken cancellationToken)
+        public async Task PublishCodeCoverageFilesAsync(IServiceGateway serviceGateway, IAsyncCommandContext context, Guid projectId, long containerId, List<Tuple<string, string>> files, bool browsable, CancellationToken cancellationToken)
         {
             var publishCCTasks = files.Select(async file =>
             {
@@ -58,12 +58,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.CodeCoverage
                     { ArtifactAssociateEventProperties.Browsable, browsableProperty },
                 };
 
-                FileContainerServer fileContainerHelper = new FileContainerServer(_connection, projectId, containerId, file.Item2);
-                await fileContainerHelper.CopyToContainerAsync(context, file.Item1, cancellationToken);
-                string fileContainerFullPath = StringUtil.Format($"#/{containerId}/{file.Item2}");
-
-                Build.BuildServer buildHelper = new Build.BuildServer(_connection, projectId);
-                var artifact = await buildHelper.AssociateArtifact(_buildId, file.Item2, WellKnownArtifactResourceTypes.Container, fileContainerFullPath, artifactProperties, cancellationToken);
+                await serviceGateway.UploadArtifactAsync(
+                    context,
+                    _connection,
+                    projectId,
+                    containerId,
+                    file.Item2,
+                    _buildId,
+                    file.Item2,
+                    artifactProperties,
+                    file.Item1,
+                    cancellationToken);
+                
                 context.Output(StringUtil.Loc("PublishedCodeCoverageArtifact", file.Item1, file.Item2));
             });
 

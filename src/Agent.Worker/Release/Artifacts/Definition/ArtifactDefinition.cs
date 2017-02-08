@@ -7,7 +7,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Contracts;
+using Microsoft.VisualStudio.Services.Pipeline.WebApi.Contracts;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts.Definition
 {

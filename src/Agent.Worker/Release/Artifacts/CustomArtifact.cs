@@ -7,7 +7,7 @@ using Microsoft.TeamFoundation.DistributedTask.Common.ServiceEndpoints;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts.Definition;
-using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Contracts;
+using Microsoft.VisualStudio.Services.Pipeline.WebApi.Contracts;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 

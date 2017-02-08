@@ -8,16 +8,14 @@ using System.Threading.Tasks;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Util;
+using Microsoft.VisualStudio.Services.Agent.Worker.Build;
 using Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts.Definition;
 using Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEngine;
 using Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerProvider.Helpers;
 using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.VisualStudio.Services.Common;
-using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Contracts;
-
+using Microsoft.VisualStudio.Services.Pipeline.WebApi.Contracts;
 using Newtonsoft.Json;
-
-using ServerBuildArtifact = Microsoft.TeamFoundation.Build.WebApi.BuildArtifact;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 {
@@ -49,20 +47,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
             // Get the list of available artifacts from build. 
             executionContext.Output(StringUtil.Loc("RMPreparingToGetBuildArtifactList"));
-
+            IServiceGateway serviceGateway = WorkerUtilies.GetServiceGateway(executionContext, HostContext);
             var vssConnection = new VssConnection(buildArtifactDetails.TfsUrl, buildArtifactDetails.Credentials);
-            var buildClient = vssConnection.GetClient<BuildHttpClient>();
-            var xamlBuildClient = vssConnection.GetClient<XamlBuildHttpClient>();
-            List<ServerBuildArtifact> buildArtifacts = null;
-
-            try
-            {
-                buildArtifacts = await buildClient.GetArtifactsAsync(buildArtifactDetails.Project, buildId);
-            }
-            catch (BuildNotFoundException)
-            {
-                buildArtifacts = await xamlBuildClient.GetArtifactsAsync(buildArtifactDetails.Project, buildId);
-            }
+            List<AgentBuildArtifact> buildArtifacts = await serviceGateway.GetArtifacts(vssConnection, buildId, new Guid(buildArtifactDetails.Project));
 
             // No artifacts found in the build => Fail it. 
             if (buildArtifacts == null || !buildArtifacts.Any())
@@ -72,7 +59,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
             // DownloadFromStream each of the artifact sequentially. 
             // TODO: Should we download them parallely?
-            foreach (ServerBuildArtifact buildArtifact in buildArtifacts)
+            foreach (AgentBuildArtifact buildArtifact in buildArtifacts)
             {
                 if (Match(buildArtifact, artifactDefinition))
                 {
@@ -122,7 +109,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             }
         }
 
-        private bool Match(ServerBuildArtifact buildArtifact, ArtifactDefinition artifactDefinition)
+        private bool Match(AgentBuildArtifact buildArtifact, ArtifactDefinition artifactDefinition)
         {
             //TODO: If editing artifactDefinitionName is not allowed then we can remove this
             if (string.Equals(artifactDefinition.Name, AllArtifacts, StringComparison.OrdinalIgnoreCase))
@@ -140,7 +127,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
         private async Task DownloadArtifactAsync(
             IExecutionContext executionContext,
-            ServerBuildArtifact buildArtifact,
+            AgentBuildArtifact buildArtifact,
             ArtifactDefinition artifactDefinition,
             string localFolderPath)
         {

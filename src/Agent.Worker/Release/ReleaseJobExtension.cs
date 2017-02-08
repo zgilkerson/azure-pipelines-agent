@@ -8,10 +8,11 @@ using System.Threading.Tasks;
 using Agent.Worker.Release;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Util;
-using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Contracts;
 using Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts;
 using Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts.Definition;
+using Microsoft.VisualStudio.Services.Pipeline.WebApi.Contracts;
 using Newtonsoft.Json;
+using Issue = Microsoft.TeamFoundation.DistributedTask.WebApi.Issue;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
 {
@@ -146,10 +147,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             ArgUtil.NotNull(vssEndpoint.Url, nameof(vssEndpoint.Url));
 
             Trace.Info($"Connecting to {vssEndpoint.Url}/{teamProjectId}");
-            var releaseServer = new ReleaseServer(vssEndpoint.Url, ApiUtil.GetVssCredential(vssEndpoint), teamProjectId);
-
-            // TODO: send correct cancellation token
-            List<AgentArtifactDefinition> releaseArtifacts = releaseServer.GetReleaseArtifactsFromService(releaseId).ToList();
+            IEnumerable<AgentArtifactDefinition> releaseArtifacts = await WorkerUtilies.GetServiceGateway(executionContext, HostContext)
+                .GetReleaseArtifactsFromService(WorkerUtilies.GetVssConnection(executionContext), teamProjectId, releaseId, executionContext.CancellationToken);
             var filteredReleaseArtifacts = FilterArtifactDefintions(releaseArtifacts);
             filteredReleaseArtifacts.ToList().ForEach(x => Trace.Info($"Found Artifact = {x.Alias} of type {x.ArtifactType}"));
 
@@ -378,7 +377,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             executionContext.AddIssue(issue);
         }
 
-        private IList<AgentArtifactDefinition> FilterArtifactDefintions(IList<AgentArtifactDefinition> agentArtifactDefinitions)
+        private IList<AgentArtifactDefinition> FilterArtifactDefintions(IEnumerable<AgentArtifactDefinition> agentArtifactDefinitions)
         {
             var definitions = new List<AgentArtifactDefinition>();
             foreach (var agentArtifactDefinition in agentArtifactDefinitions)
