@@ -155,6 +155,8 @@ By default a job dependency requires successful execution of all previous depend
   condition: "in(jobs('job1').result, 'succeeded', 'failed', 'canceled', 'skipped')"
   ....
 ```
+The condition above places an implicit ordering dependency on the completion of `job1`. Since all result conditions are mentioned `job2` will always run after the completion of `job1`.
+
 ### Run based on outputs
 ```yaml
 - name: job2
@@ -164,6 +166,27 @@ By default a job dependency requires successful execution of all previous depend
   condition: "and(eq(jobs('job1').result, 'succeeded'), eq(jobs('job1').exports.outputs.var1, 'myvalue'))"
   ....
 ```
+The condition above places both a success requirement and the comparison of an output from `job1` which may be dynamically determined during execution. The ability to include output variables from a previous job execution to provide control flow decisions later opens up all sorts of conditional execution policies not available in the current system.
+
+### Run if a previous job failed
+```yaml
+jobs:
+  - name: job1
+    target: 
+      type: queue
+      name: default
+    tasks:
+      .....
+    
+  - name: job1-error
+    target: 
+      type: server
+    condition: "eq(jobs('job1').result, 'failed')"
+    tasks:
+      .....
+```
+In the above example the expression depends on an output of the `job1`. This will place an implicit execution dependency on the completion of `job1` in order to evaluate the execution condition of `job1-error`. Since we only execute this job on failure of a previous job, under normal circumstances it will be skipped. This is useful for performing cleanup or notification handling when a critical step in the pipeline fails.
+
 ### Open Questions
 Should the job dependency success/fail decision be an explicit list which is different than condition execution? For instance, instead of combining dependent jobs into the condition expression, have an explicit section in the job. A potential issue with lumping them together is we need to define the behavior if you have a condition but do not explicitly check the result of one or more of your dependencies. We could inject a default `eq(jobs('job2').result, 'succeeded')` into an `and` condition for a job dependency which isn't explicitly listed in the condition, or we could only inject the succeeded by default if no condition is specified.
 
