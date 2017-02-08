@@ -16,6 +16,16 @@
 - **Variable**: A name and value pair, similar to environment variables, for passing simple data values
 - **Resource**: An which defines complex data and semantics for upload and download using a pluggable provider model. See [resources](resources.md) for a more in-depth look at the resource extensibility model.
 
+## Semantic concepts for resources
+### Import
+A keyword which conveys the intent to utilize an external resource in the current job. The resource which is imported will be placed in the job's working directory in a folder of the same name. References to contents within the resource may simply use relative paths  starting with the resource name. For instance, if you import a resource named `vso`, then the file `foo.txt` may be referenced within  the job simply as `vso/foo.txt`.
+
+### Export
+A keyword which conveys the intent to publish a resource for potential consumption in a downstream job. The inputs provided to the `export` item are dependent upon the type of resource which is being exported. 
+
+### How it works
+Under the covers `import` and `export` are simply semantic mappings to the resource provider tasks. When the system reads an `import` the statement is replaced with the resource-specific import task as specified by the resource provider. Likewise in place of an `export` the system injects the resource-specific export task as specified by the resource provider. While we could simply document and inform consumers to utlize the tasks directly, this provides a more loosely coupled and easy to read mechanism for performing the same purpose. The keywords also allow the system to infer dependencies between jobs in the system automatically, which further reduces the verbosity of the document.
+
 ## Simple pipeline
 The pipeline process may be defined completely in the repository using YAML as the definition format. A very simple definition may look like the following:
 ```yaml
@@ -125,3 +135,7 @@ Alternatively we could choose to define a semantic difference between dependenci
     - job1: ['Succeeded', 'Failed']
     - job2: ['Succeeded', 'Failed', 'Canceled', 'Skipped']
 ```
+## Job Toolset Plugins
+The default language for a job will be the presented thus far which, while powerful and quite simple, still requires rigid knowledge of the available tasks and system to accomplish even the simplest of tasks. Individual project types, like those which build and test node projects, may find the learning curve for getting started higher than it needs to be. One important tenant of our system is that it is not only powerful but also approachable for newcomers alike. In order to satisfy the on-boarding of more simple projects, we will allow for the job definition language to be extended via `toolset` plug-ins. The general idea behind toolsets would be that for certain tools, such as node, there are common actions which need to occur in most, if not all, jobs which build/test using that specific tool. The plug-in would simply authoring of the job contents by providing custom pluggable points that make sense for that particular job type. Additionally certain things would *just happen*, such as installing the toolset and placing it in the path automatically.
+           
+For an example of how the internals of a custom language may look, see the [following document](https://github.com/Microsoft/vsts-tasks/blob/master/docs/yaml.md). 
