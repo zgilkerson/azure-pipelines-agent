@@ -73,7 +73,7 @@ pipeline:
       type: git
       endpoint: git-hub-endpoint # TBD on how to reference endpoints from this format
       data:
-        url: https://github.com/Microsoft/vsts-agent.git
+        url: https://github.com/Microsoft/vsts-tasks.git
         ref: master
 
   jobs:
