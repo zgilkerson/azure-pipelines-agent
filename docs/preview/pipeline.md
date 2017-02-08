@@ -11,10 +11,10 @@
 - **Pipeline**: A construct which defines the inputs and outputs necessary to complete a set of work, including how the data flows through the system and in what order the steps are executed
 - **Job**: A container for task execution which supports different execution targets such as server, queue, or deploymentGroup
 - **Condition**: An [expression language](conditions.md) supporting rich evaluation of context for conditional execution
-- **Policy**: A generic construct for defining wait points in the system which indicates pass or fail *not sure this fits but left here for discussion purposes*
+- **Policy**: A generic construct for defining wait points in the system which indicates pass or fail *(not sure this fits but left here for discussion purposes)*
 - **Task**: A smallest unit of work in the system, allowing consumers to plug custom behaviors into jobs
 - **Variable**: A name/value pair, similar to environment variables, for passing simple data values
-- **Resource**: An which defines complex data and semantics for upload and download using a pluggable provider model. See [resources](resources.md) for a more in-depth look at the resource extensibility model.
+- **Resource**: An object which defines complex data and semantics for import and export using a pluggable provider model. See [resources](resources.md) for a more in-depth look at the resource extensibility model.
 
 ## Semantic concepts for resources
 ### Import
