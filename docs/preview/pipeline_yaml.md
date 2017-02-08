@@ -114,13 +114,14 @@ By default a job dependency requires successful execution of all previous depend
   condition: "and(eq(jobs('job1').result, 'succeeded'), eq(jobs('job1').exports.outputs.var1, 'myvalue'))"
   ....
 ```
-
 ### Open Questions
-- Should the job dependency success/fail decision be an explicit list which is different than condition execution? For instance, instead of combining dependent jobs into the condition expression, have an explicit section in the job. A potential issue with lumping them together is we need to define the behavior if you have a condition but do not explicitly check the result of one or more of your dependencies. We could inject a default `eq(jobs('job2').result, 'succeeded')` into an and condition for you if you depend on a job but don't explicitly list the results you would like to run, but that could become problematic with more complex conditionals.
+Should the job dependency success/fail decision be an explicit list which is different than condition execution? For instance, instead of combining dependent jobs into the condition expression, have an explicit section in the job. A potential issue with lumping them together is we need to define the behavior if you have a condition but do not explicitly check the result of one or more of your dependencies. We could inject a default `eq(jobs('job2').result, 'succeeded')` into an `and` condition for a job dependency which isn't explicitly listed in the condition, or we could only inject the succeeded by default if no condition is specified.
+
+Alternatively we could choose to define a semantic difference between dependencies and conditional execution. For instance, a dependency on `job1` resulting in success would fail `job2` if `job1` completed with anything but success. In contrast, if you have a condition which expresses the result of JobA should be successful, this would indicate that the job should be skipped but would not necessarily fail the entire pipeline.
 ```yaml
 - name: job2
   condition: "eq(jobs('job1').exports.outputs.var1, 'myvalue')"
-  dependsOn: 
-    - name: job1
-      result: 'Succeeded'
+  dependencies: 
+    - job1: ['Succeeded', 'Failed']
+    - job2: ['Succeeded', 'Failed', 'Canceled', 'Skipped']
 ```
