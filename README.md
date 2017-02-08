@@ -1,4 +1,4 @@
-# Dev 15 U1 RC2 Visual Studio Team Services Agent
+# Dev 15 U1 RTM Visual Studio Team Services Agent
 
 ## Overview
 
