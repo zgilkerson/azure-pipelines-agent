@@ -51,14 +51,14 @@ pipeline:
             type: artifact
             inputs:
               include:
-                - /bin/**/*.dll
+                - bin/**/*.dll
               exclude:
-                - /bin/**/*Test*.dll
+                - bin/**/*Test*.dll
 ```
 This defines a pipeline with a single job which acts on the current source repository. Since all file paths are relative to a resource within the working directory, there is a resource defined with the type `self` which indicates the current repository. This allows the pipeline author to alias the current repository like other repositories, and allows separation of process and source if that model is desired as there is no implicit mapping of the current repository. After selecting an available agent from a queue named `default`, the agent runs the msbuild task from the server locked to the latest version within the 1.0 major milestone. Once the project has been built successfully the system will run an automatically injected  task for the `artifact` resource provider to publish the specified data to the server at the name `drop`.
 
 ## Resources
-While the previous examples only show a single repository resource, it is entirely possible in this model to provide multiple repositories or any number of resources for that matter in a job. For instance, you could have a job that pulls a `TfsGit` repository in addition to a `GitHub` repository, but the pipeline definition itself is located in a repository that doesn't include the code so isn't necessary to declare as a resource.
+While the previous examples only show a single repository resource, it is entirely possible in this model to provide multiple repositories or any number of resources for that matter in a job. For instance, you could have a job that pulls a `TfsGit` repository in addition to a `GitHub` repository or multiple repositories of the same type. For this particular instance the repository which contains the pipeline definition does not contain code itself, and as such there is no self referenced resource defined or needed.
 ```yaml
 pipeline:
   resources:
