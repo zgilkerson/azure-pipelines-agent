@@ -60,16 +60,16 @@ job:
 ```
 When requesting an agent, the system will attach all resources needed for the job to the agent requirements. The pool orchestrator will then take the requested resources into consideration while selecting an agent to attempt to reduce resource downloads to a minimum. Resources will be identified and matched by the tuple (resource.type, resource.id), so a given resource type is **REQUIRED** to specify an ID formatting specification which is unique to a specific resource for that type only. 
 ## Resource Caching
-When the agent receives a job message from the server that includes a resource list, it will determine up-front where the resource should be located based on a combination of the target definition and the resource identifiers provided by the server. By default, the local folder for resources will be contained within the working folder for a build definition (for instance, `$(Agent.InstallDir)\_work\1\rN`,  where `N` is a generated identifier based on the agent directory manager). 
+When the agent receives a job message from the server that includes a resource list, it will determine up-front where the resource should be located based on a combination of the target definition and the resource identifiers provided by the server. By default, the local folder for resources will be contained within the working folder for a build definition (for instance, `$(Agent.InstallDir)\_work\1\{resource.name}`).
 
-Prior to execution of a job, the agent will compute and either reference existing folders or create new empty folders for all resources included in the job. For instance, given the resources in the job above the agent might generate the following stucture on disk:
+Prior to execution of a job, the agent will compute and either reference existing folders or create new empty folders for all resources included in the job. The local folder on disk is always based on the name of the resource which allows for easy discovery of files within a resource. For instance, given the resources in the job above the agent might generate the following stucture on disk:
 ```
 $(Agent.InstallDir)
   _work
     1
-      r1 # locally generated folder for resource 'build'
-      r2 # locally generated folder for resource 'vso'
-      r2 # locally generated folder for resource 'nuget_refs'
+      build # locally generated folder for resource 'build'
+      vso # locally generated folder for resource 'vso'
+      nuget_refs # locally generated folder for resource 'nuget_refs'
 ```            
 The agent will then populate the environment with mappings which translate a resource name to the location on disk allocated for the resource. It is important to note that since the agent itself has no concept of the internals of a resource, it is up to the resource download task to determine what the appropriate behavior is if the current resource folder is detected to be dirty (e.g. re-download, incremental update, etc). 
 
@@ -94,25 +94,25 @@ cache:
 ```
 As the cache is populated the agent selection algorithm can adjust to prefer agents that have the fewest unavailable resources for running a given job. This should dramatically speed up re-runs of jobs in addition to running a triggered job with previously downloaded resources.
 
-A key point to reiterate in this section is the responsibility of the agent is to determine the local folder in which resource should be placed, not to actual manage or place them. This decouples the responsibility of local disk management and resource download, ensuring we have a clean contract between the agent and the tasks which it runs.
+A key point to reiterate in this section is the responsibility of the agent is to determine the local folder in which resource should be placed, not to actually manage or place them. This decouples the responsibility of local disk management and resource download, ensuring we have a clean contract between the agent and the tasks which it runs.
 ## Resource Download and Upload
-Since the core pipeline engine does not understand how to actually acquire or update specific resources, we will need to provide a pluggable mechanism by which resource providers may inject logic to perform this actions on behalf of the system. The current mechanism for plugging into the agent is tasks and that is the proposed mechanism for extended the agent for resource consumption and production. Similar to the release management artifact extensibility model, resource types will register tasks for both the download and upload actions on a particular resource. The main difference between the release management model and the proposed model is a resource provider **MUST** implement a download task, as well as an upload task, as there will be no known types to the system.  
+Since the core pipeline engine does not understand how to actually acquire or update specific resources, we will need to provide a pluggable mechanism by which resource providers may inject logic to perform this actions on behalf of the system. The current mechanism for plugging into the agent is tasks and that is the proposed mechanism for extended the agent for resource consumption and production. Similar to the release management artifact extensibility model, resource types will register tasks for both the download and upload actions on a particular resource. The main difference between the release management model and the proposed model is a resource provider **MUST** implement a download task as well as an upload task, as there will be no known types to the system.  
 
 By analyzing the resources needed in a job, the server will automatically inject the necessary tasks implementations as specified by the provider. The key to representing these as tasks rather than implicit plugins on agent is it allows consumers to rearrange the acquisition of resources with respect to their own custom tasks, where today the artifact and repository acquisitions **MUST** be the first step in the job. A secondary advantage to driving all resource acquisition with tasks is it allows us to decouple the agent from any specific artifact implementation and reduce our schedule of required agent updates short of a security issue, core agent logic bug, or breaking change in the contract between the agent and server.
 ## Resource Sharing
 While out of scope for the current work, it is useful to describe how we might begin to share resources across definitions to get further improvements and a fairly large reduction in disk space usage on the agent. With a few small changes to the layout structure on disk, in addition to the introduction of containers, we may be able to further improve resuse of resources on an agent.
 
-Instead of downloading resources to per-definition folders, we would instead download them to a shared cache folder which sits side by side with the per-definition working folder. Prior to handing over to the resource download tasks, the agent would setup junction points (shown below as r` folders) for definition-specific mappings into the shared resource folders.
+Instead of downloading resources to per-definition folders, we would instead download them to a shared cache folder which sits side by side with the per-definition working folder. Prior to handing over to the resource download tasks, the agent would setup junction points (shown below as rN folders) for definition-specific mappings into the shared resource folders.
 ```
 $(Agent.InstallDir)
   _work
     1
-      r1` => r1
-      r2` => r2
-      r3` => r3
-    r1 # locally generated folder for resource 'build'
-    r2 # locally generated folder for resource 'vso'
-    r2 # locally generated folder for resource 'nuget_refs'
+      build => r1
+      vso => r2
+      nuget_refs => r3
+    r1 # locally generated folder for resource 'build' based on the id
+    r2 # locally generated folder for resource 'vso' based on the id
+    r2 # locally generated folder for resource 'nuget_refs' based on the id
 ```
 While this would dramatically improve sharing of resources and reduce disk space, it does require knowledge of sharing on the part of the definition author and may pose more challenges than it is worth. Ideally we would mount the shared directories into the definition working space in a copy-on-write mode, where the source folder is read only and changes are applied on top the source volume per-definition. Further investigation will need to be done in order to determine if containers help us out in this area.
 ## History (how did we get here)
