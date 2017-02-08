@@ -178,4 +178,10 @@ Alternatively we could choose to define a semantic difference between dependenci
 ## Job Toolset Plugins
 The default language for a job will be the presented thus far which, while powerful and quite simple, still requires rigid knowledge of the available tasks and system to accomplish even the simplest of tasks. Individual project types, like those which build and test node projects, may find the learning curve for getting started higher than it needs to be. One important tenant of our system is that it is not only powerful but also approachable for newcomers alike. In order to satisfy the on-boarding of more simple projects, we will allow for the job definition language to be extended via `toolset` plug-ins. The general idea behind toolsets would be that for certain tools, such as node, there are common actions which need to occur in most, if not all, jobs which build/test using that specific tool. The plug-in would simply authoring of the job contents by providing custom pluggable points that make sense for that particular job type. Additionally certain things would *just happen*, such as installing the toolset and placing it in the path automatically.
            
-For an example of how the internals of a custom language may look, see the [following document](https://github.com/Microsoft/vsts-tasks/blob/master/docs/yaml.md). 
+For an example of how the internals of a custom language may look, see the [following document](https://github.com/Microsoft/vsts-tasks/blob/master/docs/yaml.md).
+
+## Job Templates and Reuse
+Content needed
+
+## Pipeline Templates and Reuse
+Content needed
