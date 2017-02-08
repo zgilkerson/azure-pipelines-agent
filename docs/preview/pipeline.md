@@ -91,8 +91,7 @@ pipeline:
         - task: gulp@0.*
           name: Compile vsts-tasks
           inputs:
-            gulpfile: gulpfile.js
-            gulpLocation: node_modules/gulp/bin/gulp.js
+            gulpfile: vsts-tasks/src/gulpfile.js
 ```
 ## Job dependencies
 For a slightly more complex model, here is the definition of two jobs which depend on each other, propagating the outputs of the first job including environment and artifacts into the second job.
