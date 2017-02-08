@@ -12,6 +12,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
     public class BuildServer
     {
         private readonly Build2.BuildHttpClient _buildHttpClient;
+        private readonly Build2.XamlBuildHttpClient _xamlbuildHttpClient;
         private Guid _projectId;
 
         public BuildServer(VssConnection connection, Guid projectId)
@@ -21,6 +22,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 
             _projectId = projectId;
             _buildHttpClient = connection.GetClient<Build2.BuildHttpClient>();
+            _xamlbuildHttpClient = connection.GetClient<Build2.XamlBuildHttpClient>();
         }
 
         public async Task<Build2.BuildArtifact> AssociateArtifact(
@@ -69,6 +71,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return await _buildHttpClient.AddBuildTagAsync(_projectId, buildId, buildTag, cancellationToken: cancellationToken);
+        }
+
+        public async Task<List<Build2.BuildArtifact>> GetArtifacts(int buildId)
+        {
+            List<Build2.BuildArtifact> buildArtifacts;
+            try
+            {
+                buildArtifacts = await _buildHttpClient.GetArtifactsAsync(_projectId, buildId);
+            }
+            catch (Build2.BuildNotFoundException)
+            {
+                buildArtifacts = await _xamlbuildHttpClient.GetArtifactsAsync(_projectId, buildId);
+            }
+
+            return buildArtifacts;
         }
     }
 }

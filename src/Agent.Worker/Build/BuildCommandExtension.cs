@@ -87,7 +87,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 context.Debug($"Update build number for build: {buildId.Value} to: {data} at backend.");
                 var commandContext = HostContext.CreateService<IAsyncCommandContext>();
                 commandContext.InitializeCommandContext(context, StringUtil.Loc("UpdateBuildNumber"));
-                commandContext.Task = UpdateBuildNumberAsync(commandContext,
+                IServiceGateway serviceGateway = GetServiceGateway(context);
+                commandContext.Task = serviceGateway.UpdateBuildNumberAsync(commandContext,
                                                              WorkerUtilies.GetVssConnection(context),
                                                              projectId,
                                                              buildId.Value,
@@ -100,19 +101,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             {
                 throw new Exception(StringUtil.Loc("BuildNumberRequired"));
             }
-        }
-
-        private async Task UpdateBuildNumberAsync(
-            IAsyncCommandContext context,
-            VssConnection connection,
-            Guid projectId,
-            int buildId,
-            string buildNumber,
-            CancellationToken cancellationToken)
-        {
-            BuildServer buildServer = new BuildServer(connection, projectId);
-            var build = await buildServer.UpdateBuildNumber(buildId, buildNumber, cancellationToken);
-            context.Output(StringUtil.Loc("UpdateBuildNumberForBuild", build.BuildNumber, build.Id));
         }
 
         private void ProcessBuildAddBuildTagCommand(IExecutionContext context, string data)
@@ -132,38 +120,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 context.Debug($"Add build tag: {data} to build: {buildId.Value} at backend.");
                 var commandContext = HostContext.CreateService<IAsyncCommandContext>();
                 commandContext.InitializeCommandContext(context, StringUtil.Loc("AddBuildTag"));
-                commandContext.Task = AddBuildTagAsync(commandContext,
-                                                       WorkerUtilies.GetVssConnection(context),
-                                                       projectId,
-                                                       buildId.Value,
-                                                       data,
-                                                       context.CancellationToken);
+                commandContext.Task = WorkerUtilies.GetServiceGateway(context, HostContext).AddBuildTagAsync(
+                    commandContext,
+                    WorkerUtilies.GetVssConnection(context),
+                    projectId,
+                    buildId.Value,
+                    data,
+                    context.CancellationToken);
                 context.AsyncCommands.Add(commandContext);
             }
             else
             {
                 throw new Exception(StringUtil.Loc("BuildTagRequired"));
-            }
-        }
-
-        private async Task AddBuildTagAsync(
-            IAsyncCommandContext context,
-            VssConnection connection,
-            Guid projectId,
-            int buildId,
-            string buildTag,
-            CancellationToken cancellationToken)
-        {
-            BuildServer buildServer = new BuildServer(connection, projectId);
-            var tags = await buildServer.AddBuildTag(buildId, buildTag, cancellationToken);
-
-            if (tags == null || !tags.Contains(buildTag))
-            {
-                throw new Exception(StringUtil.Loc("BuildTagAddFailed", buildTag));
-            }
-            else
-            {
-                context.Output(StringUtil.Loc("BuildTagsForBuild", buildId, String.Join(", ", tags)));
             }
         }
     }

@@ -105,6 +105,10 @@ namespace Microsoft.VisualStudio.Services.Agent
                     Add<T>(extensions, "Microsoft.VisualStudio.Services.Agent.Worker.CodeCoverage.JaCoCoSummaryReader, Agent.Worker");
                     Add<T>(extensions, "Microsoft.VisualStudio.Services.Agent.Worker.CodeCoverage.CoberturaSummaryReader, Agent.Worker");
                     break;
+                case "Microsoft.VisualStudio.Services.Agent.Worker.Build.IServiceGateway":
+                    Add<T>(extensions, "Microsoft.VisualStudio.Services.Agent.Worker.Build.LegacyServiceGateway, Agent.Worker");
+                    Add<T>(extensions, "Microsoft.VisualStudio.Services.Agent.Worker.Build.PipelineServiceGateway, Agent.Worker");
+                    break;
                 default:
                     // This should never happen.
                     throw new NotSupportedException($"Unexpected extension type: '{typeof(T).FullName}'");

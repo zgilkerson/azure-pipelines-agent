@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Services.Agent.Worker.Build;
 using Microsoft.VisualStudio.Services.WebApi;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.CodeCoverage
@@ -187,8 +188,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.CodeCoverage
                 commandContext.Output(StringUtil.Loc("PublishingCodeCoverageFiles"));
 
                 ChangeHtmExtensionToHtmlIfRequired(newReportDirectory, executionContext);
-
-                await codeCoveragePublisher.PublishCodeCoverageFilesAsync(commandContext, projectId, containerId, filesToPublish, File.Exists(Path.Combine(newReportDirectory, CodeCoverageConstants.DefaultIndexFile)), cancellationToken);
+                await
+                    codeCoveragePublisher.PublishCodeCoverageFilesAsync(
+                        WorkerUtilies.GetServiceGateway(executionContext, HostContext),
+                        commandContext,
+                        projectId,
+                        containerId,
+                        filesToPublish,
+                        File.Exists(Path.Combine(newReportDirectory, CodeCoverageConstants.DefaultIndexFile)),
+                        cancellationToken);
             }
             catch (IOException ex)
             {
