@@ -87,6 +87,7 @@ pipeline:
         - import: jobs('job1').exports.outputs
         - import: jobs('job1').exports.drop
         - task: powershell@1.*
+          name: Run dostuff script
           inputs:
             script: drop/scripts/dostuff.ps1
             arguments: /a:$(job1.var1) $(job1.var2)
