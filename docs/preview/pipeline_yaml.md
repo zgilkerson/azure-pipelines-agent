@@ -9,7 +9,7 @@
 
 ## Terms
 - **Pipeline**: A construct which defines the inputs and outputs necessary to complete a set of work, including how the data flows through the system and in what order the steps are executed
-- **Job**: A container for task execution which supports different execution targets such as Server, Agent, or DeploymentGroup
+- **Job**: A container for task execution which supports different execution targets such as server, queue, or deploymentGroup
 - **Condition**: An [expression language](preview/conditions.md) supporting rich evaluation of context for conditional execution
 - **Policy**: A generic construct for defining wait points in the system which indicates pass or fail
 - **Task**: A smallest unit of work in the system 
@@ -21,15 +21,15 @@ The pipeline process may be defined completely in the repository using YAML as t
 ```yaml
 pipeline: 
   jobs:
-    - name: simple-build
+    - name: simple build
       target:
-        type: pool
-        queue: default
+        type: queue
+        name: default
       tasks:
         - task: msbuild@1.*
           displayName: Build solution 
           inputs:
-            project: repo/src/project.sln
+            project: src/project.sln
             additionalArguments: /m /v:minimal
         - export: 
             name: drop
@@ -40,4 +40,6 @@ pipeline:
               exclude:
                 - /bin/**/*Test*.dll
 ```
-This defines a pipeline with a single job which acts on the current source repository.
+This defines a pipeline with a single job which acts on the current source repository. After selecting an available agent from a queue named `default`, the agent runs the msbuild task from the server locked to the latest version within the 1.0 major milestone. Once the project has been built successfully the system will run an automatically injected  task for the `artifact` resource provider to publish the specified data to the server at the name `drop`.
+
+*TODO: How to define the location of the "current" repository for referencing relative paths. See [resources](preview/resources.md) for more information on how resources are declared and referenced within a job.*
