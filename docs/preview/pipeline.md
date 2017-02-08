@@ -11,9 +11,9 @@
 - **Pipeline**: A construct which defines the inputs and outputs necessary to complete a set of work, including how the data flows through the system and in what order the steps are executed
 - **Job**: A container for task execution which supports different execution targets such as server, queue, or deploymentGroup
 - **Condition**: An [expression language](conditions.md) supporting rich evaluation of context for conditional execution
-- **Policy**: A generic construct for defining wait points in the system which indicates pass or fail
-- **Task**: A smallest unit of work in the system 
-- **Variable**: A name and value pair, similar to environment variables, for passing simple data values
+- **Policy**: A generic construct for defining wait points in the system which indicates pass or fail *not sure this fits but left here for discussion purposes*
+- **Task**: A smallest unit of work in the system, allowing consumers to plug custom behaviors into jobs
+- **Variable**: A name/value pair, similar to environment variables, for passing simple data values
 - **Resource**: An which defines complex data and semantics for upload and download using a pluggable provider model. See [resources](resources.md) for a more in-depth look at the resource extensibility model.
 
 ## Semantic concepts for resources
@@ -40,6 +40,7 @@ pipeline:
         type: queue
         name: default
       tasks:
+        - import: vso
         - task: msbuild@1.*
           name: Build solution 
           inputs:
@@ -56,6 +57,43 @@ pipeline:
 ```
 This defines a pipeline with a single job which acts on the current source repository. Since all file paths are relative to a resource within the working directory, there is a resource defined with the type `self` which indicates the current repository. This allows the pipeline author to alias the current repository like other repositories, and allows separation of process and source if that model is desired as there is no implicit mapping of the current repository. After selecting an available agent from a queue named `default`, the agent runs the msbuild task from the server locked to the latest version within the 1.0 major milestone. Once the project has been built successfully the system will run an automatically injected  task for the `artifact` resource provider to publish the specified data to the server at the name `drop`.
 
+## Resources
+While the previous examples only show a single repository resource, it is entirely possible in this model to provide multiple repositories or any number of resources for that matter in a job. For instance, you could have a job that pulls a `TfsGit` repository in addition to a `GitHub` repository, but the pipeline definition itself is located in a repository that doesn't include the code so isn't necessary to declare as a resource.
+```yaml
+pipeline:
+  resources:
+    - name: vsts-agent
+      type: git
+      endpoint: git-hub-endpoint # TBD on how to reference endpoints from this format
+      data:
+        url: https://github.com/Microsoft/vsts-agent.git
+        ref: master
+        
+    - name: vsts-tasks
+      type: git
+      endpoint: git-hub-endpoint # TBD on how to reference endpoints from this format
+      data:
+        url: https://github.com/Microsoft/vsts-agent.git
+        ref: master
+
+  jobs:
+    - name: job1
+      target:
+        type: queue
+        name: default
+      tasks:
+        - import: vsts-agent
+        - import: vsts-tasks
+        - task: msbuild@1.*
+          name: Compile vsts-agent
+          inputs:
+            project: vsts-agent/src/build.proj
+        - task: gulp@0.*
+          name: Compile vsts-tasks
+          inputs:
+            gulpfile: gulpfile.js
+            gulpLocation: node_modules/gulp/bin/gulp.js
+```
 ## Job dependencies
 For a slightly more complex model, here is the definition of two jobs which depend on each other, propagating the outputs of the first job including environment and artifacts into the second job.
 ```yaml
@@ -70,6 +108,7 @@ pipeline:
         type: queue
         name: default
       tasks:
+        - import: vso
         - task: msbuild@1.*
           name: Build solution 
           inputs:
