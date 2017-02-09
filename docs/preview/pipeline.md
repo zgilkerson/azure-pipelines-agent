@@ -116,9 +116,7 @@ jobs:
             - /bin/**/*.dll
           exclude:
             - /bin/**/*Test*.dll
-      - export: outputs
-        type: environment
-        inputs:
+      - output: 
           var1: myvalue1
           var2: myvalue2
 
@@ -127,17 +125,15 @@ jobs:
       type: queue
       name: default
     steps:
-      - import: jobs('job1').exports.outputs
-      - import: jobs('job1').exports.drop
+      - import: jobs('job1').outputs
+      - import: jobs('job1').exports('drop')
       - task: powershell@1.*
         name: Run dostuff script
         inputs:
           script: drop/scripts/dostuff.ps1
           arguments: /a:$(job1.var1) $(job1.var2)
 ```
-This is significant in a few of ways. First, we have defined an implicit ordering dependency between the first and second job which informs the system of execution order without explicit definition. Second, we have declared a flow of data through our system using the `export` and `import` verbs to constitute state within the actively running job. In addition we have illustrated that the behavior for the propagation of the `environment` resource type across jobs which will be well-understood by the system; the importing of an external environment will automatically create a namespace for the variable names based on the source which generated them. In this example, the source of the environment was named `job1` so the variables are prefixed accordingly as `job1.var1` and `job1.var2`.
-
-TODO: the concept of an environment may or may not make sense as a `resource`; further discussion is needed. The concept of inputs and outputs may need to be separated from imports and exports.
+This is significant in a few of ways. First, we have defined an implicit ordering dependency between the first and second job which informs the system of execution order without explicit definition. Second, we have declared a flow of data through our system using the `export` and `import` verbs to constitute state within the actively running job. In addition we have illustrated that the behavior for the propagation of outputs across jobs which will be well-understood by the system; the importing of an external environment will automatically create a namespace for the variable names based on the source which generated them. In this example, the source of the environment was named `job1` so the variables are prefixed accordingly as `job1.var1` and `job1.var2`.
 
 ## Conditional job execution
 By default a job dependency requires successful execution of all previous dependent jobs. Job dependencies are discovered by looking at the `condition` and `import` statements for a job to determine usages of the `jobs(<job name>)` function. All referenced jobs from these statements are considered dependencies and if no custom condition is present a default expression is provided by the system requiring successful execution of all dependencies. This default behavior may be modified by specifying a job execution [condition](conditions.md) and specifying requirements. For instance, we can modify the second job from above as follows to provide different execution behaviors:
@@ -188,8 +184,33 @@ The default language for a job will be the presented thus far which, while power
            
 For an example of how the internals of a custom language may look, see the [following document](https://github.com/Microsoft/vsts-tasks/blob/master/docs/yaml.md).
 
-## Job Templates and Reuse
-Content needed
-
 ## Pipeline Templates and Reuse
-Content needed
+Pipelines may be authored as stand-alone definitions or as templates to be inherited. The advantage of providing a model for process inheritance is it provides the ability to enforce policy on a set of pipeline definitions by providing a master process with configurable overrides.
+
+```yaml
+resources:
+  - name: templates
+    type: git
+    data:
+      url: https://github.com/Microsoft/pipeline-templates.git
+      ref: refs/tags/lkg
+      
+inherits: templates/pipelines/coreprocess.yaml
+
+jobs:
+  - name: build
+    steps:
+      - group: prebuild
+        - task: templates/tasks/powershell
+          name: Run pre-build script
+          inputs:
+            script: prebuild.ps1
+      - group: postbuild
+        - task: templates/tasks/powershell
+          name: Run post-build script
+          inputs:
+            script: postbuild.ps1
+          
+  - name: test
+    enabled: false
+```
