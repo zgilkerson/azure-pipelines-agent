@@ -144,7 +144,7 @@ This is significant in a few of ways. First, we have defined an implicit orderin
 TODO: the concept of an environment may or may not make sense as a `resource`; further discussion is needed. The concept of inputs and outputs may need to be separated from imports and exports.
 
 ## Conditional job execution
-By default a job dependency requires successful execution of all previous dependent jobs. This default behavior may be modified by specifying a job execution [condition](conditions.md) and specifying requirements. For instance, we can modify the second job from above as follows to provide different execution behaviors:
+By default a job dependency requires successful execution of all previous dependent jobs. Job dependencies are discovered by looking at the `condition` and `import` statements for a job to determine usages of the `jobs(<job name>)` function. All referenced jobs from these statements are considered dependencies and if no custom condition is present a default expression is provided by the system requiring successful execution of all dependencies. This default behavior may be modified by specifying a job execution [condition](conditions.md) and specifying requirements. For instance, we can modify the second job from above as follows to provide different execution behaviors:
 
 ### Always run
 ```yaml
@@ -155,7 +155,7 @@ By default a job dependency requires successful execution of all previous depend
   condition: "in(jobs('job1').result, 'succeeded', 'failed', 'canceled', 'skipped')"
   ....
 ```
-The condition above places an implicit ordering dependency on the completion of `job1`. Since all result conditions are mentioned `job2` will always run after the completion of `job1`.
+The condition above places an implicit ordering dependency on the completion of `job1`. Since all result conditions are mentioned `job2` will always run after the completion of `job1`. The presence of the custom condition completely overrides the default behavior of success, configuring this job to run for any result.
 
 ### Run based on outputs
 ```yaml
@@ -166,7 +166,7 @@ The condition above places an implicit ordering dependency on the completion of 
   condition: "and(eq(jobs('job1').result, 'succeeded'), eq(jobs('job1').exports.outputs.var1, 'myvalue'))"
   ....
 ```
-The condition above places both a success requirement and the comparison of an output from `job1` which may be dynamically determined during execution. The ability to include output variables from a previous job execution to provide control flow decisions later opens up all sorts of conditional execution policies not available in the current system.
+The condition above places both a success requirement and the comparison of an output from `job1` which may be dynamically determined during execution. The ability to include output variables from a previous job execution to provide control flow decisions later opens up all sorts of conditional execution policies not available in the current system. Again, as in the previous example, the presence of a custom condition overrides the default behavior.
 
 ### Run if a previous job failed
 ```yaml
@@ -187,17 +187,6 @@ jobs:
 ```
 In the above example the expression depends on an output of the `job1`. This will place an implicit execution dependency on the completion of `job1` in order to evaluate the execution condition of `job1-error`. Since we only execute this job on failure of a previous job, under normal circumstances it will be skipped. This is useful for performing cleanup or notification handling when a critical step in the pipeline fails.
 
-### Open Questions
-Should the job dependency success/fail decision be an explicit list which is different than condition execution? For instance, instead of combining dependent jobs into the condition expression, have an explicit section in the job. A potential issue with lumping them together is we need to define the behavior if you have a condition but do not explicitly check the result of one or more of your dependencies. We could inject a default `eq(jobs('job2').result, 'succeeded')` into an `and` condition for a job dependency which isn't explicitly listed in the condition, or we could only inject the succeeded by default if no condition is specified.
-
-Alternatively we could choose to define a semantic difference between dependencies and conditional execution. For instance, a dependency on `job1` resulting in success would fail `job2` if `job1` completed with anything but success. In contrast, if you have a condition which expresses the result of JobA should be successful, this would indicate that the job should be skipped but would not necessarily fail the entire pipeline.
-```yaml
-- name: job2
-  condition: "eq(jobs('job1').exports.outputs.var1, 'myvalue')"
-  dependencies: 
-    - job1: ['Succeeded', 'Failed']
-    - job2: ['Succeeded', 'Failed', 'Canceled', 'Skipped']
-```
 ## Job Toolset Plugins
 The default language for a job will be the presented thus far which, while powerful and quite simple, still requires rigid knowledge of the available tasks and system to accomplish even the simplest of tasks. Individual project types, like those which build and test node projects, may find the learning curve for getting started higher than it needs to be. One important tenant of our system is that it is not only powerful but also approachable for newcomers alike. In order to satisfy the on-boarding of more simple projects, we will allow for the job definition language to be extended via `toolset` plug-ins. The general idea behind toolsets would be that for certain tools, such as node, there are common actions which need to occur in most, if not all, jobs which build/test using that specific tool. The plug-in would simply authoring of the job contents by providing custom pluggable points that make sense for that particular job type. Additionally certain things would *just happen*, such as installing the toolset and placing it in the path automatically.
            
