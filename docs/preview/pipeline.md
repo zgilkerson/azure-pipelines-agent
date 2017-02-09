@@ -197,7 +197,7 @@ inputs:
     type: string
     default: default
 
-- name: projectFile
+  - name: projectFile
     type: string
 
 resources:
