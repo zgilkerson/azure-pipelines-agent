@@ -23,6 +23,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.CodeCoverage
         private Mock<IExtensionManager> _mockExtensionManager;
         private Mock<ICodeCoveragePublisher> _mockCodeCoveragePublisher;
         private Mock<IAsyncCommandContext> _mockCommandContext;
+        private Mock<IServiceGateway> _mockServiceGateway;
         private TestHostContext _hc;
         private List<CodeCoverageStatistics> _codeCoverageStatistics;
         private Variables _variables;
@@ -492,9 +493,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.CodeCoverage
             _mockCodeCoverageEnabler.Setup(x => x.EnableCodeCoverage(It.IsAny<IExecutionContext>(), It.IsAny<CodeCoverageEnablerInputs>()));
             _hc.SetSingleton(_mockCodeCoverageEnabler.Object);
 
+            _mockServiceGateway = new Mock<IServiceGateway>();
+            _mockServiceGateway.Setup(x => x.System).Returns("");
+
             _mockExtensionManager = new Mock<IExtensionManager>();
             _mockExtensionManager.Setup(x => x.GetExtensions<ICodeCoverageSummaryReader>()).Returns(new List<ICodeCoverageSummaryReader> { _mocksummaryReader.Object });
             _mockExtensionManager.Setup(x => x.GetExtensions<ICodeCoverageEnabler>()).Returns(new List<ICodeCoverageEnabler> { _mockCodeCoverageEnabler.Object });
+            _mockExtensionManager.Setup(x => x.GetExtensions<IServiceGateway>()).Returns(new List<IServiceGateway> { _mockServiceGateway.Object });
             _hc.SetSingleton(_mockExtensionManager.Object);
 
             _mockCodeCoveragePublisher = new Mock<ICodeCoveragePublisher>();
