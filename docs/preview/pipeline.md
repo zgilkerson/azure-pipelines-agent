@@ -29,115 +29,112 @@ Under the covers `import` and `export` are simply semantic mappings to the resou
 ## Simple pipeline
 The pipeline process may be defined completely in the repository using YAML as the definition format. A very simple definition may look like the following:
 ```yaml
-pipeline:
-  resources:
-    - name: vso
-      type: self
-      
-  jobs:
-    - name: simple build
-      target:
-        type: queue
-        name: default
-      tasks:
-        - import: vso
-        - task: msbuild@1.*
-          name: Build solution 
+resources:
+  - name: vso
+    type: self
+
+jobs:
+  - name: simple build
+    target:
+      type: queue
+      name: default
+    steps:
+      - import: vso
+      - task: msbuild@1.*
+        name: Build solution 
+        inputs:
+          project: vso/src/project.sln
+          arguments: /m /v:minimal
+      - export: 
+          name: drop
+          type: artifact
           inputs:
-            project: vso/src/project.sln
-            arguments: /m /v:minimal
-        - export: 
-            name: drop
-            type: artifact
-            inputs:
-              include:
-                - bin/**/*.dll
-              exclude:
-                - bin/**/*Test*.dll
+            include:
+              - bin/**/*.dll
+            exclude:
+              - bin/**/*Test*.dll
 ```
 This defines a pipeline with a single job which acts on the current source repository. Since all file paths are relative to a resource within the working directory, there is a resource defined with the type `self` which indicates the current repository. This allows the pipeline author to alias the current repository like other repositories, and allows separation of process and source if that model is desired as there is no implicit mapping of the current repository. After selecting an available agent from a queue named `default`, the agent runs the msbuild task from the server locked to the latest version within the 1.0 major milestone. Once the project has been built successfully the system will run an automatically injected  task for the `artifact` resource provider to publish the specified data to the server at the name `drop`.
 
 ## Resources
 While the previous examples only show a single repository resource, it is entirely possible in this model to provide multiple repositories or any number of resources for that matter in a job. For instance, you could have a job that pulls a `TfsGit` repository in addition to a `GitHub` repository or multiple repositories of the same type. For this particular instance the repository which contains the pipeline definition does not contain code itself, and as such there is no self referenced resource defined or needed.
 ```yaml
-pipeline:
-  resources:
-    - name: vsts-agent
-      type: git
-      endpoint: git-hub-endpoint # TBD on how to reference endpoints from this format
-      data:
-        url: https://github.com/Microsoft/vsts-agent.git
-        ref: master
-        
-    - name: vsts-tasks
-      type: git
-      endpoint: git-hub-endpoint # TBD on how to reference endpoints from this format
-      data:
-        url: https://github.com/Microsoft/vsts-tasks.git
-        ref: master
+resources:
+  - name: vsts-agent
+    type: git
+    endpoint: git-hub-endpoint # TBD on how to reference endpoints from this format
+    data:
+      url: https://github.com/Microsoft/vsts-agent.git
+      ref: master
 
-  jobs:
-    - name: job1
-      target:
-        type: queue
-        name: default
-      tasks:
-        - import: vsts-agent
-        - import: vsts-tasks
-        - task: msbuild@1.*
-          name: Compile vsts-agent
-          inputs:
-            project: vsts-agent/src/build.proj
-        - task: gulp@0.*
-          name: Compile vsts-tasks
-          inputs:
-            gulpfile: vsts-tasks/src/gulpfile.js
+  - name: vsts-tasks
+    type: git
+    endpoint: git-hub-endpoint # TBD on how to reference endpoints from this format
+    data:
+      url: https://github.com/Microsoft/vsts-tasks.git
+      ref: master
+
+jobs:
+  - name: job1
+    target:
+      type: queue
+      name: default
+    steps:
+      - import: vsts-agent
+      - import: vsts-tasks
+      - task: msbuild@1.*
+        name: Compile vsts-agent
+        inputs:
+          project: vsts-agent/src/build.proj
+      - task: gulp@0.*
+        name: Compile vsts-tasks
+        inputs:
+          gulpfile: vsts-tasks/src/gulpfile.js
 ```
 ## Job dependencies
 For a slightly more complex model, here is the definition of two jobs which depend on each other, propagating the outputs of the first job including environment and artifacts into the second job.
 ```yaml
-pipeline:
-  resources:
-    - name: vso
-      type: self
+resources:
+  - name: vso
+    type: self
 
-  jobs:
-    - name: job1
-      target: 
-        type: queue
-        name: default
-      tasks:
-        - import: vso
-        - task: msbuild@1.*
-          name: Build solution 
-          inputs:
-            project: vso/src/project.sln
-            arguments: /m /v:minimal
-        - export: drop 
-          type: artifact
-          inputs:
-            include:
-              - /bin/**/*.dll
-            exclude:
-              - /bin/**/*Test*.dll
-        - export: outputs
-          type: environment
-          inputs:
-            var1: myvalue1
-            var2: myvalue2
-              
-    - name: job2
-      target: 
-        type: queue
-        name: default
-      tasks:
-        - import: jobs('job1').exports.outputs
-        - import: jobs('job1').exports.drop
-        - task: powershell@1.*
-          name: Run dostuff script
-          inputs:
-            script: drop/scripts/dostuff.ps1
-            arguments: /a:$(job1.var1) $(job1.var2)
+jobs:
+  - name: job1
+    target: 
+      type: queue
+      name: default
+    steps:
+      - import: vso
+      - task: msbuild@1.*
+        name: Build solution 
+        inputs:
+          project: vso/src/project.sln
+          arguments: /m /v:minimal
+      - export: drop 
+        type: artifact
+        inputs:
+          include:
+            - /bin/**/*.dll
+          exclude:
+            - /bin/**/*Test*.dll
+      - export: outputs
+        type: environment
+        inputs:
+          var1: myvalue1
+          var2: myvalue2
+
+  - name: job2
+    target: 
+      type: queue
+      name: default
+    steps:
+      - import: jobs('job1').exports.outputs
+      - import: jobs('job1').exports.drop
+      - task: powershell@1.*
+        name: Run dostuff script
+        inputs:
+          script: drop/scripts/dostuff.ps1
+          arguments: /a:$(job1.var1) $(job1.var2)
 ```
 This is significant in a few of ways. First, we have defined an implicit ordering dependency between the first and second job which informs the system of execution order without explicit definition. Second, we have declared a flow of data through our system using the `export` and `import` verbs to constitute state within the actively running job. In addition we have illustrated that the behavior for the propagation of the `environment` resource type across jobs which will be well-understood by the system; the importing of an external environment will automatically create a namespace for the variable names based on the source which generated them. In this example, the source of the environment was named `job1` so the variables are prefixed accordingly as `job1.var1` and `job1.var2`.
 
@@ -175,14 +172,14 @@ jobs:
     target: 
       type: queue
       name: default
-    tasks:
+    steps:
       .....
     
   - name: job1-error
     target: 
       type: server
     condition: "eq(jobs('job1').result, 'failed')"
-    tasks:
+    steps:
       .....
 ```
 In the above example the expression depends on an output of the `job1`. This will place an implicit execution dependency on the completion of `job1` in order to evaluate the execution condition of `job1-error`. Since we only execute this job on failure of a previous job, under normal circumstances it will be skipped. This is useful for performing cleanup or notification handling when a critical step in the pipeline fails.
