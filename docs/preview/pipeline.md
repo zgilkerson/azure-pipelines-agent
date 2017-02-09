@@ -1,4 +1,7 @@
 # Pipelines
+
+#### Note to readers: This is still in flight so some concepts appear that are not fully flushed out
+
 ## Goals
 - **Define constructs which provide a more powerful and flexible execution engine for RM/Build/Deployment**: Allow pipeline execution with minimal intervention points required from consumers
 - **Provide a simple yet powerful config as code model**: Easily scale from very simple processes to more complex processes without requiring cumbersome hierarchies and concepts
@@ -185,9 +188,50 @@ The default language for a job will be the presented thus far which, while power
 For an example of how the internals of a custom language may look, see the [following document](https://github.com/Microsoft/vsts-tasks/blob/master/docs/yaml.md).
 
 ## Pipeline Templates and Reuse
-Pipelines may be authored as stand-alone definitions or as templates to be inherited. The advantage of providing a model for process inheritance is it provides the ability to enforce policy on a set of pipeline definitions by providing a master process with configurable overrides.
+Pipelines may be authored as stand-alone definitions or as templates to be inherited. The advantage of providing a model for process inheritance is it provides the ability to enforce policy on a set of pipeline definitions by providing a master process with configurable overrides. There are concepts which may be used in a template that might not show up 
+
+The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline.
+```yaml
+inputs:
+  - name: queue
+    type: string
+    default: default
+
+- name: projectFile
+    type: string
+
+resources:
+  - name: current
+    type: git
+
+jobs:
+  - name: build
+    target: 
+      type: queue
+      name: inputs('queue')
+    steps:
+      - import: <how to determine the repo for import>
+      - group: pre
+        overridable: true
+      - group: build
+          - task: msbuild@1.*
+            name: Build the project
+            inputs:
+              project: inputs('projectFile') 
+      - group: post
+        overridable: true
+      - group: finalize
+          - export: drop
+            type: artifact
+            inputs:
+              include: 
+                - bin/**/*.dll
+        
+```
 
 ```yaml
+inherits: templates/pipelines/coreprocess.yaml
+
 resources:
   - name: templates
     type: git
@@ -195,22 +239,24 @@ resources:
       url: https://github.com/Microsoft/pipeline-templates.git
       ref: refs/tags/lkg
       
-inherits: templates/pipelines/coreprocess.yaml
+# Override the required input with the proper value
+inputs:
+  - name: project
+    value: current/src/dirs.proj
 
+# Override the groups which we are allowed to override. This section is entirely
+# optional and may be omitted if there are no custom behaviors to inject.
 jobs:
   - name: build
     steps:
-      - group: prebuild
+      - group: pre
         - task: templates/tasks/powershell
           name: Run pre-build script
           inputs:
             script: prebuild.ps1
-      - group: postbuild
+      - group: post
         - task: templates/tasks/powershell
           name: Run post-build script
           inputs:
             script: postbuild.ps1
-          
-  - name: test
-    enabled: false
 ```
