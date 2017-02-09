@@ -45,14 +45,13 @@ jobs:
         inputs:
           project: vso/src/project.sln
           arguments: /m /v:minimal
-      - export: 
-          name: drop
-          type: artifact
-          inputs:
-            include:
-              - bin/**/*.dll
-            exclude:
-              - bin/**/*Test*.dll
+      - export: drop
+        type: artifact
+        inputs:
+          include:
+            - bin/**/*.dll
+          exclude:
+            - bin/**/*Test*.dll
 ```
 This defines a pipeline with a single job which acts on the current source repository. Since all file paths are relative to a resource within the working directory, there is a resource defined with the type `self` which indicates the current repository. This allows the pipeline author to alias the current repository like other repositories, and allows separation of process and source if that model is desired as there is no implicit mapping of the current repository. After selecting an available agent from a queue named `default`, the agent runs the msbuild task from the server locked to the latest version within the 1.0 major milestone. Once the project has been built successfully the system will run an automatically injected  task for the `artifact` resource provider to publish the specified data to the server at the name `drop`.
 
