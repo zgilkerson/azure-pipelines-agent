@@ -213,19 +213,17 @@ jobs:
       - import: <how to determine the repo for import>
       - group: pre
         overridable: true
-      - group: build
-          - task: msbuild@1.*
-            name: Build the project
-            inputs:
-              project: inputs('projectFile') 
+      - task: msbuild@1.*
+        name: Build the project
+        inputs:
+          project: inputs('projectFile') 
       - group: post
         overridable: true
-      - group: finalize
-          - export: drop
-            type: artifact
-            inputs:
-              include: 
-                - bin/**/*.dll
+      - export: drop
+        type: artifact
+        inputs:
+          include: 
+            - bin/**/*.dll
         
 ```
 
