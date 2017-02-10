@@ -227,7 +227,7 @@ jobs:
 ```
 
 ```yaml
-inherits: templates/pipelines/coreprocess.yaml
+inherits: pipelines/coreprocess.yaml@templates
 
 resources:
   - name: templates
@@ -238,8 +238,7 @@ resources:
       
 # Override the required input with the proper value
 inputs:
-  - name: project
-    value: current/src/dirs.proj
+  project: current/src/dirs.proj
 
 # Override the groups which we are allowed to override. This section is entirely
 # optional and may be omitted if there are no custom behaviors to inject.
