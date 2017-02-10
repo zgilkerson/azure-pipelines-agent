@@ -139,7 +139,7 @@ jobs:
 This is significant in a few of ways. First, we have defined an implicit ordering dependency between the first and second job which informs the system of execution order without explicit definition. Second, we have declared a flow of data through our system using the `export` and `import` verbs to constitute state within the actively running job. In addition we have illustrated that the behavior for the propagation of outputs across jobs which will be well-understood by the system; the importing of an external environment will automatically create a namespace for the variable names based on the source which generated them. In this example, the source of the environment was named `job1` so the variables are prefixed accordingly as `job1.var1` and `job1.var2`.
 
 ## Conditional job execution
-By default a job dependency requires successful execution of all previous dependent jobs. Job dependencies are discovered by looking at the `condition` and `import` statements for a job to determine usages of the `jobs(<job name>)` function. All referenced jobs from these statements are considered dependencies and if no custom condition is present a default expression is provided by the system requiring successful execution of all dependencies. This default behavior may be modified by specifying a job execution [condition](conditions.md) and specifying requirements. For instance, we can modify the second job from above as follows to provide different execution behaviors:
+By default a job dependency requires successful execution of all previous dependent jobs. Job dependencies are discovered by looking at the `condition` and `import` statements for a job to determine usages of the `jobs(<job name>)` function. All referenced jobs from these statements are considered dependencies and if no custom condition is present a default expression is provided by the system requiring successful execution of all dependencies. This default behavior may be modified by specifying a custom job execution [condition](conditions.md). For instance, we can modify the second job from above as follows to provide different execution behaviors:
 
 ### Always run
 ```yaml
@@ -201,7 +201,7 @@ inputs:
     type: string
 
 resources:
-  - name: current
+  - name: code
     type: git
 
 jobs:
@@ -210,21 +210,20 @@ jobs:
       type: queue
       name: inputs('queue')
     steps:
-      - import: <how to determine the repo for import>
-      - group: pre
+      - import: code
+      - group: beforeBuild
         overridable: true
       - task: msbuild@1.*
         name: Build the project
         inputs:
           project: inputs('projectFile') 
-      - group: post
+      - group: afterBuild
         overridable: true
       - export: drop
         type: artifact
         inputs:
           include: 
             - bin/**/*.dll
-        
 ```
 
 ```yaml
@@ -247,12 +246,12 @@ inputs:
 jobs:
   - name: build
     steps:
-      - group: pre
+      - group: beforeBuild
         - task: templates/tasks/powershell
           name: Run pre-build script
           inputs:
             script: prebuild.ps1
-      - group: post
+      - group: afterBuild
         - task: templates/tasks/powershell
           name: Run post-build script
           inputs:
