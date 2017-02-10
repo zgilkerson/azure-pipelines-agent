@@ -48,8 +48,8 @@ jobs:
         inputs:
           project: vso/src/project.sln
           arguments: /m /v:minimal
-      - export: drop
-        type: artifact
+      - export: artifact
+        name: drop
         inputs:
           include:
             - bin/**/*.dll
@@ -112,14 +112,16 @@ jobs:
         inputs:
           project: vso/src/project.sln
           arguments: /m /v:minimal
-      - export: drop 
-        type: artifact
+      - export: artifact 
+        name: drop
         inputs:
           include:
             - /bin/**/*.dll
           exclude:
             - /bin/**/*Test*.dll
-      - output: 
+      - export: environment
+        name: outputs
+        inputs:
           var1: myvalue1
           var2: myvalue2
 
@@ -128,8 +130,8 @@ jobs:
       type: queue
       name: default
     steps:
-      - import: jobs('job1').outputs
       - import: jobs('job1').exports('drop')
+      - import: jobs('job1').exports('outputs')
       - task: powershell@1.*
         name: Run dostuff script
         inputs:
@@ -191,18 +193,22 @@ For an example of how the internals of a custom language may look, see the [foll
 Pipelines may be authored as stand-alone definitions or as templates to be inherited. The advantage of providing a model for process inheritance is it provides the ability to enforce policy on a set of pipeline definitions by providing a master process with configurable overrides. There are concepts which may be used in a template that might not show up 
 
 The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline.
+
+### Unknowns
+- How to denote the current repository in the template? In this case, "current" is actually the repo which contains the consumer of the template rather than the repository which contains the template (assuming they are not co-located)
+
+
 ```yaml
 inputs:
   - name: queue
     type: string
     default: default
 
+  - name: repo
+    type: git
+
   - name: projectFile
     type: string
-
-resources:
-  - name: code
-    type: git
 
 jobs:
   - name: build
@@ -210,42 +216,34 @@ jobs:
       type: queue
       name: inputs('queue')
     steps:
-      - import: code
-      - group: beforeBuild
-        overridable: true
+      - import: inputs('repo')
+      - group: prebuild
       - task: msbuild@1.*
         name: Build the project
         inputs:
-          project: inputs('projectFile') 
-      - group: afterBuild
-        overridable: true
-      - export: drop
-        type: artifact
+          project: inputs('projectFile')
+      - group: postbuild
+      - export: artifact
+        name: drop
         inputs:
           include: 
             - bin/**/*.dll
 ```
 
 ```yaml
-inherits: pipelines/coreprocess.yaml@templates
+inherit: 
+  template: pipelines/coreprocess.yml
+  type: git
+  data:
+    url: https://github.com/Microsoft/pipeline-templates.git
+    ref: refs/tags/lkg
 
 resources:
-  - name: templates
-    type: git
-    data:
-      url: https://github.com/Microsoft/pipeline-templates.git
-      ref: refs/tags/lkg
-      
+  - name: code
+    type: self
+
 # Override the required input with the proper value
 inputs:
-  project: current/src/dirs.proj
-
-# Override the groups which we are allowed to override. This section is entirely
-# optional and may be omitted if there are no custom behaviors to inject.
-overrides:
-- group: beforeBuild
-  - script: prebuild.ps1
-  
-- group: afterBUild
-  - script: postbuild.ps1
+  project: code/src/dirs.proj
+  repo: resources('code')
 ```
