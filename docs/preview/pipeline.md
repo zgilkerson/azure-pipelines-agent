@@ -217,12 +217,10 @@ jobs:
       name: inputs('queue')
     steps:
       - import: inputs('repo')
-      - group: prebuild
       - task: msbuild@1.*
         name: Build the project
         inputs:
           project: inputs('projectFile')
-      - group: postbuild
       - export: artifact
         name: drop
         inputs:
