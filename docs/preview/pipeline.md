@@ -244,14 +244,8 @@ inputs:
 # optional and may be omitted if there are no custom behaviors to inject.
 overrides:
 - group: beforeBuild
-  - task: templates/tasks/powershell
-    name: Run pre-build script
-    inputs:
-      script: prebuild.ps1
-
-- group: afterBuild
-  - task: templates/tasks/powershell
-    name: Run post-build script
-    inputs:
-      script: postbuild.ps1
+  - script: prebuild.ps1
+  
+- group: afterBUild
+  - script: postbuild.ps1
 ```
