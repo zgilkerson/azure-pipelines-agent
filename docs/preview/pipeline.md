@@ -51,10 +51,8 @@ jobs:
       - export: artifact
         name: drop
         inputs:
-          include:
-            - bin/**/*.dll
-          exclude:
-            - bin/**/*Test*.dll
+          include: ['bin/**/*.dll']
+          exclude: ['bin/**/*Test*.dll']
 ```
 This defines a pipeline with a single job which acts on the current source repository. Since all file paths are relative to a resource within the working directory, there is a resource defined with the type `self` which indicates the current repository. This allows the pipeline author to alias the current repository like other repositories, and allows separation of process and source if that model is desired as there is no implicit mapping of the current repository. After selecting an available agent from a queue named `default`, the agent runs the msbuild task from the server locked to the latest version within the 1.0 major milestone. Once the project has been built successfully the system will run an automatically injected  task for the `artifact` resource provider to publish the specified data to the server at the name `drop`.
 
@@ -223,7 +221,73 @@ jobs:
           projectFile: code/src/dirs.proj
           testAssemblies: code/bin/**/*Test*.dll
 ```
-This provides the ability to build up libararies of useful functionality by aggregating individual tasks into larger pieces of logic. Much like a task can  be templated, jobs may also be templated using a very similar mechanism.
+This provides the ability to build up libararies of useful functionality by aggregating individual tasks into larger pieces of logic. 
+
+## Job Templates
+Much like a task can  be templated, jobs may also be templated using a very similar mechanism as shown below.
+```yaml
+inputs:
+  - name: queueName
+    type: string
+    defaultValue: default
+  - name: repo
+    type: git
+  - name: projectFile
+    type: string
+  - name: msbuildArgs
+    type: string
+    defaultValue:
+  - name: build_platform
+    type: string
+  - name: build_configuration
+    type: string
+  - name: testAssemblies
+    type: string
+    
+name: Build $(projectFile) for $(build_platform)-$(build_configuration)
+target:
+  type: queue
+  name: $(queueName)
+steps:
+  - import: $(repo)
+  - task: msbuild@1.*
+    name: Build $(projectFile)
+    inputs:
+      project: $(projectFile)
+      arguments: $(msbuildArgs) 
+  - task: vstest@1.*
+    name: Test $(testAssemblies)
+    inputs: 
+      assemblies: $(testAssemblies)
+```
+Below we reference the same job template multiple times in order to run the same set of tasks for different input sets.  
+```yaml
+resources:
+  - name: code
+    type: git
+    data:
+      url: https://github.com/Microsoft/vsts-agent.git
+      ref: master
+
+jobs:
+  - include: code/src/jobs/buildandtest.yml
+    inputs:
+      queueName: default
+      projectFile: code/src/dirs.proj
+      repo: resources('code')
+      build_platform: x86
+      build_configuration: release
+      testAssemblies: code/bin/**Test*.dll
+
+  - include: code/src/jobs/buildandtest.yml
+    inputs:
+      queueName: default
+      projectFile: code/src/dirs.proj
+      repo: resources('code')
+      build_platform: x64
+      build_configuration: release
+      testAssemblies: code/bin/**Test*.dll
+```
 
 ## Pipeline Templates
 ### This is not well thought out at this point. Not clear what is overridable, if anything, when including an entire pipeline. Also not clear if we want to support (the answer is likely yes) including multiple pipelines into a larger pipeline for larger orchestrations built up from smaller pieces.
