@@ -187,7 +187,46 @@ The default language for a job will be the presented thus far which, while power
            
 For an example of how the internals of a custom language may look, see the [following document](https://github.com/Microsoft/vsts-tasks/blob/master/docs/yaml.md).
 
+## Task Templates
+Tasks are another construct which may be templated. On the server these are known as `TaskGroups`, and this provides a mechanism for performing the same style of reuse without requiring interaction with the server model. 
+```yaml
+inputs:
+  - name: projectFile
+    type: string
+  - name: msbuildArgs
+    type: string
+    defaultValue: 
+  - name: testAssemblies
+    type: string
+
+- task: msbuild@1.*
+  name: Build $(projectFile)
+  inputs:
+    project: $(projectFile)
+    arguments: $(msbuildArgs) 
+- task: vstest@1.*
+  name: Test $(testAssemblies)
+  inputs: 
+    assemblies: $(testAssemblies)
+```
+If the above file were located in a folder `src/tasks/buildandtest.yml`, a job may include this group with the following syntax:
+```yaml
+jobs:
+  - name: build
+    target:
+      type: queue
+      name: default
+    steps:
+      - import: code
+      - task: code/src/tasks/buildandtest.yml
+        inputs:
+          projectFile: code/src/dirs.proj
+          testAssemblies: code/bin/**/*Test*.dll
+```
+This provides the ability to build up libararies of useful functionality by aggregating individual tasks into larger pieces of logic. Much like a task can  be templated, jobs may also be templated using a very similar mechanism.
+
 ## Pipeline Templates
+### This is not well thought out at this point. Not clear what is overridable, if anything, when including an entire pipeline. Also not clear if we want to support (the answer is likely yes) including multiple pipelines into a larger pipeline for larger orchestrations built up from smaller pieces.
 Pipelines may be authored as stand-alone definitions or as templates to be inherited. The advantage of providing a model for process inheritance is it provides the ability to enforce policy on a set of pipeline definitions by providing a master process with configurable overrides. There are concepts which may be used in a template that might not show up 
 
 The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline.
@@ -240,22 +279,3 @@ pipeline: core
     repo: resources('code')
 ```
 Templates are very much macro replacements, in that the template is simply copied inline and replaces the reference at the time the pipeline is compiled. It is important to point out that while entire pipelines may be templated and reused, other constructs within the system may also be templated and reused such as tasks and jobs.
-
-## Task Templates
-Tasks are another construct which may be templated. On the server these are known as `TaskGroups`, and this provides a mechanism for performing the same style of reuse without requiring interaction with the server model. 
-```yaml
-inputs:
-  - name: code
-    type: git
-  - name: projectFile
-    type: string
-  - name: msbuildArgs
-    type: string
-
-steps:
-  - import: $(code)
-  - task: msbuild@1.*
-    name: Build $(projectFile)
-    inputs:
-      project: $(projectFile)
-      arguments: $(msbuildArgs) 
