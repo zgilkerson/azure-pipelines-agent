@@ -303,6 +303,8 @@ jobs:
     steps:
       ....
 ```
+## Variables
+TODO: Discuss variables, variable groups, and concepts for iterating over arrays for dynamic job expansion
 
 ## Pipeline Templates
 ### This is not well thought out at this point. Not clear what is overridable, if anything, when including an entire pipeline. Also not clear if we want to support (the answer is likely yes) including multiple pipelines into a larger pipeline for larger orchestrations built up from smaller pieces.
