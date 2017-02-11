@@ -336,14 +336,12 @@ jobs:
       - export: artifact
         name: drop
         inputs:
-          include: 
-            - bin/**/*.dll
+          include: ['bin/**/*.dll']
 ```
 A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are defined and provided their own definition specific names. Last, the template is invoked using the name given to it within the file which includes it. 
 ```yaml
 includes: 
   - name: core
-    file: pipelines/core.yml
     source:
       type: git
       url: https://github.com/Microsoft/pipeline-templates.git
@@ -354,9 +352,14 @@ resources:
     type: self
 
 # Override the required input with the proper value
-pipeline: core
+pipeline: core/pipelines/core.yml
   inputs:
     project: code/src/dirs.proj
     repo: resources('code')
+    
+pipeline: core/pipelines/core2.yml
+  inputs: 
+    repo: resources('code')
+    drop: pipelines('core').exports('drop')
 ```
 Templates are very much macro replacements, in that the template is simply copied inline and replaces the reference at the time the pipeline is compiled. It is important to point out that while entire pipelines may be templated and reused, other constructs within the system may also be templated and reused such as tasks and jobs.
