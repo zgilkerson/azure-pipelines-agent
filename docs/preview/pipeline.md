@@ -260,3 +260,46 @@ jobs:
           inputs:
             script: postbuild.ps1
 ```
+
+## Containers
+Containers can provide for much more flexible pipelines by enabling individual jobs to define their execution environemtn without requiring toolsets and dependencies to be installed on the agent machines. Each job can sepcify one or more container images to be used to execute tasks along with additional container images to be started and linked to the job execution container. Container image operating systems must match the host operating system the agent is running on.
+
+Prior to running tasks the agent will starts a container based on the image specified, map in the resources as volumes, start and link any additional services and setup environment variables.  If you want to build containers as part of your job you will need to specify that the docker daemon should be made available to your job by setting maphost property to true
+
+```yaml
+# define a container image resource.  
+resources:
+  - name: job1image
+    type: docker-image
+    endpoint: 
+      id: msazure-docker-endpoint-id
+    data:
+      image: msazure/nodestandard
+      tag: 2017-1
+  - name: redis-services
+    type: docker-image
+    data:
+      image: redis
+      tag: 3.0.7
+
+jobs:
+  - name: job1
+# define the container for the job along with any services that should be linked to the container
+  - container:
+      image: job1image
+      maphost: true
+      services:
+        - name: redis
+          image: redis-service
+    steps:
+      - task: bash@1.x 
+        name: Run build script
+        inputs:
+          script: build.sh
+      - task: bash@1.x 
+        name: Test app
+        inputs:
+          script: test.sh
+
+```
+Having the agent start the container on the host prior to running tasks potentially enables some other interesting capabilities like controlling access to certian internet resources.  For example if you have a policy in your organziation that you should not pull packages from nuget.org the container networking could be configured wiht a proxy that prevents access.
