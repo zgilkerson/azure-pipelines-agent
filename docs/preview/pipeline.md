@@ -115,10 +115,8 @@ jobs:
       - export: artifact 
         name: drop
         inputs:
-          include:
-            - /bin/**/*.dll
-          exclude:
-            - /bin/**/*Test*.dll
+          include: ['/bin/**/*.dll']
+          exclude: ['/bin/**/*Test*.dll']
       - export: environment
         name: outputs
         inputs:
@@ -199,10 +197,8 @@ inputs:
   - name: queueName
     type: string
     default: default
-
   - name: repo
     type: git
-
   - name: projectFile
     type: string
 
@@ -226,12 +222,12 @@ jobs:
 A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are defined and provided their own definition specific names. Last, the template is invoked using the name given to it within the file which includes it. 
 ```yaml
 includes: 
-  name: core
-  file: pipelines/core.yml
-  source:
-    type: git
-    url: https://github.com/Microsoft/pipeline-templates.git
-    ref: refs/tags/lkg
+  - name: core
+    file: pipelines/core.yml
+    source:
+      type: git
+      url: https://github.com/Microsoft/pipeline-templates.git
+      ref: refs/tags/lkg
 
 resources:
   - name: code
@@ -245,4 +241,21 @@ pipeline: core
 ```
 Templates are very much macro replacements, in that the template is simply copied inline and replaces the reference at the time the pipeline is compiled. It is important to point out that while entire pipelines may be templated and reused, other constructs within the system may also be templated and reused such as tasks and jobs.
 
-## Job Templates
+## Task Templates
+Tasks are another construct which may be templated. On the server these are known as `TaskGroups`, and this provides a mechanism for performing the same style of reuse without requiring interaction with the server model. 
+```yaml
+inputs:
+  - name: code
+    type: git
+  - name: projectFile
+    type: string
+  - name: msbuildArgs
+    type: string
+
+steps:
+  - import: $(code)
+  - task: msbuild@1.*
+    name: Build $(projectFile)
+    inputs:
+      project: $(projectFile)
+      arguments: $(msbuildArgs) 
