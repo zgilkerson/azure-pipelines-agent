@@ -14,7 +14,6 @@
 - **Pipeline**: A construct which defines the inputs and outputs necessary to complete a set of work, including how the data flows through the system and in what order the steps are executed
 - **Job**: A container for task execution which supports different execution targets such as server, queue, or deploymentGroup
 - **Condition**: An [expression language](conditions.md) supporting rich evaluation of context for conditional execution
-- **Policy**: A generic construct for defining wait points in the system which indicates pass or fail *(not sure this fits but left here for discussion purposes)*
 - **Task**: A smallest unit of work in the system, allowing consumers to plug custom behaviors into jobs
 - **Variable**: A name/value pair, similar to environment variables, for passing simple data values
 - **Resource**: An object which defines complex data and semantics for import and export using a pluggable provider model. See [resources](resources.md) for a more in-depth look at the resource extensibility model.
@@ -216,7 +215,7 @@ jobs:
       name: default
     steps:
       - import: code
-      - task: code/src/tasks/buildandtest.yml
+      - include: code/src/tasks/buildandtest.yml
         inputs:
           projectFile: code/src/dirs.proj
           testAssemblies: code/bin/**/*Test*.dll
@@ -224,7 +223,7 @@ jobs:
 This provides the ability to build up libararies of useful functionality by aggregating individual tasks into larger pieces of logic. 
 
 ## Job Templates
-Much like a task can  be templated, jobs may also be templated using a very similar mechanism as shown below.
+Much like a task can  be templated, jobs may also be templated using a very similar mechanism as shown below. In the following example, the job template is located at the location `src/jobs/buildandtest.yml` and later referenced from a pipeline. 
 ```yaml
 inputs:
   - name: queueName
@@ -232,19 +231,16 @@ inputs:
     defaultValue: default
   - name: repo
     type: git
-  - name: projectFile
+  - name: project
     type: string
-  - name: msbuildArgs
+  - name: platform
     type: string
-    defaultValue:
-  - name: build_platform
-    type: string
-  - name: build_configuration
+  - name: configuration
     type: string
   - name: testAssemblies
     type: string
     
-name: Build $(projectFile) for $(build_platform)-$(build_configuration)
+name: Build $(platform)-$(configuration)
 target:
   type: queue
   name: $(queueName)
@@ -254,13 +250,26 @@ steps:
     name: Build $(projectFile)
     inputs:
       project: $(projectFile)
-      arguments: $(msbuildArgs) 
+      arguments: /p:Platform=$(platform) /p:Configuration=$(configuration)
   - task: vstest@1.*
     name: Test $(testAssemblies)
     inputs: 
       assemblies: $(testAssemblies)
 ```
-Below we reference the same job template multiple times in order to run the same set of tasks for different input sets.  
+Alternatively we could choose to use the task template within the job template. Templates themselves may be composed of other templates, futher expanding reusability and illustrating the power of proper componentization.
+```yaml
+name: Build $(project) for $(platform)-$(configuration)
+target:
+  type: queue
+  name: $(queueName)
+steps:
+  - import: $(repo)
+  - include: $(repo)/src/tasks/buildandtest.yml
+    inputs:
+      project: $(project)
+      testAssemblies: $(testAssemblies)
+```
+Below we reference the same job template multiple times in order to run the same set of tasks for different input sets. When including a job from a template the name should be provided to allow for local referencing within a pipeline which is not susceptible to changes in the base template. In addition, a condition should be supplied at the inclusion point if desired. 
 ```yaml
 resources:
   - name: code
@@ -271,22 +280,28 @@ resources:
 
 jobs:
   - include: code/src/jobs/buildandtest.yml
+    name: x86-release
     inputs:
-      queueName: default
-      projectFile: code/src/dirs.proj
       repo: resources('code')
-      build_platform: x86
-      build_configuration: release
+      project: code/src/dirs.proj
+      platform: x86
+      configuration: release
       testAssemblies: code/bin/**Test*.dll
 
   - include: code/src/jobs/buildandtest.yml
+    name: x64-release
     inputs:
-      queueName: default
-      projectFile: code/src/dirs.proj
       repo: resources('code')
-      build_platform: x64
-      build_configuration: release
+      project: code/src/dirs.proj
+      platform: x64
+      configuration: release
       testAssemblies: code/bin/**Test*.dll
+
+  - name: finalize
+    target: server
+    condition: and(succeeded('x86-release'), succeeded('x64-release'))
+    steps:
+      ....
 ```
 
 ## Pipeline Templates
