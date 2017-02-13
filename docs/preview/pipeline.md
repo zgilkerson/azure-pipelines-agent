@@ -426,38 +426,6 @@ pipeline: core/pipelines/core2.yml
     repo: resources('code')
     drop: pipelines('core').exports('drop')
 ```
-
-## Matrix
-By default a job will run once per pipeline execution.  However, there are cases when you will want to run a job multipe times for different inputs.  For example you may want to test your application on multiple versions of node.
-
-```yaml
-# define a simple matrix with two axis.  Each axis name will be turned into a variable that can be referenced in a job.  This will result in 4 jobs.
-matrix:
-  - axis: BuildConfiguration
-    values:
-      - Debug
-      - Release
-  - axis: BuildPlatform
-    values:
-      - x86
-      - x64
-
-# you may also want to define a matrix with explicit combinations. This will give you two jobs with a unique variables collection per job
-matrix:
-  include:
-    - BuildConfiguration: Debug
-      BuildPlatform: x86
-      Variables:
-        Foo: Bar
-        Baz: Boo
-    - BuildConfiguration: Release
-      BuildPlatform: x64
-      Variables:
-        Foo: Boom
-        Baz: Bool
-  
-```
-
 ## Containers
 Containers can provide for much more flexible pipelines by enabling individual jobs to define their execution environemtn without requiring toolsets and dependencies to be installed on the agent machines. Each job can sepcify one or more container images to be used to execute tasks along with additional container images to be started and linked to the job execution container. Container image operating systems must match the host operating system the agent is running on.
 
