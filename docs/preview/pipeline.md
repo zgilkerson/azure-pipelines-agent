@@ -279,7 +279,7 @@ resources:
       ref: master
 
 jobs:
-  - include: code/src/jobs/buildandtest.yml
+  - task: code/src/jobs/buildandtest.yml
     name: x86-release
     inputs:
       repo: resources('code')
@@ -288,7 +288,7 @@ jobs:
       configuration: release
       testAssemblies: code/bin/**Test*.dll
 
-  - include: code/src/jobs/buildandtest.yml
+  - task: code/src/jobs/buildandtest.yml
     name: x64-release
     inputs:
       repo: resources('code')
@@ -303,8 +303,72 @@ jobs:
     steps:
       ....
 ```
-## Variables
-TODO: Discuss variables, variable groups, and concepts for iterating over arrays for dynamic job expansion
+## Looping
+Often it is desirable to run a job across different environments, toolsets, or inputs. In examples we have analyzed thus far the user has the requirement of being very explicit about all combinations of inputs which may become daunting when the list grows beyond 2 or 3. The solution to this growth problem is the introduction of a looping construct, which allows the author to define a list of items to be used as items to apply to the template. 
+
+Taking a look at the previous example, we could simplify our construct as follows using a looping construct:
+```yaml
+resources:
+  - name: code
+    type: git
+    data:
+      url: https://github.com/Microsoft/vsts-agent.git
+      ref: master
+
+jobs:
+  - task: code/src/jobs/buildandtest.yml
+    name: $(item)-release
+    inputs:
+      repo: resources('code')
+      project: code/src/dirs.proj
+      platform: $(item)
+      configuration: release
+      testAssemblies: code/bin/**Test*.dll
+    for_items:
+      - x86
+      - x64
+
+- name: finalize
+    target: server
+    condition: and(succeeded('x86-release'), succeeded('x64-release'))
+    steps:
+      ....
+```
+If more than a single value should be considered for each iteration, the system will also allow for an array of dictionaries as the input source. This allows for more complex and powerful iterators where there is more than a single dimension:
+```yaml
+resources:
+  - name: code
+    type: git
+    data:
+      url: https://github.com/Microsoft/vsts-agent.git
+      ref: master
+
+jobs:
+  - task: code/src/jobs/buildandtest.yml
+    name: $(item.platform)-$(item.configuration)
+    inputs:
+      repo: resources('code')
+      project: code/src/dirs.proj
+      platform: $(item.platform)
+      configuration: $(item.configuration)
+      testAssemblies: code/bin/**Test*.dll
+    for_items:
+      - platform: x86
+        configuration: release 
+      - platform: x86
+        configuration: debug
+      - platform: x64
+        configuration: release
+      - platform: x64
+        configuration: debug
+        
+- name: finalize
+    target: server
+    condition: and(succeeded('x86-release'), succeeded('x64-release'), succeeded('x86-debug'), succeeded('x64-debug'))
+    steps:
+      ....
+```
+Other looping constructs may be introduced in the future, such as the concept of a cross product is computed from multiple lists in order to build matrix. At this time, however, the explicit looping construct should be sufficent for most scenarios and provides for a cleaner description language.
 
 ## Pipeline Templates
 ### This is not well thought out at this point. Not clear what is overridable, if anything, when including an entire pipeline. Also not clear if we want to support (the answer is likely yes) including multiple pipelines into a larger pipeline for larger orchestrations built up from smaller pieces.
