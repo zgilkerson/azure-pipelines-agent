@@ -197,14 +197,14 @@ inputs:
     type: string
 
 - task: msbuild@1.*
-  name: Build $(projectFile)
+  name: "Build @{inputs('projectFile')}"
   inputs:
-    project: $(projectFile)
-    arguments: $(msbuildArgs) 
+    project: @inputs('projectFile')
+    arguments: @inputs('msbuildArgs') 
 - task: vstest@1.*
-  name: Test $(testAssemblies)
+  name: "Test @{inputs('testAssemblies')}"
   inputs: 
-    assemblies: $(testAssemblies)
+    assemblies: @inputs('testAssemblies')
 ```
 If the above file were located in a folder `src/tasks/buildandtest.yml`, a job may include this group with the following syntax:
 ```yaml
@@ -221,55 +221,10 @@ jobs:
           testAssemblies: code/bin/**/*Test*.dll
 ```
 This provides the ability to build up libararies of useful functionality by aggregating individual tasks into larger pieces of logic. 
+## Looping
+Often it is desirable to run a job across different environments, toolsets, or inputs. In examples we have analyzed thus far the user has the requirement of being very explicit about all combinations of inputs which may become daunting when the list grows beyond 2 or 3. The solution to this growth problem is the introduction of a looping construct, which allows the author to define a list of items to be used as items to apply to the template. 
 
-## Job Templates
-Much like a task can  be templated, jobs may also be templated using a very similar mechanism as shown below. In the following example, the job template is located at the location `src/jobs/buildandtest.yml` and later referenced from a pipeline. 
-```yaml
-inputs:
-  - name: queueName
-    type: string
-    defaultValue: default
-  - name: repo
-    type: git
-  - name: project
-    type: string
-  - name: platform
-    type: string
-  - name: configuration
-    type: string
-  - name: testAssemblies
-    type: string
-    
-name: Build $(platform)-$(configuration)
-target:
-  type: queue
-  name: $(queueName)
-steps:
-  - import: $(repo)
-  - task: msbuild@1.*
-    name: Build $(projectFile)
-    inputs:
-      project: $(projectFile)
-      arguments: /p:Platform=$(platform) /p:Configuration=$(configuration)
-  - task: vstest@1.*
-    name: Test $(testAssemblies)
-    inputs: 
-      assemblies: $(testAssemblies)
-```
-Alternatively we could choose to use the task template within the job template. Templates themselves may be composed of other templates, futher expanding reusability and illustrating the power of proper componentization.
-```yaml
-name: Build $(project) for $(platform)-$(configuration)
-target:
-  type: queue
-  name: $(queueName)
-steps:
-  - import: $(repo)
-  - include: $(repo)/src/tasks/buildandtest.yml
-    inputs:
-      project: $(project)
-      testAssemblies: $(testAssemblies)
-```
-Below we reference the same job template multiple times in order to run the same set of tasks for different input sets. When including a job from a template the name should be provided to allow for local referencing within a pipeline which is not susceptible to changes in the base template. In addition, a condition should be supplied at the inclusion point if desired. 
+In order to illustrate the scenario, consider the task template from the previous section. We would now like to run the same set of steps in different jobs for a set of inputs. With the constructs we have defined thus far, we would be required to list each job explicitly for the different input sets desired.
 ```yaml
 resources:
   - name: code
@@ -279,34 +234,39 @@ resources:
       ref: master
 
 jobs:
-  - task: code/src/jobs/buildandtest.yml
-    name: x86-release
-    inputs:
-      repo: resources('code')
-      project: code/src/dirs.proj
-      platform: x86
-      configuration: release
-      testAssemblies: code/bin/**Test*.dll
+  - name: x86-release
+    target:
+      type: queue
+      name: default
+    steps:
+      - import: code
+      - task: code/src/jobs/buildandtest.yml
+        inputs:
+          project: code/src/dirs.proj
+          platform: x86
+          configuration: release
+          testAssemblies: code/bin/**Test*.dll
 
-  - task: code/src/jobs/buildandtest.yml
-    name: x64-release
-    inputs:
-      repo: resources('code')
-      project: code/src/dirs.proj
-      platform: x64
-      configuration: release
-      testAssemblies: code/bin/**Test*.dll
-
+  - name: x64-release
+    target:
+      type: queue
+      name: default
+    steps:
+      - import: code
+      - task: code/src/jobs/buildandtest.yml
+        inputs:
+          project: code/src/dirs.proj
+          platform: x64
+          configuration: release
+          testAssemblies: code/bin/**Test*.dll
+          
   - name: finalize
     target: server
     condition: and(succeeded('x86-release'), succeeded('x64-release'))
     steps:
       ....
 ```
-## Looping
-Often it is desirable to run a job across different environments, toolsets, or inputs. In examples we have analyzed thus far the user has the requirement of being very explicit about all combinations of inputs which may become daunting when the list grows beyond 2 or 3. The solution to this growth problem is the introduction of a looping construct, which allows the author to define a list of items to be used as items to apply to the template. 
-
-Taking a look at the previous example, we could simplify our construct as follows using a looping construct:
+Using looping constructs, we can reduce duplication and simplify our process considerably. Taking a look at the previous example, we are effectively performing the same work twice with two different values for the `release` input to our task. Instead of listing this twice, we could simply apply a list of items and allow the system to expand this for us.
 ```yaml
 resources:
   - name: code
@@ -316,15 +276,19 @@ resources:
       ref: master
 
 jobs:
-  - task: code/src/jobs/buildandtest.yml
-    name: $(item)-release
-    inputs:
-      repo: resources('code')
-      project: code/src/dirs.proj
-      platform: $(item)
-      configuration: release
-      testAssemblies: code/bin/**Test*.dll
-    for_items:
+  - name: "@{item()}-release"
+    target:
+      type: queue
+      name: default
+    steps:
+      - import: code
+      - task: code/src/jobs/buildandtest.yml
+        inputs:
+          project: code/src/dirs.proj
+          platform: "@item()"
+          configuration: release
+          testAssemblies: code/bin/**Test*.dll
+    with_items:
       - x86
       - x64
 
@@ -334,7 +298,7 @@ jobs:
     steps:
       ....
 ```
-If more than a single value should be considered for each iteration, the system will also allow for an array of dictionaries as the input source. This allows for more complex and powerful iterators where there is more than a single dimension:
+As you can see in our example above, the looping construct removed our duplicated job logic and allowed us to more concisely define the desired logic and input sets. If more than a single value should be considered for each iteration, the system will also allow for an array of dictionaries as the input source. This allows for more complex and powerful iterators where there is more than a single dimension:
 ```yaml
 resources:
   - name: code
@@ -344,15 +308,20 @@ resources:
       ref: master
 
 jobs:
-  - task: code/src/jobs/buildandtest.yml
-    name: $(item.platform)-$(item.configuration)
-    inputs:
-      repo: resources('code')
-      project: code/src/dirs.proj
-      platform: $(item.platform)
-      configuration: $(item.configuration)
-      testAssemblies: code/bin/**Test*.dll
-    for_items:
+  - name: "@{item().platform}-@{item().configuration}"
+    target:
+      type: queue
+      name: default
+    steps:
+      - import: code
+        clean: false
+      - task: code/src/jobs/buildandtest.yml
+        inputs:
+          project: code/src/dirs.proj
+          platform: "@item().platform"
+          configuration: "@item().configuration"
+          testAssemblies: code/bin/**Test*.dll
+    with_items:
       - platform: x86
         configuration: release 
       - platform: x86
@@ -381,22 +350,25 @@ inputs:
   - name: queueName
     type: string
     default: default
-  - name: repo
-    type: git
   - name: projectFile
     type: string
+
+# In our resource list, the lack of data describing how to get the resource implies it is a required input
+resources:
+  - name: code
+    type: git
 
 jobs:
   - name: build
     target: 
       type: queue
-      name: $(queueName)
+      name: "@inputs('queueName')"
     steps:
-      - import: $(repo)
+      - import: code
       - task: msbuild@1.*
-        name: Build the project
+        name: "Build project @{inputs('projectFile')}"
         inputs:
-          project: $(projectFile)
+          project: "code/@{inputs('projectFile')}"
       - export: artifact
         name: drop
         inputs:
