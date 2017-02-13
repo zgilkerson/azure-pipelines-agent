@@ -260,11 +260,66 @@ jobs:
           inputs:
             script: postbuild.ps1
 ```
+You can optionally define a job in a file and reference it in a pipeline
+
+```yaml
+# jobs/corebuild.yml
+name: build
+steps:
+  - task: powershell@1.x 
+    name: Build script
+    inputs:
+      script: build.ps1
+
+# mypipeline.yml
+resources:
+  - name: templates
+    type: git
+    data:
+      url: https://github.com/Microsoft/pipeline-templates.git
+      ref: refs/tags/lkg
+jobs:
+  - name: mybuild
+    steps:
+      jobFile: templates/jobs/corebuild.yml
+      
+```
+
+## Matrix
+By default a job will run once per pipeline execution.  However, there are cases when you will want to run a job multipe times for different inputs.  For example you may want to test your application on multiple versions of node.
+
+```yaml
+# define a simple matrix with two axis.  Each axis name will be turned into a variable that can be referenced in a job.  This will result in 4 jobs.
+matrix:
+  - axis: BuildConfiguration
+    values:
+      - Debug
+      - Release
+  - axis: BuildPlatform
+    values:
+      - x86
+      - x64
+
+# you may also want to define a matrix with explicit combinations. This will give you two jobs with a unique variables collection per job
+matrix:
+  include:
+    - BuildConfiguration: Debug
+      BuildPlatform: x86
+      Variables:
+        Foo: Bar
+        Baz: Boo
+    - BuildConfiguration: Release
+      BuildPlatform: x64
+      Variables:
+        Foo: Boom
+        Baz: Bool
+  
+```
 
 ## Containers
 Containers can provide for much more flexible pipelines by enabling individual jobs to define their execution environemtn without requiring toolsets and dependencies to be installed on the agent machines. Each job can sepcify one or more container images to be used to execute tasks along with additional container images to be started and linked to the job execution container. Container image operating systems must match the host operating system the agent is running on.
 
-Prior to running tasks the agent will starts a container based on the image specified, map in the resources as volumes, start and link any additional services and setup environment variables.  If you want to build containers as part of your job you will need to specify that the docker daemon should be made available to your job by setting maphost property to true
+Prior to running tasks the agent will start a container based on the image specified, map in the resources as volumes, start and link any additional services and setup environment variables.  If you want to build containers as part of your job you will need to specify that the docker daemon should be made available to your job by setting maphost property to true
 
 ```yaml
 # define a container image resource.  
@@ -285,7 +340,7 @@ resources:
 jobs:
   - name: job1
 # define the container for the job along with any services that should be linked to the container
-  - container:
+    container:
       image: job1image
       maphost: true
       services:
