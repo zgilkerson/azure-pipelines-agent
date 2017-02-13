@@ -362,30 +362,6 @@ pipeline: core/pipelines/core2.yml
     repo: resources('code')
     drop: pipelines('core').exports('drop')
 ```
-You can optionally define a job in a file and reference it in a pipeline
-
-```yaml
-# jobs/corebuild.yml
-name: build
-steps:
-  - task: powershell@1.x 
-    name: Build script
-    inputs:
-      script: build.ps1
-
-# mypipeline.yml
-resources:
-  - name: templates
-    type: git
-    data:
-      url: https://github.com/Microsoft/pipeline-templates.git
-      ref: refs/tags/lkg
-jobs:
-  - name: mybuild
-    steps:
-      jobFile: templates/jobs/corebuild.yml
-      
-```
 
 ## Matrix
 By default a job will run once per pipeline execution.  However, there are cases when you will want to run a job multipe times for different inputs.  For example you may want to test your application on multiple versions of node.
