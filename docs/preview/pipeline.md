@@ -188,23 +188,26 @@ For an example of how the internals of a custom language may look, see the [foll
 Tasks are another construct which may be templated. On the server these are known as `TaskGroups`, and this provides a mechanism for performing the same style of reuse without requiring interaction with the server model. 
 ```yaml
 inputs:
-  - name: projectFile
+  - name: project
     type: string
-  - name: msbuildArgs
+  - name: platform
     type: string
-    defaultValue: 
+    defaultValue: AnyCPU
+  - name: configuration
+    type: string
+    defaultValue: Debug
   - name: testAssemblies
     type: string
 
 - task: msbuild@1.*
-  name: "Build @{inputs('projectFile')}"
+  name: Build @{inputs('project')}
   inputs:
-    project: @inputs('projectFile')
-    arguments: @inputs('msbuildArgs') 
+    project: "@inputs('project')"
+    arguments: "/p:Platform=@{inputs('platform')} /p:Configuration=@{inputs('configuration')}"
 - task: vstest@1.*
-  name: "Test @{inputs('testAssemblies')}"
+  name: Test @{inputs('testAssemblies')}
   inputs: 
-    assemblies: @inputs('testAssemblies')
+    assemblies: "@inputs('testAssemblies')"
 ```
 If the above file were located in a folder `src/tasks/buildandtest.yml`, a job may include this group with the following syntax:
 ```yaml
@@ -217,7 +220,7 @@ jobs:
       - import: code
       - include: code/src/tasks/buildandtest.yml
         inputs:
-          projectFile: code/src/dirs.proj
+          project: code/src/dirs.proj
           testAssemblies: code/bin/**/*Test*.dll
 ```
 This provides the ability to build up libararies of useful functionality by aggregating individual tasks into larger pieces of logic. 
@@ -240,12 +243,12 @@ jobs:
       name: default
     steps:
       - import: code
-      - task: code/src/jobs/buildandtest.yml
+      - task: code/src/tasks/buildandtest.yml
         inputs:
           project: code/src/dirs.proj
           platform: x86
           configuration: release
-          testAssemblies: code/bin/**Test*.dll
+          testAssemblies: code/bin/x86/**Test*.dll
 
   - name: x64-release
     target:
@@ -253,12 +256,12 @@ jobs:
       name: default
     steps:
       - import: code
-      - task: code/src/jobs/buildandtest.yml
+      - task: code/src/tasks/buildandtest.yml
         inputs:
           project: code/src/dirs.proj
           platform: x64
           configuration: release
-          testAssemblies: code/bin/**Test*.dll
+          testAssemblies: code/bin/x64/**Test*.dll
           
   - name: finalize
     target: server
@@ -282,12 +285,12 @@ jobs:
       name: default
     steps:
       - import: code
-      - task: code/src/jobs/buildandtest.yml
+      - task: code/src/tasks/buildandtest.yml
         inputs:
           project: code/src/dirs.proj
           platform: "@item()"
           configuration: release
-          testAssemblies: code/bin/**Test*.dll
+          testAssemblies: code/bin/@{item()}/**Test*.dll
     with_items:
       - x86
       - x64
@@ -315,12 +318,12 @@ jobs:
     steps:
       - import: code
         clean: false
-      - task: code/src/jobs/buildandtest.yml
+      - task: code/src/tasks/buildandtest.yml
         inputs:
           project: code/src/dirs.proj
           platform: "@item().platform"
           configuration: "@item().configuration"
-          testAssemblies: code/bin/**Test*.dll
+          testAssemblies: code/bin/@{item().platform}/**Test*.dll
     with_items:
       - platform: x86
         configuration: release 
@@ -365,7 +368,7 @@ jobs:
       name: "@inputs('queueName')"
     steps:
       - import: code
-      - task: msbuild@1.*
+      - task: "msbuild@1.*"
         name: "Build project @{inputs('projectFile')}"
         inputs:
           project: "code/@{inputs('projectFile')}"
