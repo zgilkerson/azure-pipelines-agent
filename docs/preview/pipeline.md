@@ -368,10 +368,10 @@ jobs:
       name: "@inputs('queueName')"
     steps:
       - import: code
-      - task: "msbuild@1.*"
-        name: "Build project @{inputs('projectFile')}"
+      - task: msbuild@1.*
+        name: Build project @{inputs('projectFile')}
         inputs:
-          project: "code/@{inputs('projectFile')}"
+          project: code/@{inputs('projectFile')}
       - export: artifact
         name: drop
         inputs:
