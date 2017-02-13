@@ -350,16 +350,28 @@ The definition for a template from which other pipelines inherit, in the most si
 
 ```yaml
 inputs:
-  - name: queueName
+  - name: queue
     type: string
     default: default
-  - name: projectFile
+  - name: projects
     type: string
+  - name: testProjects
+    type: string
+  - name: buildConfiguration
+    type: string[]
+  - name: buildPlatform
+    type: string[]
+  - name: publishWebProjects
+    type: bool
+    defaultValue: true
+  - name: zipPublishedProjects
+    type: bool
+    defaultValue: true
 
 # In our resource list, the lack of data describing how to get the resource implies it is a required input
 resources:
-  - name: code
-    type: git
+  - name: s
+    type: self
 
 jobs:
   - name: build
@@ -368,14 +380,34 @@ jobs:
       name: "@inputs('queueName')"
     steps:
       - import: code
-      - task: msbuild@1.*
-        name: Build project @{inputs('projectFile')}
+      - task: dotnetcore@0.*
+        name: Restore
         inputs:
-          project: code/@{inputs('projectFile')}
+          command: restore
+          projects: code/@{inputs('projects')}
+      - task: dotnetcore@0.*
+        name: Build
+        inputs:
+          command: build
+          arguments: --configuration @{inputs('buildConfiguration')}
+      - task: dotnetcore@0.*
+        name: Test
+        inputs:
+          command: test
+          projects: "@inputs('testProjects')"
+          arguments: --configuration @{inputs('buildConfiguration')}
+      - task: dotnetcore@0.*
+        name: Publish
+        inputs:
+          command: publish
+          publishWebProjects: "@inputs('publishWebProjects')"
+          zipPublishedProject: "@inputs('zipPublishedProjects')"
+          arguments: --configuration @{inputs('buildConfiguration')}
       - export: artifact
         name: drop
+        condition: always()
         inputs:
-          include: ['bin/**/*.dll']
+          pathToPublish: $(build.artifactsstagingdirectory)
 ```
 A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are defined and provided their own definition specific names. Last, the template is invoked using the name given to it within the file which includes it. 
 ```yaml
@@ -385,10 +417,6 @@ includes:
       type: git
       url: https://github.com/Microsoft/pipeline-templates.git
       ref: refs/tags/lkg
-
-resources:
-  - name: code
-    type: self
 
 # Override the required input with the proper value
 pipeline: core/pipelines/core.yml
