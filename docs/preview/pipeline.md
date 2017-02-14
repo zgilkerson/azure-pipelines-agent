@@ -426,7 +426,7 @@ jobs:
           pathToPublish: $(build.artifactstagingdirectory)
       - group: after_publish
 ```
-A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are overridden by defining a new resource with the same name. Last, inputs are overidden by specifying top-level properties on the override with names matching those of the corresponding input. For instance, the input `matrix` is overridden below with a directive to run 2 independent configurations of the job using default values for most settings. 
+A usage of this template is shown below. Assuming the code being built lives in the same repository as this file and the defaults provided are sufficient (e.g. using project.json, you want zip and publish your web application, and you only want to build, test, and package a release build verified against the latest dotnet framework) then your file may be as simple as what you see below.
 ```yaml
 # Since this file does not have a location qualifier and the toolset does not have required inputs, this is
 # all that is required for the most simple of definitions that fit our pre-defined model.
