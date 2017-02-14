@@ -350,7 +350,7 @@ Pipelines may be authored as stand-alone definitions or as templates to be inher
 
 The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline. This particular file would be dropped in `src/toolsets/dotnet/pipeline.yml` and is modeled after the existing ASP.NET Core template found on the service.
 ```yaml
-properties:
+inputs:
   # Controls the name of the queue which jobs should use
   queueName: default
 
@@ -371,16 +371,15 @@ properties:
     - buildConfiguration: release
       dotnet: 1.1
 
-# Defines the overriddable stages, each a list of tasks, that may be injected by
-# consumers
-stages:
-  before_install:
-  before_restore:
-  before_build:
-  before_test:
-  before_publish:
-  after_publish:
-
+  # Defines the customizable stages that may be overridden
+  stages:
+      before_install:
+      before_restore:
+      before_build:
+      before_test:
+      before_publish:
+      after_publish:
+      
 # In our resource list a self reference type is inferred by the system. The name 's' has been chosen in this
 # case for backward compatibility with the location of $(build.sourcedirectory).
 resources:
