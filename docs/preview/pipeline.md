@@ -436,14 +436,14 @@ includes:
       url: https://github.com/Microsoft/sys-templates.git
       ref: refs/tags/lkg
 
-# Since the file above is located in the toolsets folder, this directive automatically locates the proper file and 
-# preps a base implementation using the raw values from the template. 
-toolset: dotnet
+# Since the file above is located in the toolsets folder, this directive automatically locates the proper file 
+# and preps a base implementation using the raw values from the template. 
+toolset: dotnet@sys
 
-# Individual steps within the toolset lifecycle may be overridden here. In this case the following injection points
-# are allowed. Each overridable section is denoted in the template by the 'group' step type, which serves as a named
-# placeholder for implementations to inject custom logic and well-understood points without understanding the entire
-# job execution.
+# Individual steps within the toolset lifecycle may be overridden here. In this case the following injection
+# points are allowed. Each overridable section is denoted in the template by the 'group' step type, which serves
+# as a named placeholder for implementations to inject custom logic and well-understood points without 
+# understanding the entire job execution.
 #
 #  before_install:
 #  before_restore:
@@ -451,8 +451,8 @@ toolset: dotnet
 #  before_publish:
 #  after_publish:
 
-# Specify the matrix input by defining it inline here. In this example we will run the default project, test, publish
-# step for the release configuration and dotnet versions 1.0 and 1.1.
+# Specify the matrix input by defining it inline here. In this example we will run the default project, test, 
+# publish step for the release configuration and dotnet versions 1.0 and 1.1.
 matrix:
   - buildConfiguration: release
     dotnet: 1.0
