@@ -348,28 +348,27 @@ Pipelines may be authored as stand-alone definitions or as templates to be inher
 
 The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline. This particular file would be dropped in `src/toolsets/dotnet/pipeline.yml` and is modeled after the existing ASP.NET Core template found on the service.
 ```yaml
-inputs:
-  - name: queue
-    type: string
-    default: default
-  - name: projects
-    type: string
-    default: **/project.json
-  - name: testProjects
-    type: string
-    default: **/*Tests/project.json
-  - name: publishWebProjects
-    type: bool
-    defaultValue: true
-  - name: zipPublishedProjects
-    type: bool
-    defaultValue: true
-  - name: matrix
-    type: env
-    default: 
-      buildConfiguration: release
-      dotnet: 1.1
+properties:
+  # Controls the name of the queue which jobs should use
+  queue: default
 
+  # Controls the pattern for build project discovery
+  projects: **/project.json
+
+  # Controls the input pattern for test project discovery
+  testProjects: **/*Tests/project.json
+
+  # Controls whether or not web projects should be published
+  publishWebProjects: true
+
+  # Controls whether or not the published projects should be zipped
+  zipPublishedProjects: true
+
+  # Defines the input matrix for driving job generation from a template
+  matrix:
+    - buildConfiguration: release
+      dotnet: 1.1
+    
 # In our resource list a self reference type is inferred by the system. The name 's' has been chosen in this
 # case for backward compatibility with the location of $(build.sourcedirectory).
 resources:
@@ -380,7 +379,7 @@ jobs:
   - name: build-@{item().buildConfiguration}
     target: 
       type: queue
-      name: "@inputs('queueName')"
+      name: "@properties('queueName')"
     steps:
       - import: s
       - group: before_install
@@ -394,7 +393,7 @@ jobs:
         name: restore
         inputs:
           command: restore
-          projects: "@{inputs('projects')}"
+          projects: "@{properties('projects')}"
       - task: dotnetcore@0.*
         name: build
         inputs:
@@ -404,21 +403,21 @@ jobs:
         name: test
         inputs:
           command: test
-          projects: "@inputs('testProjects')"
+          projects: "@properties('testProjects')"
           arguments: --configuration @{item().buildConfiguration)}
       - group: before_publish
       - task: dotnetcore@0.*
         name: publish
         inputs:
           command: publish
-          arguments: --configuration @{item().buildConfiguration} --output @{variables('build.artifactstagingdirectory')}
-          publishWebProjects: "@inputs('publishWebProjects')"
-          zipPublishedProject: "@inputs('zipPublishedProjects')"
+          arguments: --configuration @{item().buildConfiguration} --output $(build.artifactstagingdirectory)
+          publishWebProjects: "@properties('publishWebProjects')"
+          zipPublishedProject: "@properties('zipPublishedProjects')"
       - export: artifact
         name: drop
         condition: always()
         inputs:
-          pathToPublish: variables('build.artifactstagingdirectory')
+          pathToPublish: $(build.artifactstagingdirectory)
       - group: after_publish
     with_items:
       "@inputs('matrix')"
