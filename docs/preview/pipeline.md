@@ -388,7 +388,7 @@ jobs:
       "{{ item() }}"
     steps:
       - import: s
-      - before_install
+      - group: before_install
       - task: dotnetcore@0.*
         name: install
         inputs:
