@@ -410,7 +410,7 @@ jobs:
         inputs:
           command: restore
           projects: "{{ projects }}"
-      {{ properties.before_build }}
+      {{ stages.before_build }}
       - task: dotnetcore@0.*
         name: build
         inputs:
