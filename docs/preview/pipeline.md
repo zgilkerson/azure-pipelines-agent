@@ -347,6 +347,7 @@ Other looping constructs may be introduced in the future, such as the concept of
 ## Pipeline Templates
 Pipelines may be authored as stand-alone definitions or as templates to be inherited. The advantage of providing a model for process inheritance is it provides the ability to enforce policy on a set of pipeline definitions by providing a master process with configurable overrides. 
 
+### Defining a Template
 The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline. This particular file would be dropped in `src/toolsets/dotnet/pipeline.yml` and is modeled after the existing ASP.NET Core template found on the service.
 ```yaml
 # All values which appear in the inputs section are overridable by a definition
@@ -447,17 +448,28 @@ jobs:
       - group:
           "{{groups.after_publish}}"
 ```
+There are a couple of points which should be made clear before we move on. First, the context within a template is implicitly set to the `inputs` object to avoid the need to reference it explicitly. Second, we have a couple of examples where we are using an object expansion to inject an array variable as the array of another property. For instance, the `group` tag is just a place-holder for a task group, which is itself just a list of tasks represented as a single task. In this case the template has defined an overridable input named `groups` with well-defined properties, and then injects them into the job at template expansion time using the following syntax:
+```yaml
+- group:
+    "{{groups.after_publish}}
+```
+We also see this when providing all of the values from the matrix item as variables which will then be accessible as environment variables within the job downstream. Since the item being iterated is an array of dictionaries, and the `variables` property is expected itself to be a dictionary, we are able to safely perform this replacement using templating syntax.
+```yaml
+- variables:
+    "{{item}}"
+```
+### Using a Template
 A usage of this template is shown below. Assuming the code being built lives in the same repository as this file and the defaults provided are sufficient (e.g. using project.json, you want zip and publish your web application, and you only want to build, test, and package a release build verified against the latest dotnet framework) then your file may be as simple as what you see below.
 ```yaml
 # Since this file does not have a location qualifier and the toolset does not have required inputs, this is
 # all that is required for the most simple of definitions that fit our pre-defined model.
-extends: dotnet
+uses: dotnet
 ```
 If the code author desires to build and test their code on multiple dotnet versions or multiple build configurations, there is a top-level `matrix` property which may be overridden to specify specific configurations and versions. The defaults provided by the template above are `buildConfiguration: release, dotnet: 1.1`. In our example below, we want to build and verify our application against both `dotnet: 1.0` and `dotnet: 1.1`, so we override the matrix with the necessary values. 
 ```yaml
 # Since this file does not have a location qualifier and the toolset does not have required inputs, this is
 # all that is required for the most simple of definitions that fit our pre-defined model.
-extends: dotnet
+uses: dotnet
 
 # Specify the matrix input by defining it inline here. In this example we will run the default project, test, 
 # publish step for the release configuration and dotnet versions 1.0 and 1.1.
@@ -471,7 +483,7 @@ Assuming more control is needed, such as the injection of custom steps into the 
 ```yaml
 # Since this file does not have a location qualifier and the toolset does not have required inputs, this is
 # all that is required for the most simple of definitions that fit our pre-defined model.
-extends: dotnet
+uses: dotnet
 
 # Individual steps within the toolset lifecycle may be overridden here. In this case the following injection
 # points are allowed. Each overridable section is denoted in the template by the 'group' step type, which serves
