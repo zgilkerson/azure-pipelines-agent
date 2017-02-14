@@ -12,13 +12,9 @@ Broken down into the most simple concepts possible, the purpose of the execution
 resource:
 	name: string # A local name by which this resource is referenced
 	type: string # A type of resource for provider selection
-	endpoint: endpointRef # An optional reference to a managed endpoint
+	endpoint: ordinal name to an endpoint # An optional reference to a managed endpoint
 	id: string # A provider-specific value for resource identification
 	data: object # An opaque structure provided for/by the provider
-
-endpointRef:
-	id: guid # The identifier of the managed endpoint
-	type: string # The type of managed endpoint referenced
 ```
 ## Resource Identification
  Resources downloaded on the agent, including repositories, build artifacts, nuget packages, etc., should be registered with and tracked by the server to provide better agent routing and visibility for pool administrators to determine which definitions and resources consume the most space. In order to provide this selection, the messages delivered to the agent for running jobs will need to be altered to include a list of the resources which are required for the job. For instance, a pipeline which consumes a build drop artifact, a git repository, and a nuget package may look something like the following:
@@ -30,8 +26,7 @@ job:
     - name: build
       type: vsts.build
       id: "{{data.collectionId}}.{{data.buildId}}.{{data.artifactName}}"
-      endpoint:
-        id: system-endpoint-id
+      endpoint: system-endpoint-id
       data:
         collectionId: "45a325da-9ad3-4e34-a044-5a6765528113"
         projectId: "ac963673-c64a-48d4-b7f5-28e44a9db45c"
@@ -42,8 +37,7 @@ job:
     - name: vso
       type: git
       id: "{{data.url}}"
-      endpoint:
-        id: github-endpoint-id
+      endpoint: github-endpoint-id
       data:
         url: "https://github.com/Microsoft/vsts-tasks.git"
         ref: master
@@ -51,8 +45,7 @@ job:
     - name: nuget_refs
       type: nuget
       id: "{{endpoint.id}}.{{data.feed}}.{{data.package}}.{{data.version}}"
-      endpoint:
-        id: nuget-endpoint-id
+      endpoint: nuget-endpoint-id
       data:
         feed: my feed
         package: my package
