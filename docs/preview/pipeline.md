@@ -200,14 +200,14 @@ inputs:
     type: string
 
 - task: msbuild@1.*
-  name: Build @{inputs('project')}
+  name: "Build {{ inputs('project') }}"
   inputs:
-    project: "@inputs('project')"
-    arguments: "/p:Platform=@{inputs('platform')} /p:Configuration=@{inputs('configuration')}"
+    project: "{{ inputs('project') }}"
+    arguments: "/p:Platform={{ inputs('platform') }} /p:Configuration={{ inputs('configuration') }}"
 - task: vstest@1.*
-  name: Test @{inputs('testAssemblies')}
+  name: "Test {{ inputs('testAssemblies') }}"
   inputs: 
-    assemblies: "@inputs('testAssemblies')"
+    assemblies: "{{ inputs('testAssemblies') }}"
 ```
 If the above file were located in a folder `src/tasks/buildandtest.yml`, a job may include this group with the following syntax:
 ```yaml
@@ -279,7 +279,7 @@ resources:
       ref: master
 
 jobs:
-  - name: "@{item()}-release"
+  - name: "build-{{ item() }}-release"
     target:
       type: queue
       name: default
@@ -288,9 +288,9 @@ jobs:
       - task: code/src/tasks/buildandtest.yml
         inputs:
           project: code/src/dirs.proj
-          platform: "@item()"
+          platform: "{{ item() }}"
           configuration: release
-          testAssemblies: code/bin/@{item()}/**Test*.dll
+          testAssemblies: code/bin/{{ item() }}/**Test*.dll
     with_items:
       - x86
       - x64
@@ -311,19 +311,21 @@ resources:
       ref: master
 
 jobs:
-  - name: "@{item().platform}-@{item().configuration}"
+  - name: "build-{{ item().platform }-{{ item().configuration }}"
     target:
       type: queue
       name: default
+    variables:
+      "{{ item() }}"
     steps:
       - import: code
         clean: false
       - task: code/src/tasks/buildandtest.yml
         inputs:
           project: code/src/dirs.proj
-          platform: "@item().platform"
-          configuration: "@item().configuration"
-          testAssemblies: code/bin/@{item().platform}/**Test*.dll
+          platform: $(platform)
+          configuration: $(configuration)
+          testAssemblies: code/bin/$(platform)/**Test*.dll
     with_items:
       - platform: x86
         configuration: release 
@@ -356,7 +358,9 @@ properties:
   projects: **/project.json
 
   # Controls the input pattern for test project discovery
-  testProjects: **/*Tests/project.json
+  testProjects: 
+    - **/*Tests/project.json
+    - **/*Foo/project.json
 
   # Controls whether or not web projects should be published
   publishWebProjects: true
@@ -376,51 +380,53 @@ resources:
     type: self
 
 jobs:
-  - name: build-@{item().buildConfiguration}
+  - with_items: 
+      "{{ properties('matrix') }}"
+    name: "build-{{ item().buildConfiguration }}"
     target: 
       type: queue
-      name: "@properties('queueName')"
+      name: {{ properties('queueName') }}
+    variables:
+      "{{ item() }}"
     steps:
       - import: s
-      - group: before_install
+      - before_install
       - task: dotnetcore@0.*
         name: install
         inputs:
           command: install
-          arguments: --version @{item().dotnet}
+          arguments: "--version {{ item().dotnet }}"
       - group: before_restore
       - task: dotnetcore@0.*
         name: restore
         inputs:
           command: restore
-          projects: "@{properties('projects')}"
+          projects: "{{ properties('projects') }}"
       - task: dotnetcore@0.*
         name: build
         inputs:
           command: build
-          arguments: --configuration @{item().buildConfiguration}
+          arguments: --configuration $(buildConfiguration)
       - task: dotnetcore@0.*
         name: test
         inputs:
           command: test
-          projects: "@properties('testProjects')"
-          arguments: --configuration @{item().buildConfiguration)}
+          projects: "{{ properties('testProjects') }}"
+          arguments: --configuration $(buildConfiguration)
       - group: before_publish
       - task: dotnetcore@0.*
         name: publish
         inputs:
           command: publish
-          arguments: --configuration @{item().buildConfiguration} --output $(build.artifactstagingdirectory)
-          publishWebProjects: "@properties('publishWebProjects')"
-          zipPublishedProject: "@properties('zipPublishedProjects')"
+          arguments: --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)
+          publishWebProjects: "{{ properties('publishWebProjects') }}"
+          zipPublishedProject: "{{ properties('zipPublishedProjects') }}"
       - export: artifact
         name: drop
-        condition: always()
+        condition: "{{ always() }}"
         inputs:
           pathToPublish: $(build.artifactstagingdirectory)
       - group: after_publish
-    with_items:
-      "@inputs('matrix')"
 ```
 A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are overridden by defining a new resource with the same name. Last, inputs are overidden by specifying top-level properties on the override with names matching those of the corresponding input. For instance, the input `matrix` is overridden below with a directive to run 2 independent configurations of the job using default values for most settings. 
 ```yaml
