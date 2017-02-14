@@ -358,9 +358,7 @@ properties:
   projects: **/project.json
 
   # Controls the input pattern for test project discovery
-  testProjects: 
-    - **/*Tests/project.json
-    - **/*Foo/project.json
+  testProjects: **/*Tests/project.json
 
   # Controls whether or not web projects should be published
   publishWebProjects: true
@@ -430,27 +428,41 @@ jobs:
 ```
 A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are overridden by defining a new resource with the same name. Last, inputs are overidden by specifying top-level properties on the override with names matching those of the corresponding input. For instance, the input `matrix` is overridden below with a directive to run 2 independent configurations of the job using default values for most settings. 
 ```yaml
-# List the sources which we will reference for tasks, toolsets, pipelines, etc, in the case where they are pulled
-# from a remote repository. These follow the same resource contract as any other resource and therefore could
-# potentially be pulled from any other resource provider supported by the system. By default we would infer the
-# system include for brevity, but it is illustrated here for examp
-includes: 
-  - name: sys
-    type: git
-    data:
-      url: https://github.com/Microsoft/sys-templates.git
-      ref: refs/tags/lkg
+# Since this file does not have a location qualifier and the toolset does not have required inputs, this is
+# all that is required for the most simple of definitions that fit our pre-defined model.
+toolset: dotnet
+```
+If the code author desires to build and test their code on multiple dotnet versions or multiple build configurations, there is a top-level `matrix` property which may be overridden to specify specific configurations and versions. The defaults provided by the template above are `buildConfiguration: release, dotnet: 1.1`. In our example below, we want to build and verify our application against both `dotnet: 1.0` and `dotnet: 1.1`, so we override the matrix with the necessary values. 
+```yaml
+# Since this file does not have a location qualifier and the toolset does not have required inputs, this is
+# all that is required for the most simple of definitions that fit our pre-defined model.
+toolset: dotnet
 
-# Since the file above is located in the toolsets folder, this directive automatically locates the proper file 
-# and preps a base implementation using the raw values from the template. 
-toolset: dotnet@sys
+# Specify the matrix input by defining it inline here. In this example we will run the default project, test, 
+# publish step for the release configuration and dotnet versions 1.0 and 1.1.
+matrix:
+  - buildConfiguration: release
+    dotnet: 1.0
+  - buildConfiguration: release
+    dotnet: 1.1
+```
+Assuming more control is needed, such as the injection of custom steps into the pre-defined lifecycle, there are a few override points defined in the initial template as the empty `group` elements with the job steps. These may be specified in the top-level file and will be overlayed on top of the base template execution time as appropriate.
+```yaml
+# Since this file does not have a location qualifier and the toolset does not have required inputs, this is
+# all that is required for the most simple of definitions that fit our pre-defined model.
+toolset: dotnet
 
 # Individual steps within the toolset lifecycle may be overridden here. In this case the following injection
 # points are allowed. Each overridable section is denoted in the template by the 'group' step type, which serves
 # as a named placeholder for implementations to inject custom logic and well-understood points without 
 # understanding the entire job execution.
 #
-#  before_install:
+before_install:
+  - task: powershell@1.*
+    name: My custom powershell install step
+    inputs:
+      script: src/scripts/preinstall.ps1
+      
 #  before_restore:
 #  before_build:
 #  before_publish:
