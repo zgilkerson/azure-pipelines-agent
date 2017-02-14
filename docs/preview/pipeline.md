@@ -451,7 +451,7 @@ jobs:
 There are a couple of points which should be made clear before we move on. First, the context within a template is implicitly set to the `inputs` object to avoid the need to reference it explicitly. Second, we have a couple of examples where we are using an object expansion to inject an array variable as the array of another property. For instance, the `group` tag is just a place-holder for a task group, which is itself just a list of tasks represented as a single task. In this case the template has defined an overridable input named `groups` with well-defined properties, and then injects them into the job at template expansion time using the following syntax:
 ```yaml
 - group:
-    "{{groups.after_publish}}
+    "{{groups.after_publish}}"
 ```
 We also see this when providing all of the values from the matrix item as variables which will then be accessible as environment variables within the job downstream. Since the item being iterated is an array of dictionaries, and the `variables` property is expected itself to be a dictionary, we are able to safely perform this replacement using templating syntax.
 ```yaml
