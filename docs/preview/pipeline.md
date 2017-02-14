@@ -389,7 +389,6 @@ inputs:
 resources:
   - name: s
     type: self
-    default: true
     
 jobs:
   - with_items: 
