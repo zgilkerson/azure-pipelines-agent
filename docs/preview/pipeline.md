@@ -350,25 +350,26 @@ Pipelines may be authored as stand-alone definitions or as templates to be inher
 
 The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline. This particular file would be dropped in `src/toolsets/dotnet/pipeline.yml` and is modeled after the existing ASP.NET Core template found on the service.
 ```yaml
-# Controls the name of the queue which jobs should use
-queue: default
+properties:
+  # Controls the name of the queue which jobs should use
+  queueName: default
 
-# Controls the pattern for build project discovery
-projects: **/project.json
+  # Controls the pattern for build project discovery
+  projects: **/project.json
 
-# Controls the input pattern for test project discovery
-testProjects: **/*Tests/project.json
+  # Controls the input pattern for test project discovery
+  testProjects: **/*Tests/project.json
 
-# Controls whether or not web projects should be published
-publishWebProjects: true
+  # Controls whether or not web projects should be published
+  publishWebProjects: true
 
-# Controls whether or not the published projects should be zipped
-zipPublishedProjects: true
+  # Controls whether or not the published projects should be zipped
+  zipPublishedProjects: true
 
-# Defines the input matrix for driving job generation from a template
-matrix:
-  - buildConfiguration: release
-    dotnet: 1.1
+  # Defines the input matrix for driving job generation from a template
+  matrix:
+    - buildConfiguration: release
+      dotnet: 1.1
 
 # Defines the overriddable stages, each a list of tasks, that may be injected by
 # consumers
@@ -389,11 +390,11 @@ resources:
     
 jobs:
   - with_items: 
-      "{{ properties.matrix }}"
+      "{{ matrix }}"
     name: "build-{{ item.buildConfiguration }}"
     target: 
       type: queue
-      name: "{{ properties.queueName }}"
+      name: "{{ queueName }}"
     variables:
       "{{ item }}"
     steps:
@@ -409,7 +410,7 @@ jobs:
         name: restore
         inputs:
           command: restore
-          projects: "{{ properties.projects }}"
+          projects: "{{ projects }}"
       {{ properties.before_build }}
       - task: dotnetcore@0.*
         name: build
@@ -421,7 +422,7 @@ jobs:
         name: test
         inputs:
           command: test
-          projects: "{{ properties.testProjects }}"
+          projects: "{{ testProjects }}"
           arguments: --configuration $(buildConfiguration)
       {{ stages.before_publish }}
       - task: dotnetcore@0.*
@@ -429,8 +430,8 @@ jobs:
         inputs:
           command: publish
           arguments: --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)
-          publishWebProjects: "{{ properties('publishWebProjects') }}"
-          zipPublishedProject: "{{ properties('zipPublishedProjects') }}"
+          publishWebProjects: "{{ publishWebProjects }}"
+          zipPublishedProject: "{{ zipPublishedProjects }}"
       - export: artifact
         name: drop
         condition: always()
