@@ -290,7 +290,7 @@ jobs:
           project: code/src/dirs.proj
           platform: "{{ item() }}"
           configuration: release
-          testAssemblies: code/bin/{{ item() }}/**Test*.dll
+          testAssemblies: "code/bin/{{ item() }}/**Test*.dll"
     with_items:
       - x86
       - x64
@@ -311,7 +311,7 @@ resources:
       ref: master
 
 jobs:
-  - name: "build-{{ item().platform }-{{ item().configuration }}"
+  - name: "build-{{ item().platform }}-{{ item().configuration }}"
     target:
       type: queue
       name: default
@@ -385,7 +385,7 @@ jobs:
     name: "build-{{ item().buildConfiguration }}"
     target: 
       type: queue
-      name: {{ properties('queueName') }}
+      name: "{{ properties('queueName') }}"
     variables:
       "{{ item() }}"
     steps:
@@ -423,7 +423,7 @@ jobs:
           zipPublishedProject: "{{ properties('zipPublishedProjects') }}"
       - export: artifact
         name: drop
-        condition: "{{ always() }}"
+        condition: always()
         inputs:
           pathToPublish: $(build.artifactstagingdirectory)
       - group: after_publish
