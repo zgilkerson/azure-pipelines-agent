@@ -279,7 +279,7 @@ resources:
       ref: master
 
 jobs:
-  - name: "build-{{ item() }}-release"
+  - name: "build-{{ item }}-release"
     target:
       type: queue
       name: default
@@ -288,9 +288,9 @@ jobs:
       - task: code/src/tasks/buildandtest.yml
         inputs:
           project: code/src/dirs.proj
-          platform: "{{ item() }}"
+          platform: "{{ item }}"
           configuration: release
-          testAssemblies: "code/bin/{{ item() }}/**Test*.dll"
+          testAssemblies: "code/bin/{{ item }}/**Test*.dll"
     with_items:
       - x86
       - x64
@@ -311,12 +311,12 @@ resources:
       ref: master
 
 jobs:
-  - name: "build-{{ item().platform }}-{{ item().configuration }}"
+  - name: "build-{{ item.platform }}-{{ item.configuration }}"
     target:
       type: queue
       name: default
     variables:
-      "{{ item() }}"
+      "{{ item }}"
     steps:
       - import: code
         clean: false
@@ -326,7 +326,7 @@ jobs:
           platform: $(platform)
           configuration: $(configuration)
           testAssemblies: code/bin/$(platform)/**Test*.dll
-    with_items:
+    with_items: 
       - platform: x86
         configuration: release 
       - platform: x86
@@ -350,68 +350,80 @@ Pipelines may be authored as stand-alone definitions or as templates to be inher
 
 The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline. This particular file would be dropped in `src/toolsets/dotnet/pipeline.yml` and is modeled after the existing ASP.NET Core template found on the service.
 ```yaml
-properties:
-  # Controls the name of the queue which jobs should use
-  queue: default
+# Controls the name of the queue which jobs should use
+queue: default
 
-  # Controls the pattern for build project discovery
-  projects: **/project.json
+# Controls the pattern for build project discovery
+projects: **/project.json
 
-  # Controls the input pattern for test project discovery
-  testProjects: **/*Tests/project.json
+# Controls the input pattern for test project discovery
+testProjects: **/*Tests/project.json
 
-  # Controls whether or not web projects should be published
-  publishWebProjects: true
+# Controls whether or not web projects should be published
+publishWebProjects: true
 
-  # Controls whether or not the published projects should be zipped
-  zipPublishedProjects: true
+# Controls whether or not the published projects should be zipped
+zipPublishedProjects: true
 
-  # Defines the input matrix for driving job generation from a template
-  matrix:
-    - buildConfiguration: release
-      dotnet: 1.1
-    
+# Defines the input matrix for driving job generation from a template
+matrix:
+  - buildConfiguration: release
+    dotnet: 1.1
+
+# Defines the overriddable stages, each a list of tasks, that may be injected by
+# consumers
+stages:
+  before_install:
+  before_restore:
+  before_build:
+  before_test:
+  before_publish:
+  after_publish:
+
 # In our resource list a self reference type is inferred by the system. The name 's' has been chosen in this
 # case for backward compatibility with the location of $(build.sourcedirectory).
 resources:
   - name: s
     type: self
-
+    default: true
+    
 jobs:
   - with_items: 
-      "{{ properties('matrix') }}"
-    name: "build-{{ item().buildConfiguration }}"
+      "{{ properties.matrix }}"
+    name: "build-{{ item.buildConfiguration }}"
     target: 
       type: queue
-      name: "{{ properties('queueName') }}"
+      name: "{{ properties.queueName }}"
     variables:
-      "{{ item() }}"
+      "{{ item }}"
     steps:
       - import: s
-      - group: before_install
+      {{ stages.before_install }}
       - task: dotnetcore@0.*
         name: install
         inputs:
           command: install
-          arguments: "--version {{ item().dotnet }}"
-      - group: before_restore
+          arguments: "--version {{ item.dotnet }}"
+      {{ stages.before_restore }}
       - task: dotnetcore@0.*
         name: restore
         inputs:
           command: restore
-          projects: "{{ properties('projects') }}"
+          projects: "{{ properties.projects }}"
+      {{ properties.before_build }}
       - task: dotnetcore@0.*
         name: build
         inputs:
           command: build
           arguments: --configuration $(buildConfiguration)
+      {{ stages.before_test }}
       - task: dotnetcore@0.*
         name: test
         inputs:
           command: test
-          projects: "{{ properties('testProjects') }}"
+          projects: "{{ properties.testProjects }}"
           arguments: --configuration $(buildConfiguration)
-      - group: before_publish
+      {{ stages.before_publish }}
       - task: dotnetcore@0.*
         name: publish
         inputs:
@@ -424,19 +436,19 @@ jobs:
         condition: always()
         inputs:
           pathToPublish: $(build.artifactstagingdirectory)
-      - group: after_publish
+      {{ stages.after_publish }}
 ```
 A usage of this template is shown below. Assuming the code being built lives in the same repository as this file and the defaults provided are sufficient (e.g. using project.json, you want zip and publish your web application, and you only want to build, test, and package a release build verified against the latest dotnet framework) then your file may be as simple as what you see below.
 ```yaml
 # Since this file does not have a location qualifier and the toolset does not have required inputs, this is
 # all that is required for the most simple of definitions that fit our pre-defined model.
-toolset: dotnet
+implements: dotnet
 ```
 If the code author desires to build and test their code on multiple dotnet versions or multiple build configurations, there is a top-level `matrix` property which may be overridden to specify specific configurations and versions. The defaults provided by the template above are `buildConfiguration: release, dotnet: 1.1`. In our example below, we want to build and verify our application against both `dotnet: 1.0` and `dotnet: 1.1`, so we override the matrix with the necessary values. 
 ```yaml
 # Since this file does not have a location qualifier and the toolset does not have required inputs, this is
 # all that is required for the most simple of definitions that fit our pre-defined model.
-toolset: dotnet
+implements: dotnet
 
 # Specify the matrix input by defining it inline here. In this example we will run the default project, test, 
 # publish step for the release configuration and dotnet versions 1.0 and 1.1.
@@ -450,21 +462,22 @@ Assuming more control is needed, such as the injection of custom steps into the 
 ```yaml
 # Since this file does not have a location qualifier and the toolset does not have required inputs, this is
 # all that is required for the most simple of definitions that fit our pre-defined model.
-toolset: dotnet
+implements: dotnet
 
 # Individual steps within the toolset lifecycle may be overridden here. In this case the following injection
 # points are allowed. Each overridable section is denoted in the template by the 'group' step type, which serves
 # as a named placeholder for implementations to inject custom logic and well-understood points without 
 # understanding the entire job execution.
-#
-before_install:
-  - task: powershell@1.*
-    name: My custom powershell install step
-    inputs:
-      script: src/scripts/preinstall.ps1
-      
+stages:
+  before_install:
+    - task: powershell@1.*
+      name: My custom powershell install step
+      inputs:
+        script: src/scripts/preinstall.ps1
+        
 #  before_restore:
 #  before_build:
+#  before_test:
 #  before_publish:
 #  after_publish:
 
