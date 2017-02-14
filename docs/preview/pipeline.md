@@ -358,16 +358,17 @@ inputs:
   - name: testProjects
     type: string
     default: **/*Tests/project.json
-  - name: matrix
-    type: env
-    default: 
-      buildConfiguration: release
   - name: publishWebProjects
     type: bool
     defaultValue: true
   - name: zipPublishedProjects
     type: bool
     defaultValue: true
+  - name: matrix
+    type: env
+    default: 
+      buildConfiguration: release
+      dotnet: 1.1
 
 # In our resource list a self reference type is inferred by the system. The name 's' has been chosen in this
 # case for backward compatibility with the location of $(build.sourcedirectory).
@@ -382,29 +383,32 @@ jobs:
       name: "@inputs('queueName')"
     steps:
       - import: s
+      - group: before_install
       - task: dotnetcore@0.*
-        name: Install @{item().dotnet}
+        name: install
         inputs:
           command: install
           arguments: --version @{item().dotnet}
+      - group: before_restore
       - task: dotnetcore@0.*
-        name: Restore
+        name: restore
         inputs:
           command: restore
           projects: "@{inputs('projects')}"
       - task: dotnetcore@0.*
-        name: Build
+        name: build
         inputs:
           command: build
           arguments: --configuration @{item().buildConfiguration}
       - task: dotnetcore@0.*
-        name: Test
+        name: test
         inputs:
           command: test
           projects: "@inputs('testProjects')"
           arguments: --configuration @{item().buildConfiguration)}
+      - group: before_publish
       - task: dotnetcore@0.*
-        name: Publish
+        name: publish
         inputs:
           command: publish
           arguments: --configuration @{item().buildConfiguration} --output @{variables('build.artifactstagingdirectory')}
@@ -415,7 +419,8 @@ jobs:
         condition: always()
         inputs:
           pathToPublish: variables('build.artifactstagingdirectory')
-    with_values:
+      - group: after_publish
+    with_items:
       "@inputs('matrix')"
 ```
 A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are overridden by defining a new resource with the same name. Last, inputs are overidden by specifying top-level properties on the override with names matching those of the corresponding input. For instance, the input `matrix` is overridden below with a directive to run 2 independent configurations of the job using default values for most settings. 
@@ -435,7 +440,19 @@ includes:
 # preps a base implementation using the raw values from the template. 
 toolset: dotnet
 
-# Specify the matrix input by defining it inline here. 
+# Individual steps within the toolset lifecycle may be overridden here. In this case the following injection points
+# are allowed. Each overridable section is denoted in the template by the 'group' step type, which serves as a named
+# placeholder for implementations to inject custom logic and well-understood points without understanding the entire
+# job execution.
+#
+#  before_install:
+#  before_restore:
+#  before_build:
+#  before_publish:
+#  after_publish:
+
+# Specify the matrix input by defining it inline here. In this example we will run the default project, test, publish
+# step for the release configuration and dotnet versions 1.0 and 1.1.
 matrix:
   - buildConfiguration: release
     dotnet: 1.0
