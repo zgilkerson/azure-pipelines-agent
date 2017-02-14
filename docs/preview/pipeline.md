@@ -344,10 +344,9 @@ Other looping constructs may be introduced in the future, such as the concept of
 
 ## Pipeline Templates
 ### This is not well thought out at this point. Not clear what is overridable, if anything, when including an entire pipeline. Also not clear if we want to support (the answer is likely yes) including multiple pipelines into a larger pipeline for larger orchestrations built up from smaller pieces.
-Pipelines may be authored as stand-alone definitions or as templates to be inherited. The advantage of providing a model for process inheritance is it provides the ability to enforce policy on a set of pipeline definitions by providing a master process with configurable overrides. There are concepts which may be used in a template that might not show up 
+Pipelines may be authored as stand-alone definitions or as templates to be inherited. The advantage of providing a model for process inheritance is it provides the ability to enforce policy on a set of pipeline definitions by providing a master process with configurable overrides. 
 
-The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline.
-
+The definition for a template from which other pipelines inherit, in the most simple case, looks similar to the following pipeline. This particular file would be dropped in `src/toolsets/dotnet/pipeline.yml` and is modeled after the existing ASP.NET Core template found on the service.
 ```yaml
 inputs:
   - name: queue
@@ -355,12 +354,14 @@ inputs:
     default: default
   - name: projects
     type: string
+    default: **/project.json
   - name: testProjects
     type: string
-  - name: buildConfiguration
-    type: string[]
-  - name: buildPlatform
-    type: string[]
+    default: **/*Tests/project.json
+  - name: matrix
+    type: env
+    default: 
+      buildConfiguration: release
   - name: publishWebProjects
     type: bool
     defaultValue: true
@@ -368,66 +369,78 @@ inputs:
     type: bool
     defaultValue: true
 
-# In our resource list, the lack of data describing how to get the resource implies it is a required input
+# In our resource list a self reference type is inferred by the system. The name 's' has been chosen in this
+# case for backward compatibility with the location of $(build.sourcedirectory).
 resources:
   - name: s
     type: self
 
 jobs:
-  - name: build
+  - name: build-@{item().buildConfiguration}
     target: 
       type: queue
       name: "@inputs('queueName')"
     steps:
-      - import: code
+      - import: s
+      - task: dotnetcore@0.*
+        name: Install @{item().dotnet}
+        inputs:
+          command: install
+          arguments: --version @{item().dotnet}
       - task: dotnetcore@0.*
         name: Restore
         inputs:
           command: restore
-          projects: code/@{inputs('projects')}
+          projects: "@{inputs('projects')}"
       - task: dotnetcore@0.*
         name: Build
         inputs:
           command: build
-          arguments: --configuration @{inputs('buildConfiguration')}
+          arguments: --configuration @{item().buildConfiguration}
       - task: dotnetcore@0.*
         name: Test
         inputs:
           command: test
           projects: "@inputs('testProjects')"
-          arguments: --configuration @{inputs('buildConfiguration')}
+          arguments: --configuration @{item().buildConfiguration)}
       - task: dotnetcore@0.*
         name: Publish
         inputs:
           command: publish
+          arguments: --configuration @{item().buildConfiguration} --output @{variables('build.artifactstagingdirectory')}
           publishWebProjects: "@inputs('publishWebProjects')"
           zipPublishedProject: "@inputs('zipPublishedProjects')"
-          arguments: --configuration @{inputs('buildConfiguration')}
       - export: artifact
         name: drop
         condition: always()
         inputs:
-          pathToPublish: $(build.artifactsstagingdirectory)
+          pathToPublish: variables('build.artifactstagingdirectory')
+    with_values:
+      "@inputs('matrix')"
 ```
-A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are defined and provided their own definition specific names. Last, the template is invoked using the name given to it within the file which includes it. 
+A usage of this template from a separate repository is shown below. The first step is to `include` the template file which will be utliized. Next any local `resources` which need to be provided to the template are overridden by defining a new resource with the same name. Last, inputs are overidden by specifying top-level properties on the override with names matching those of the corresponding input. For instance, the input `matrix` is overridden below with a directive to run 2 independent configurations of the job using default values for most settings. 
 ```yaml
+# List the sources which we will reference for tasks, toolsets, pipelines, etc, in the case where they are pulled
+# from a remote repository. These follow the same resource contract as any other resource and therefore could
+# potentially be pulled from any other resource provider supported by the system. By default we would infer the
+# system include for brevity, but it is illustrated here for examp
 includes: 
-  - name: core
-    source:
-      type: git
-      url: https://github.com/Microsoft/pipeline-templates.git
+  - name: sys
+    type: git
+    data:
+      url: https://github.com/Microsoft/sys-templates.git
       ref: refs/tags/lkg
 
-# Override the required input with the proper value
-pipeline: core/pipelines/core.yml
-  inputs:
-    project: code/src/dirs.proj
-    repo: resources('code')
-    
-pipeline: core/pipelines/core2.yml
-  inputs: 
-    repo: resources('code')
-    drop: pipelines('core').exports('drop')
+# Since the file above is located in the toolsets folder, this directive automatically locates the proper file and 
+# preps a base implementation using the raw values from the template. 
+toolset: dotnet
+
+# Specify the matrix input by defining it inline here. 
+matrix:
+  - buildConfiguration: release
+    dotnet: 1.0
+  - buildConfiguration: release
+    dotnet: 1.1
 ```
 ## Containers
 Containers can provide for much more flexible pipelines by enabling individual jobs to define their execution environemtn without requiring toolsets and dependencies to be installed on the agent machines. Each job can sepcify one or more container images to be used to execute tasks along with additional container images to be started and linked to the job execution container. Container image operating systems must match the host operating system the agent is running on.
