@@ -352,7 +352,8 @@ The definition for a template from which other pipelines inherit, in the most si
 ```yaml
 # All values which appear in the inputs section are overridable by a definition
 # which extends the template.
-inputs:
+parameters:
+
   # Controls the name of the queue which jobs should use
   queueName: default
 
@@ -373,16 +374,16 @@ inputs:
     - buildConfiguration: release
       dotnet: 1.1
 
-  # Defines the customizable stages that may be overridden. Each group
-  # is expected to contain 0 or more task directives, which will be injected
-  # at specific points in the template output.
-  groups:
-      before_install:
-      before_restore:
-      before_build:
-      before_test:
-      before_publish:
-      after_publish:
+# Defines the customizable stages that may be overridden. Each group
+# is expected to contain 0 or more task directives, which will be injected
+# at specific points in the template output.
+groups:
+    before_install:
+    before_restore:
+    before_build:
+    before_test:
+    before_publish:
+    after_publish:
       
 # In our resource list a self reference type is inferred by the system. The name 's' has been chosen in this
 # case for backward compatibility with the location of $(build.sourcesdirectory).
@@ -413,8 +414,7 @@ jobs:
         inputs:
           command: restore
           projects: "{{projects}}"
-      - group:
-          "{{groups.before_build}}"
+      - group: before_build
       - task: dotnetcore@0.*
         name: build
         inputs:
