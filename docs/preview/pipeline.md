@@ -401,15 +401,13 @@ jobs:
       "{{item}}"
     steps:
       - import: s
-      - group: 
-          "{{groups.before_install}}"
+      - group: before_install
       - task: dotnetcore@0.*
         name: install
         inputs:
           command: install
           arguments: "--version {{item.dotnet}}"
-      - group:
-          "{{groups.before_restore}}"
+      - group: before_restore
       - task: dotnetcore@0.*
         name: restore
         inputs:
@@ -422,36 +420,30 @@ jobs:
         inputs:
           command: build
           arguments: --configuration $(buildConfiguration)
-      - group:
-          "{{groups.before_test}}"
+      - group: before_test
       - task: dotnetcore@0.*
         name: test
         inputs:
           command: test
-          projects: "{{testProjects}}"
+          projects: {{testProjects}}
           arguments: --configuration $(buildConfiguration)
-      - group:
-          "{{groups.before_publish}}"
+      - group: before_publish
       - task: dotnetcore@0.*
         name: publish
         inputs:
           command: publish
           arguments: --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)
-          publishWebProjects: "{{publishWebProjects}}"
-          zipPublishedProject: "{{zipPublishedProjects}}"
+          publishWebProjects: {{publishWebProjects}}
+          zipPublishedProject: {{zipPublishedProjects}}
       - export: artifact
         name: drop
         condition: always()
         inputs:
           pathToPublish: $(build.artifactstagingdirectory)
-      - group:
-          "{{groups.after_publish}}"
+      - group: after_publish
 ```
-There are a couple of points which should be made clear before we move on. First, the context within a template is implicitly set to the `inputs` object to avoid the need to reference it explicitly. Second, we have a couple of examples where we are using an object expansion to inject an array variable as the array of another property. For instance, the `group` tag is just a place-holder for a task group, which is itself just a list of tasks represented as a single task. In this case the template has defined an overridable input named `groups` with well-defined properties, and then injects them into the job at template expansion time using the following syntax:
-```yaml
-- group:
-    "{{groups.after_publish}}"
-```
+There are a couple of points which should be made clear before we move on. First, the context within a template is implicitly set to the `inputs` object to avoid the need to reference it explicitly. Second, we have a couple of examples where we are using an object expansion to inject an array variable as the array of another property. For instance, the `group` tag is just a place-holder for a task group, which is itself just an object which contains a list of tasks. The `group` tag is special in that the template author is allowing the derived definition to replace or inject behavior at particular points of the process. 
+
 We also see this when providing all of the values from the matrix item as variables which will then be accessible as environment variables within the job downstream. Since the item being iterated is an array of dictionaries, and the `variables` property is expected itself to be a dictionary, we are able to safely perform this replacement using templating syntax.
 ```yaml
 - variables:
@@ -488,7 +480,7 @@ uses: dotnet
 # points are allowed. Each overridable section is denoted in the template by the 'group' step type, which serves
 # as a named placeholder for implementations to inject custom logic and well-understood points without 
 # understanding the entire job execution.
-stages:
+groups:
   before_install:
     - task: powershell@1.*
       name: My custom powershell install step
