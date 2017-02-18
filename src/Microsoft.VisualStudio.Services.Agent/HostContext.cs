@@ -15,6 +15,7 @@ namespace Microsoft.VisualStudio.Services.Agent
 {
     public interface IHostContext : IDisposable
     {
+        RunMode RunMode { get; set; }
         string GetDirectory(WellKnownDirectory directory);
         Tracing GetTrace(string name);
         Task Delay(TimeSpan delay, CancellationToken cancellationToken);
@@ -30,6 +31,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         private static int _defaultLogRetentionDays = 30;
         private readonly ConcurrentDictionary<Type, object> _serviceInstances = new ConcurrentDictionary<Type, object>();
         private readonly ConcurrentDictionary<Type, Type> _serviceTypes = new ConcurrentDictionary<Type, Type>();
+        private RunMode _runMode = RunMode.Normal;
         private Tracing _trace;
         private Tracing _httpTrace;
         private ITraceManager _traceManager;
@@ -86,6 +88,22 @@ namespace Microsoft.VisualStudio.Services.Agent
 
                 _httpTrace = GetTrace("HttpTrace");
                 _diagListenerSubscription = DiagnosticListener.AllListeners.Subscribe(this);
+            }
+        }
+
+        public RunMode RunMode
+        {
+            get
+            {
+                RunMode result = _runMode;
+                _trace.Verbose($"Run mode: {result}");
+                return result;
+            }
+
+            set
+            {
+                _trace.Info($"Set run mode: {value}");
+                _runMode = value;
             }
         }
 
