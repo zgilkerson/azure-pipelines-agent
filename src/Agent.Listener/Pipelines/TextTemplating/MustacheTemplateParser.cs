@@ -14,23 +14,23 @@ namespace ConsoleApp2.TextTemplating
         private Dictionary<String, MustacheTemplateHelperMethod> m_helpers;
         private Dictionary<String, MustacheRootExpression> m_partials;
 
-        /// <summary>
-        /// Template helpers to use when evaluating expressions
-        /// </summary>
-        [Obsolete("Use the RegisterHelper method")]
-        public Dictionary<String, MustacheTemplateHelper> Helpers { get; private set; }
+        // /// <summary>
+        // /// Template helpers to use when evaluating expressions
+        // /// </summary>
+        // [Obsolete("Use the RegisterHelper method")]
+        // public Dictionary<String, MustacheTemplateHelper> Helpers { get; private set; }
 
-        /// <summary>
-        /// Template block helpers to use when evaluating expressions
-        /// </summary>
-        [Obsolete("Use the RegisterHelper method")]
-        public Dictionary<String, MustacheTemplateHelper> BlockHelpers { get; private set; }
+        // /// <summary>
+        // /// Template block helpers to use when evaluating expressions
+        // /// </summary>
+        // [Obsolete("Use the RegisterHelper method")]
+        // public Dictionary<String, MustacheTemplateHelper> BlockHelpers { get; private set; }
 
-        /// <summary
-        /// Externally defined partial templates
-        /// </summary>
-        [Obsolete("Use the RegisterPartial method")]
-        public Dictionary<String, MustacheRootExpression> Partials { get; private set; }
+        // /// <summary
+        // /// Externally defined partial templates
+        // /// </summary>
+        // [Obsolete("Use the RegisterPartial method")]
+        // public Dictionary<String, MustacheRootExpression> Partials { get; private set; }
 
         /// <summary>
         /// Create a helper for parsing mustache templates

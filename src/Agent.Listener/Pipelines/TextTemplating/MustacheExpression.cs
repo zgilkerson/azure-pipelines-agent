@@ -22,8 +22,8 @@ namespace ConsoleApp2.TextTemplating
         }
     }
 
-    [Obsolete("Use MustacheTemplateHelperMethod")]
-    public delegate String MustacheTemplateHelper(MustacheTemplatedExpression expression, MustacheEvaluationContext context);
+    // [Obsolete("Use MustacheTemplateHelperMethod")]
+    // public delegate String MustacheTemplateHelper(MustacheTemplatedExpression expression, MustacheEvaluationContext context);
 
     /// <summary>
     /// Delegate for methods called during evaluation for registered helpers
@@ -526,53 +526,53 @@ namespace ConsoleApp2.TextTemplating
         }
     }
 
-    /// <summary>
-    /// A literal expression (i.e. string, boolean, number, true/false, null). Represents literal arguments for a helper expression.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    [Obsolete("Obsolete expression type")]
-    public class MustacheLiteralExpression<T> : MustacheExpression
-    {
-        /// <summary>
-        /// Literal value
-        /// </summary>
-        public T Value { get; }
+    // /// <summary>
+    // /// A literal expression (i.e. string, boolean, number, true/false, null). Represents literal arguments for a helper expression.
+    // /// </summary>
+    // /// <typeparam name="T"></typeparam>
+    // [Obsolete("Obsolete expression type")]
+    // public class MustacheLiteralExpression<T> : MustacheExpression
+    // {
+    //     /// <summary>
+    //     /// Literal value
+    //     /// </summary>
+    //     public T Value { get; }
 
-        public override bool IsContextBased
-        {
-            get
-            {
-                return false;
-            }
-        }
+    //     public override bool IsContextBased
+    //     {
+    //         get
+    //         {
+    //             return false;
+    //         }
+    //     }
 
-        public MustacheLiteralExpression(T value)
-        {
-            this.Value = value;
-        }
+    //     public MustacheLiteralExpression(T value)
+    //     {
+    //         this.Value = value;
+    //     }
 
-        internal override String Evaluate(MustacheEvaluationContext context)
-        {
-            return (Value != null ? Value.ToString() : String.Empty); 
-        }
-    }
+    //     internal override String Evaluate(MustacheEvaluationContext context)
+    //     {
+    //         return (Value != null ? Value.ToString() : String.Empty); 
+    //     }
+    // }
 
     /// <summary>
     /// A mustache expression which may contain child expressions
     /// </summary>
     public class MustacheRootExpression : MustacheAggregateExpression
     {
-        /// <summary>
-        /// Registered helper methods for single (non-block) expressions
-        /// </summary>
-        [Obsolete]
-        public Dictionary<String, MustacheTemplateHelper> Helpers { get; set; }
+        // /// <summary>
+        // /// Registered helper methods for single (non-block) expressions
+        // /// </summary>
+        // [Obsolete]
+        // public Dictionary<String, MustacheTemplateHelper> Helpers { get; set; }
 
-        /// <summary>
-        /// Registered helper methods for Block expressions
-        /// </summary>
-        [Obsolete]
-        public Dictionary<String, MustacheTemplateHelper> BlockHelpers { get; set; }
+        // /// <summary>
+        // /// Registered helper methods for Block expressions
+        // /// </summary>
+        // [Obsolete]
+        // public Dictionary<String, MustacheTemplateHelper> BlockHelpers { get; set; }
 
         /// <summary>
         /// Template helpers
