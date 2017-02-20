@@ -144,7 +144,7 @@ function generateConstant()
 
 function build ()
 {
-    generateConstant
+    #generateConstant
     
     if [[ "$define_os" == 'OS_WINDOWS' ]]; then
         reg_out=`reg query "HKLM\SOFTWARE\Microsoft\MSBuild\ToolsVersions\4.0" -v MSBuildToolsPath`
@@ -156,7 +156,7 @@ function build ()
         fi
     fi
 
-    rundotnet build failed build_dirs[@]
+    rundotnet build failed Agent.Listener
 
     if [[ "$define_os" == 'OS_WINDOWS' && "$msbuild_location" != "" ]]; then
         $msbuild_location/msbuild.exe $WINDOWSAGENTSERVICE_PROJFILE

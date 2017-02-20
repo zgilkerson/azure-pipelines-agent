@@ -19,16 +19,9 @@ namespace ConsoleApp2.Types
             this.Value = value;
         }
 
-        public abstract PipelineValueKind Kind
-        {
-            get;
-        }
+        public abstract PipelineValueKind Kind { get; }
 
-        protected Object Value
-        {
-            get;
-            set;
-        }
+        protected Object Value { get; set; }
 
         public virtual T Resolve<T>(PipelineTemplateContext context)
         {
@@ -86,6 +79,11 @@ namespace ConsoleApp2.Types
         public override T Resolve<T>(PipelineTemplateContext context)
         {
             return context.ResolveValue<T>(this.Value);
+        }
+
+        public static explicit operator String(StringValue val)
+        {
+            return val.Value;
         }
     }
 

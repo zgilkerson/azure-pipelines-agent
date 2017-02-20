@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -11,6 +12,10 @@ namespace ConsoleApp2.Yaml
         public bool Accepts(Type type)
         {
             return typeof(IteratorValueTemplate).IsAssignableFrom(type);
+            //return false;
+            // return type == typeof(string) ||
+            //     type == typeof(List<String>) ||
+            //     type == typeof(List<Dictionary<String, String>>);
         }
 
         public object ReadYaml(

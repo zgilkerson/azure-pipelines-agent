@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using ConsoleApp2.Types;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
@@ -12,6 +13,17 @@ namespace ConsoleApp2.Yaml
         public bool Accepts(Type type)
         {
             return typeof(PipelineValue).IsAssignableFrom(type);
+            // if (type == typeof(String) ||
+            //     type == typeof(String[]) ||
+            //     type == typeof(List<String>) ||
+            //     type == typeof(Dictionary<String, String>))
+            // {
+            //     Console.WriteLine($"PipelineValue accepts {type.Name}");
+            //     return true;
+            // }
+
+            // Console.WriteLine($"PipelineValue not accepts {type.Name}");
+            // return false;
         }
 
         public Object ReadYaml(
@@ -21,6 +33,7 @@ namespace ConsoleApp2.Yaml
             var stringType = parser.Allow<Scalar>();
             if (stringType != null)
             {
+                Console.WriteLine($"Read PipelineValue from String: '{stringType.Value}'");
                 return new StringValue(stringType.Value);
             }
 
@@ -37,6 +50,7 @@ namespace ConsoleApp2.Yaml
                         items.Add(parser.ReadMappingOfStringString());
                     }
 
+                    Console.WriteLine($"Read PipelineValue from StringDictionaryArrayValue");
                     retVal = new StringDictionaryArrayValue(items);
                 }
                 else if (parser.Accept<Scalar>())
@@ -47,6 +61,7 @@ namespace ConsoleApp2.Yaml
                         items.Add(parser.Expect<Scalar>().Value);
                     }
 
+                    Console.WriteLine($"Read PipelineValue from StringArrayValue");
                     retVal = new StringArrayValue(items);
                 }
 
@@ -58,9 +73,11 @@ namespace ConsoleApp2.Yaml
             var mapping = parser.Allow<MappingStart>();
             if (mapping != null)
             {
+                Console.WriteLine($"Read PipelineValue from StringDictionaryValue");
                 return new StringDictionaryValue(parser.ReadMappingOfStringString());
             }
 
+            Console.WriteLine("Unable to read PipelineValue");
             return null;
         }
 

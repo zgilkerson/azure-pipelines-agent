@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -11,6 +12,10 @@ namespace ConsoleApp2.Yaml
         public bool Accepts(Type type)
         {
             return typeof(PipelineJobStep).IsAssignableFrom(type);
+            // return type == typeof(ImportStep) ||
+            //     type == typeof(ExportStep) ||
+            //     type == typeof(GroupStep) ||
+            //     type == typeof(TaskStep);
         }
 
         public Object ReadYaml(
