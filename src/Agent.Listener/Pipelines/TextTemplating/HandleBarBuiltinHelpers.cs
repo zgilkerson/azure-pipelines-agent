@@ -8,7 +8,7 @@ using Microsoft.VisualStudio.Services.Common.Internal;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace Microsoft.VisualStudio.Services.WebApi
+namespace ConsoleApp2.TextTemplating
 {
     /// <summary>
     /// Static helper class for handlebar default/builtin template helpers
@@ -200,7 +200,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
             String partialName = expression.GetRawHelperArgument(0);
             if (String.IsNullOrEmpty(partialName))
             {
-                throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateInvalidPartialReference(expression.Expression));
+                throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateInvalidPartialReference(expression.Expression));
             }
 
             // Dynamic partial syntax: lookup name of partial

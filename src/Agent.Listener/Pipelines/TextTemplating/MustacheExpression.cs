@@ -8,7 +8,7 @@ using Microsoft.VisualStudio.Services.Common.Internal;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace Microsoft.VisualStudio.Services.WebApi
+namespace ConsoleApp2.TextTemplating
 {
     /// <summary>
     /// Exception thrown when parsing a mustache template that indicates it is an invalid expression
@@ -213,7 +213,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
                 {
                     if (expressionIsTemplate)
                     {
-                        throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateInvalidStartBraces(sbExpression.ToString(), i, template));
+                        throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateInvalidStartBraces(sbExpression.ToString(), i, template));
                     }
 
                     // Start braces
@@ -251,7 +251,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
                 {
                     if (!expressionIsTemplate)
                     {
-                        throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateInvalidEndBraces(i, template));
+                        throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateInvalidEndBraces(i, template));
                     }
 
                     if (expressionIsEncodedTemplate)
@@ -262,7 +262,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
                     {
                         if (MustacheParsingUtil.SafeCharAt(template, i + 2) != '}')
                         {
-                            throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateBraceCountMismatch(sbExpression.ToString()));
+                            throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateBraceCountMismatch(sbExpression.ToString()));
                         }
                         i += 2;
                     }
@@ -274,13 +274,13 @@ namespace Microsoft.VisualStudio.Services.WebApi
                         MustacheTemplatedExpression parentTemplateExpression = currentExpression as MustacheTemplatedExpression;
                         if (parentTemplateExpression == null || !parentTemplateExpression.IsBlockExpression)
                         {
-                            throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateInvalidEndBlock(
+                            throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateInvalidEndBlock(
                                 expressionText));
                         }
                         else if (!String.Equals(endBlockName, parentTemplateExpression.Expression, StringComparison.OrdinalIgnoreCase) &&
                             !String.Equals(endBlockName, parentTemplateExpression.HelperName, StringComparison.OrdinalIgnoreCase))
                         {
-                            throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateNonMatchingEndBlock(
+                            throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateNonMatchingEndBlock(
                                 expressionText,
                                 parentTemplateExpression.Expression));
                         }
@@ -305,12 +305,12 @@ namespace Microsoft.VisualStudio.Services.WebApi
                             // Inline isn't closed
                             if (endIndex == -1)
                             {
-                                throw new MustacheExpressionInvalidException(WebApiResources.MissingCloseInlineMessage());
+                                throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MissingCloseInlineMessage());
                             }
                             // Inline contains another inline
                             else if (template.Substring(i, endIndex - i).Contains("#*inline"))
                             {
-                                throw new MustacheExpressionInvalidException(WebApiResources.NestedInlinePartialsMessage());
+                                throw new MustacheExpressionInvalidException(WebApiResourcesTemp.NestedInlinePartialsMessage());
                             }
                             // Create partial expression
                             var partialTemplate = template.Substring(i + 1, endIndex - (i + 1));
@@ -392,7 +392,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
 
             if (sbExpression.Length > 0 && expressionIsTemplate)
             {
-                throw new MustacheExpressionInvalidException(WebApiResources.MissingEndingBracesMessage(sbExpression.ToString()));
+                throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MissingEndingBracesMessage(sbExpression.ToString()));
             }
 
             AddTextExpression(currentExpression, sbExpression.ToString(), true);
@@ -840,7 +840,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
 
                         if (RootExpression.TemplateHelpers == null || !RootExpression.TemplateHelpers.ContainsKey(HelperName))
                         {
-                            throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateMissingHelper(HelperName, expression));
+                            throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateMissingHelper(HelperName, expression));
                         }
                     }
                     else
@@ -1095,7 +1095,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
                                 }
                                 else
                                 {
-                                    throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateInvalidEscapedStringLiteral(stringLiteral.ToString(), Expression));
+                                    throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateInvalidEscapedStringLiteral(stringLiteral.ToString(), Expression));
                                 }
                             }
                             else
@@ -1107,7 +1107,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
 
                             if (i == Expression.Length)
                             {
-                                throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateUnterminatedStringLiteral(c + stringLiteral.ToString(), Expression));
+                                throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateUnterminatedStringLiteral(c + stringLiteral.ToString(), Expression));
                             }
                         }
 
@@ -1162,7 +1162,7 @@ namespace Microsoft.VisualStudio.Services.WebApi
                             }
                             catch (Exception)
                             {
-                                throw new MustacheExpressionInvalidException(WebApiResources.MustacheTemplateInvalidNumericLiteral(numericLiteralString, Expression));
+                                throw new MustacheExpressionInvalidException(WebApiResourcesTemp.MustacheTemplateInvalidNumericLiteral(numericLiteralString, Expression));
                             }
 
                             continue;

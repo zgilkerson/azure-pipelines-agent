@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Microsoft.VisualStudio.Services.WebApi
+namespace ConsoleApp2.TextTemplating
 {
     /// <summary>
     /// Static helper class for common mustache template helpers
