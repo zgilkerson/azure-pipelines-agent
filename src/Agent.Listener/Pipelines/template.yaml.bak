@@ -1,5 +1,4 @@
-﻿---
-# All values which appear in the inputs section are overridable by a definition
+﻿# All values which appear in the inputs section are overridable by a definition
 # which extends the template.
 inputs:
   # Controls the name of the queue which jobs should use
@@ -21,7 +20,6 @@ inputs:
   matrix:
     - buildConfiguration: release
       dotnet: 1.1
----
 
 # In our resource list a self reference type is inferred by the system. The name 's' has been chosen in this
 # case for backward compatibility with the location of $(build.sourcesdirectory).
@@ -30,7 +28,12 @@ resources:
     type: self
 
 jobs:
-  - name: "build-{{item.buildConfiguration}}"
+  - with_items: 
+      - foo: bar
+        baz: blah
+      - foo: boo
+        baz: heyooo
+    name: "build-{{item.buildConfiguration}}"
     target: 
       type: queue
       name: "{{queueName}}"

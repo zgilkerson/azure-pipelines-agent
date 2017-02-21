@@ -1019,10 +1019,11 @@ namespace ConsoleApp2.TextTemplating
                     return String.Empty;
                 }
                 String rawTokenString = currentToken.ToString();
-                if (this.Encode)
-                {
-                    rawTokenString = UriUtility.HtmlEncode(rawTokenString);
-                }
+// todo: find a more elegant way to disable html-encode
+                // if (this.Encode)
+                // {
+                //     rawTokenString = UriUtility.HtmlEncode(rawTokenString);
+                // }
                 return rawTokenString;
             }
 

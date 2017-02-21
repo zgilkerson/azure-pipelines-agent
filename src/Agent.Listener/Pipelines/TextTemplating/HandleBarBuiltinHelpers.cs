@@ -177,6 +177,7 @@ namespace ConsoleApp2.TextTemplating
                         if (replacementObject != null && replacementObject.Type != JTokenType.Null)
                         {
                             String rawTokenString = replacementObject.ToString();
+// todo: disable html-encode here?
                             if (expression.Encode)
                             {
                                 rawTokenString = UriUtility.HtmlEncode(rawTokenString);

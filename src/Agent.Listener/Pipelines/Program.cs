@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using ConsoleApp2.TextTemplating;
 using ConsoleApp2.Types;
 using ConsoleApp2.Yaml;
 using YamlDotNet.Serialization;
@@ -115,6 +116,20 @@ namespace ConsoleApp2
     {
         public static void Main2(string[] args)
         {
+            var mustacheParser = new MustacheTemplateParser();
+            var replacementContext = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            replacementContext.Add("name", "john <doe>");
+            Console.WriteLine(mustacheParser.ReplaceValues(@"---
+names: [ {name: chris}, {name: mark}, {name: scott} ]
+---
+{{#names}}
+hello <world> {{name}}
+{{#names}}
+", replacementContext));
+            Console.WriteLine();
+            Console.WriteLine();
+            Console.WriteLine();
+
             DeserializerBuilder dsBuilder = new DeserializerBuilder();
             dsBuilder.WithTypeConverter(new PipelineStepYamlConverter());
             dsBuilder.WithTypeConverter(new PipelineValueYamlConverter());

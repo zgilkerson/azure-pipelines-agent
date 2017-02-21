@@ -1,0 +1,3 @@
+﻿uses: template.yaml
+
+projects: myProject.sln
