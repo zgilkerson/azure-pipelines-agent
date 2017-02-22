@@ -13,7 +13,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         {
             if (args.Length > 0 && args[0] == "yaml")
             {
-                ConsoleApp2.Program2.Main2(args);
+                ConsoleApp2.Program2.Main2(args).GetAwaiter().GetResult();
                 return 0;
             }
 

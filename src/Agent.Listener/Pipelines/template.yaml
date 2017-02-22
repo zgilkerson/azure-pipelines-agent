@@ -1,26 +1,26 @@
 ﻿---
 # All values which appear in the inputs section are overridable by a definition
 # which extends the template.
-inputs:
-  # Controls the name of the queue which jobs should use
-  queueName: default
+#inputs:
+# Controls the name of the queue which jobs should use
+queueName: default
 
-  # Controls the pattern for build project discovery
-  projects: "**/project.json"
+# Controls the pattern for build project discovery
+projects: "**/project.json"
 
-  # Controls the input pattern for test project discovery
-  testProjects: "**/*Tests/project.json"
+# Controls the input pattern for test project discovery
+testProjects: "**/*Tests/project.json"
 
-  # Controls whether or not web projects should be published
-  publishWebProjects: true
+# Controls whether or not web projects should be published
+publishWebProjects: true
 
-  # Controls whether or not the published projects should be zipped
-  zipPublishedProjects: true
+# Controls whether or not the published projects should be zipped
+zipPublishedProjects: true
 
-  # Defines the input matrix for driving job generation from a template
-  matrix:
-    - buildConfiguration: release
-      dotnet: 1.1
+# Defines the input matrix for driving job generation from a template
+matrix:
+  - buildConfiguration: release
+    dotnet: 1.1
 ---
 
 # In our resource list a self reference type is inferred by the system. The name 's' has been chosen in this
@@ -30,7 +30,7 @@ resources:
     type: self
 
 jobs:
-  - name: "build-{{item.buildConfiguration}}"
+  - name: "build-{{buildConfiguration}}"
     target: 
       type: queue
       name: "{{queueName}}"
@@ -43,7 +43,7 @@ jobs:
         name: install
         inputs:
           command: install
-          arguments: "--version {{item.dotnet}}"
+          arguments: "--version {{dotnet}}"
       - group: before_restore
       - task: dotnetcore@0.*
         name: restore

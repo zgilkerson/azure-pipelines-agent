@@ -1,0 +1,4 @@
+﻿template:
+  name: template.yaml
+  parameters:
+    projects: myProject.sln
