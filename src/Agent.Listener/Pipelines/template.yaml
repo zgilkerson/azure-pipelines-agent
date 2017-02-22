@@ -30,7 +30,8 @@ resources:
     type: self
 
 jobs:
-  - name: "build-{{buildConfiguration}}"
+{{#matrix}}
+  - name: "build-{{dotnet}}-{{buildConfiguration}}"
     target: 
       type: queue
       name: "{{queueName}}"
@@ -72,3 +73,4 @@ jobs:
           publishWebProjects: "{{publishWebProjects}}"
           zipPublishedProject: "{{zipPublishedProjects}}"
       - group: after_publish
+{{/matrix}}

@@ -2,3 +2,8 @@
   name: template.yaml
   parameters:
     projects: myProject.sln
+    matrix:
+      - buildConfiguration: release
+        dotnet: 1.1
+      - buildConfiguration: debug
+        dotnet: 1.1
