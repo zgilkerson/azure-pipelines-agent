@@ -108,20 +108,7 @@ namespace Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipeline
             deserializerBuilder.WithTypeConverter(new VariableGroupTemplateYamlConverter());
             Deserializer deserializer = deserializerBuilder.Build();
             T pipeline = deserializer.Deserialize<T>(mustacheReplaced);
-            Console.WriteLine($"----------------------------------------");
-            Console.WriteLine($"----------------------------------------");
-            Console.WriteLine($"Loaded: {path}");
-            Console.WriteLine($"----------------------------------------");
-            Dump(pipeline);
-            Console.WriteLine($"----------------------------------------");
-            Console.WriteLine($"----------------------------------------");
             return pipeline;
-        }
-
-        private static void Dump(Object o)
-        {
-            var s = new Serializer();
-            Console.WriteLine(s.Serialize(o));
         }
     }
 }

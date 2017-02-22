@@ -60,7 +60,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Trace.Info(nameof(LoadLocalRunnerSettings));
             return new AgentSettings()
             {
-                AcceptTeeEula = LoadSettings().AcceptTeeEula || command.GetAcceptTeeEula(),
+                AcceptTeeEula = command.GetAcceptTeeEula(),
                 AgentId = 1,
                 AgentName = "local-runner-agent",
                 PoolId = 1,

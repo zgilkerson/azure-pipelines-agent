@@ -28,11 +28,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             Constants.Agent.CommandLine.Flags.DeploymentGroup,
             Constants.Agent.CommandLine.Flags.Help,
             Constants.Agent.CommandLine.Flags.MachineGroup,
-            Constants.Agent.CommandLine.Flags.Preview,
             Constants.Agent.CommandLine.Flags.Replace,
             Constants.Agent.CommandLine.Flags.RunAsService,
             Constants.Agent.CommandLine.Flags.Unattended,
-            Constants.Agent.CommandLine.Flags.Version
+            Constants.Agent.CommandLine.Flags.Version,
+            Constants.Agent.CommandLine.Flags.WhatIf
         };
 
         private readonly string[] validArgs =

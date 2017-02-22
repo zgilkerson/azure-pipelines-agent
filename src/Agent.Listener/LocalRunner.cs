@@ -1,18 +1,9 @@
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
-using Microsoft.VisualStudio.Services.Agent.Listener.Capabilities;
-using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
 using Microsoft.VisualStudio.Services.Agent.Util;
-using Microsoft.VisualStudio.Services.Common;
-using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Security.Cryptography;
-using System.IO;
-using System.Text;
-using Microsoft.VisualStudio.Services.WebApi;
-using Microsoft.VisualStudio.Services.OAuth;
 using Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines;
+using YamlDotNet.Serialization;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener
 {
@@ -27,10 +18,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         public async Task<int> RunAsync(CommandSettings command, AgentSettings settings, CancellationToken token)
         {
             Trace.Info(nameof(RunAsync));
+            var terminal = HostContext.GetService<ITerminal>();
             string yamlFile = command.GetYaml();
             ArgUtil.File(yamlFile, nameof(yamlFile));
-            Pipeline pipeline = PipelineParser.LoadAsync(yamlFile);
-            if (command.Preview)
+            var pipeline = PipelineParser.LoadAsync(yamlFile);
+            ArgUtil.NotNull(pipeline, nameof(pipeline));
+            if (command.WhatIf)
+            {
+                var yamlSerializer = new Serializer();
+                terminal.WriteLine(yamlSerializer.Serialize(pipeline));
+                return 0;
+            }
             
             IJobDispatcher jobDispatcher = null;
             try
