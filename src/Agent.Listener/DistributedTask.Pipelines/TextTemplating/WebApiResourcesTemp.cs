@@ -1,4 +1,4 @@
-namespace ConsoleApp2.TextTemplating
+namespace Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines.TextTemplating
 {
     public static class WebApiResourcesTemp
     {

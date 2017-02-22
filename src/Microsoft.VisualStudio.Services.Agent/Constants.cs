@@ -66,6 +66,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string ProjectName = "projectname";
                     public static readonly string CollectionName = "collectionname";
                     public static readonly string MachineGroupTags = "machinegrouptags";
+                    public static readonly string Yaml = "yaml";
 
                     // Secret args. Must be added to the "Secrets" getter as well.
                     public static readonly string Password = "password";
@@ -96,6 +97,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string RunAsService = "runasservice";
                     public static readonly string Unattended = "unattended";
                     public static readonly string Version = "version";
+                    public static readonly string WhatIf = "whatif";
                     public static readonly string MachineGroup = "machinegroup";
                     public static readonly string DeploymentGroup = "deploymentgroup";
                 }

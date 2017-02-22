@@ -22,6 +22,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         bool IsServiceConfigured();
         Task ConfigureAsync(CommandSettings command);
         Task UnconfigureAsync(CommandSettings command);
+        AgentSettings LoadLocalRunnerSettings(CommandSettings command);
         AgentSettings LoadSettings();
     }
 
@@ -52,6 +53,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             bool result = _store.IsConfigured();
             Trace.Info($"Is configured: {result}");
             return result;
+        }
+
+        public AgentSettings LoadLocalRunnerSettings(CommandSettings command)
+        {
+            Trace.Info(nameof(LoadLocalRunnerSettings));
+            return new AgentSettings()
+            {
+                AcceptTeeEula = LoadSettings().AcceptTeeEula || command.GetAcceptTeeEula(),
+                AgentId = 1,
+                AgentName = "local-runner-agent",
+                PoolId = 1,
+                PoolName = "local-runner-pool",
+                ServerUrl = "http://127.0.0.1/local-vsts-agent-runner",
+                WorkFolder = Constants.Path.WorkDirectory
+            };
         }
 
         public AgentSettings LoadSettings()

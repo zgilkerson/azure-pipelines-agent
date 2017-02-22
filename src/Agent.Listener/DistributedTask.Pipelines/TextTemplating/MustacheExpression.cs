@@ -8,7 +8,7 @@ using Microsoft.VisualStudio.Services.Common.Internal;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace ConsoleApp2.TextTemplating
+namespace Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines.TextTemplating
 {
     /// <summary>
     /// Exception thrown when parsing a mustache template that indicates it is an invalid expression

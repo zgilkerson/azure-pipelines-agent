@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 
-namespace ConsoleApp2
+namespace Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines
 {
     internal static class IParserExtensions
     {

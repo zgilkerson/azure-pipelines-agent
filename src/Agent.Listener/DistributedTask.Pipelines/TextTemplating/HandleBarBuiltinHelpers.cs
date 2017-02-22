@@ -8,7 +8,7 @@ using Microsoft.VisualStudio.Services.Common.Internal;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace ConsoleApp2.TextTemplating
+namespace Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines.TextTemplating
 {
     /// <summary>
     /// Static helper class for handlebar default/builtin template helpers

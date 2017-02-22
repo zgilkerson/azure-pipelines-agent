@@ -11,12 +11,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
     {
         public static int Main(string[] args)
         {
-            if (args.Length > 0 && args[0] == "yaml")
-            {
-                ConsoleApp2.Program2.Main2(args).GetAwaiter().GetResult();
-                return 0;
-            }
-
             using (HostContext context = new HostContext("Agent"))
             {
                 return MainAsync(context, args).GetAwaiter().GetResult();

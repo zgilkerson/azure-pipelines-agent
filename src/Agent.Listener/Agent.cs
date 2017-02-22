@@ -104,6 +104,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
                 _inConfigStage = false;
 
+                // YAML
+                string yamlFile = command.GetYaml();
+                if (!string.IsNullOrEmpty(yamlFile))
+                {
+                    command.SetUnattended();
+                    AgentSettings localRunnerSettings = configManager.LoadLocalRunnerSettings(command);
+                    var localRunner = HostContext.GetService<ILocalRunner>();
+                    return await localRunner.RunAsync(command, localRunnerSettings, TokenSource.Token);
+                }
+
                 AgentSettings settings = configManager.LoadSettings();
                 bool runAsService = configManager.IsServiceConfigured();
 

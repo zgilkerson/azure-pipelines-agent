@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace ConsoleApp2
+namespace Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines
 {
     /// <summary>
     /// Represents a context for realizing a template into an expanded and executable form.
