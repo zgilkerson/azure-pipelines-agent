@@ -10,26 +10,32 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
     [ServiceLocator(Default = typeof(LocalRunner))]
     public interface ILocalRunner : IAgentService
     {
-        Task<int> RunAsync(CommandSettings command, AgentSettings settings, CancellationToken token);
+        Task<int> RunAsync(CommandSettings command, CancellationToken token);
     }
 
     public sealed class LocalRunner : AgentService, ILocalRunner
     {
-        public async Task<int> RunAsync(CommandSettings command, AgentSettings settings, CancellationToken token)
+        public async Task<int> RunAsync(CommandSettings command, CancellationToken token)
         {
             Trace.Info(nameof(RunAsync));
             var terminal = HostContext.GetService<ITerminal>();
+            var configStore = HostContext.GetService<IConfigurationStore>();
+            AgentSettings settings = configStore.GetSettings();
+
+            // Load the YAML file.
             string yamlFile = command.GetYaml();
             ArgUtil.File(yamlFile, nameof(yamlFile));
-            var pipeline = PipelineParser.LoadAsync(yamlFile);
+            var pipeline = await PipelineParser.LoadAsync(yamlFile);
             ArgUtil.NotNull(pipeline, nameof(pipeline));
             if (command.WhatIf)
             {
+                // What-if mode.
                 var yamlSerializer = new Serializer();
                 terminal.WriteLine(yamlSerializer.Serialize(pipeline));
                 return 0;
             }
-            
+
+            // Create job message.
             IJobDispatcher jobDispatcher = null;
             try
             {

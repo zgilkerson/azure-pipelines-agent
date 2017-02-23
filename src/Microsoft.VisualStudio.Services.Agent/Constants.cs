@@ -2,6 +2,12 @@ using System;
 
 namespace Microsoft.VisualStudio.Services.Agent
 {
+    public enum RunMode
+    {
+        Normal, // Keep "Normal" first (default value).
+        Local,
+    }
+
     public enum WellKnownDirectory
     {
         Bin,
@@ -216,6 +222,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string ProxyUsername = "agent.proxyusername";
                 public static readonly string ProxyPassword = "agent.proxypassword";
                 public static readonly string RootDirectory = "agent.RootDirectory";
+                public static readonly string RunMode = "agent.runmode";
                 public static readonly string ServerOMDirectory = "agent.ServerOMDirectory";
                 public static readonly string Version = "agent.version";
                 public static readonly string WorkFolder = "agent.workfolder";

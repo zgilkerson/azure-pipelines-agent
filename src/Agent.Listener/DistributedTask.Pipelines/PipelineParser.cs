@@ -21,6 +21,7 @@ namespace Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipeline
 
                 var mergedPipeline = new Pipeline();
                 mergedPipeline = new Pipeline();
+                mergedPipeline.Resources = new List<PipelineResource>();
                 mergedPipeline.Resources.AddRange(pipeline.Resources ?? new List<PipelineResource>());
                 mergedPipeline.Resources.AddRange(template.Resources ?? new List<PipelineResource>());
                 mergedPipeline.Jobs = template.Jobs;
