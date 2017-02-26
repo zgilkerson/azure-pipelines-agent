@@ -20,6 +20,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                     TfsVCFeatures.EscapedUrl |
                     TfsVCFeatures.GetFromUnmappedRoot |
                     TfsVCFeatures.LoginType |
+                    TfsVCFeatures.PartialShelveset |
                     TfsVCFeatures.Scorch;
             }
         }

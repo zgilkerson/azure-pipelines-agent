@@ -299,7 +299,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 {
                     await tf.UnshelveAsync(shelveset: shelvesetName, useLocalMapping: false);
                 }
-                catch (Exception) when (tf.Features.HasFlag(TfsVCFeatures.PartialShelveset))
+                catch (ProcessExitCodeException) when (tf.Features.HasFlag(TfsVCFeatures.PartialShelveset))
                 {
                     executionContext.Warning("Unable to unshelve one or more files. Trying again using local workspace mappings only.");
                     await UndoAsync(executionContext, tf, definitionMappings, sourcesDirectory, cancellationToken);
@@ -379,7 +379,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 try
                 {
                     // Undo.
-                    await UndoAsync(executionContext, tf, sourcesDirectory, executionContext.CancellationToken);
+                    await UndoAsync(executionContext, tf, definitionMappings, sourcesDirectory, executionContext.CancellationToken);
                 }
                 catch (Exception ex)
                 {
