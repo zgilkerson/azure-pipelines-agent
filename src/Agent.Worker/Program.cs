@@ -30,17 +30,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
                     // Validate args.
                     ArgUtil.NotNull(args, nameof(args));
-                    ArgUtil.Equal(3, args.Length, nameof(args.Length));
+                    ArgUtil.Equal(2, args.Length, nameof(args.Length));
                     ArgUtil.NotNullOrEmpty(args[0], $"{nameof(args)}[0]");
-                    ArgUtil.Equal("spawnclient", args[0].ToLowerInvariant(), $"{nameof(args)}[0]");
                     ArgUtil.NotNullOrEmpty(args[1], $"{nameof(args)}[1]");
-                    ArgUtil.NotNullOrEmpty(args[2], $"{nameof(args)}[2]");
+
                     var worker = hc.GetService<IWorker>();
 
                     // Run the worker.
                     return await worker.RunAsync(
-                        pipeIn: args[1],
-                        pipeOut: args[2]);
+                        pipeIn: args[0],
+                        pipeOut: args[1]);
                 }
                 catch (Exception ex)
                 {

@@ -304,33 +304,38 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 }
 
                 Task<int> workerProcessTask = null;
-                using (var processChannel = HostContext.CreateService<IProcessChannel>())
+                var processChannelServer = HostContext.GetService<IProcessChannelServer>();
+                Trace.Info($"ProcessChannelServer is listen at: '{processChannelServer.ServerEndPoint.Address}:{processChannelServer.ServerEndPoint.Port}'");
+
                 using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
                 {
-                    // Start the process channel.
-                    // It's OK if StartServer bubbles an execption after the worker process has already started.
-                    // The worker will shutdown after 30 seconds if it hasn't received the job message.
-                    processChannel.StartServer(
-                        // Delegate to start the child process.
-                        startProcess: (string pipeHandleOut, string pipeHandleIn) =>
-                        {
-                            // Validate args.
-                            ArgUtil.NotNullOrEmpty(pipeHandleOut, nameof(pipeHandleOut));
-                            ArgUtil.NotNullOrEmpty(pipeHandleIn, nameof(pipeHandleIn));
+                    // Start the child process.
+                    var assemblyDirectory = IOUtil.GetBinPath();
+                    string workerFileName = Path.Combine(assemblyDirectory, _workerProcessName);
+                    workerProcessTask = processInvoker.ExecuteAsync(
+                        workingDirectory: assemblyDirectory,
+                        fileName: workerFileName,
+                        arguments: $"{processChannelServer.ServerEndPoint.Address} {processChannelServer.ServerEndPoint.Port}",
+                        environment: null,
+                        requireExitCodeZero: false,
+                        outputEncoding: null,
+                        killProcessOnCancel: true,
+                        cancellationToken: workerProcessCancelTokenSource.Token);
 
-                            // Start the child process.
-                            var assemblyDirectory = IOUtil.GetBinPath();
-                            string workerFileName = Path.Combine(assemblyDirectory, _workerProcessName);
-                            workerProcessTask = processInvoker.ExecuteAsync(
-                                workingDirectory: assemblyDirectory,
-                                fileName: workerFileName,
-                                arguments: "spawnclient " + pipeHandleOut + " " + pipeHandleIn,
-                                environment: null,
-                                requireExitCodeZero: false,
-                                outputEncoding: null,
-                                killProcessOnCancel: true,
-                                cancellationToken: workerProcessCancelTokenSource.Token);
-                        });
+                    await processChannelServer.WaitingForConnectAsync(ChannelTimeout, CancellationToken.None);
+                    // // Start the process channel.
+                    // // It's OK if StartServer bubbles an execption after the worker process has already started.
+                    // // The worker will shutdown after 30 seconds if it hasn't received the job message.
+                    // processChannel.StartServer(
+                    //     // Delegate to start the child process.
+                    //     startProcess: (string pipeHandleOut, string pipeHandleIn) =>
+                    //     {
+                    //         // Validate args.
+                    //         ArgUtil.NotNullOrEmpty(pipeHandleOut, nameof(pipeHandleOut));
+                    //         ArgUtil.NotNullOrEmpty(pipeHandleIn, nameof(pipeHandleIn));
+
+
+                    //     });
 
                     // Send the job request message.
                     // Kill the worker process if sending the job message times out. The worker
@@ -340,10 +345,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                         Trace.Info($"Send job request message to worker for job {message.JobId}.");
                         using (var csSendJobRequest = new CancellationTokenSource(ChannelTimeout))
                         {
-                            await processChannel.SendAsync(
-                                messageType: MessageType.NewJobRequest,
-                                body: JsonUtility.ToString(message),
-                                cancellationToken: csSendJobRequest.Token);
+                            ProcessChannelMessage jobMessage = new ProcessChannelMessage()
+                            {
+                                MessageType = "JobRequest",
+                                Message = JsonUtility.ToString(message),
+                            };
+
+                            await processChannelServer.SendAsync(jobMessage, cancellationToken: csSendJobRequest.Token);
                         }
                     }
                     catch (OperationCanceledException)
@@ -416,10 +424,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                             Trace.Info($"Send job cancellation message to worker for job {message.JobId}.");
                             using (var csSendCancel = new CancellationTokenSource(ChannelTimeout))
                             {
-                                await processChannel.SendAsync(
-                                    messageType: MessageType.CancelRequest,
-                                    body: string.Empty,
-                                    cancellationToken: csSendCancel.Token);
+                                ProcessChannelMessage cancelMessage = new ProcessChannelMessage()
+                                {
+                                    MessageType = "JobCancel",
+                                    Message = string.Empty,
+                                };
+                                await processChannelServer.SendAsync(cancelMessage, cancellationToken: csSendCancel.Token);
                             }
                         }
                         catch (OperationCanceledException)

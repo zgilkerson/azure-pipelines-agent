@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker
 {
@@ -28,26 +29,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             var jobRunner = HostContext.CreateService<IJobRunner>();
 
-            using (var channel = HostContext.CreateService<IProcessChannel>())
+            var processChannelClient = HostContext.GetService<IProcessChannelClient>();
             using (var jobRequestCancellationToken = new CancellationTokenSource())
             using (var channelTokenSource = new CancellationTokenSource())
             {
                 // Start the channel.
-                channel.StartClient(pipeIn, pipeOut);
+                await processChannelClient.ConnectAsync(new IPEndPoint(IPAddress.Parse(pipeIn), int.Parse(pipeOut)));
 
                 // Wait for up to 30 seconds for a message from the channel.
                 Trace.Info("Waiting to receive the job message from the channel.");
-                WorkerMessage channelMessage;
+                ProcessChannelMessage channelMessage;
                 using (var csChannelMessage = new CancellationTokenSource(_workerStartTimeout))
                 {
-                    channelMessage = await channel.ReceiveAsync(csChannelMessage.Token);
+                    channelMessage = await processChannelClient.ReceiveAsync(_workerStartTimeout, csChannelMessage.Token);
                 }
 
                 // Deserialize the job message.
                 Trace.Info("Message received.");
-                ArgUtil.Equal(MessageType.NewJobRequest, channelMessage.MessageType, nameof(channelMessage.MessageType));
-                ArgUtil.NotNullOrEmpty(channelMessage.Body, nameof(channelMessage.Body));
-                var jobMessage = JsonUtility.FromString<AgentJobRequestMessage>(channelMessage.Body);
+                ArgUtil.Equal("JobRequest", channelMessage.MessageType, nameof(channelMessage.MessageType));
+                ArgUtil.NotNullOrEmpty(channelMessage.Message, nameof(channelMessage.Message));
+                var jobMessage = JsonUtility.FromString<AgentJobRequestMessage>(channelMessage.Message);
                 ArgUtil.NotNull(jobMessage, nameof(jobMessage));
 
                 // Initialize the secret masker and set the thread culture.
@@ -60,7 +61,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
                 // Start listening for a cancel message from the channel.
                 Trace.Info("Listening for cancel message from the channel.");
-                Task<WorkerMessage> channelTask = channel.ReceiveAsync(channelTokenSource.Token);
+                Task<ProcessChannelMessage> channelTask = processChannelClient.ReceiveAsync(_workerStartTimeout, channelTokenSource.Token);
 
                 // Wait for one of the tasks to complete.
                 Trace.Info("Waiting for the job to complete or for a cancel message from the channel.");
@@ -77,7 +78,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 // Otherwise a cancel message was received from the channel.
                 Trace.Info("Cancellation message received.");
                 channelMessage = await channelTask;
-                ArgUtil.Equal(MessageType.CancelRequest, channelMessage.MessageType, nameof(channelMessage.MessageType));
+                ArgUtil.Equal("JobCancel", channelMessage.MessageType, nameof(channelMessage.MessageType));
                 jobRequestCancellationToken.Cancel();   // Expire the host cancellation token.
                 // Await the job.
                 return TaskResultUtil.TranslateToReturnCode(await jobRunnerTask);
