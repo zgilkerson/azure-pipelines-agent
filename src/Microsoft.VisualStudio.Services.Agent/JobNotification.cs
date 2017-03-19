@@ -51,7 +51,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     Trace.Info("Writing JobStarted to pipe");
                     await _writeStream.WriteLineAsync(message);
                     await _writeStream.FlushAsync();
-                    Trace.Info("Finished JobStarted writing to pipe");  
+                    Trace.Info("Finished JobStarted writing to pipe");
                 }
             }
         }
@@ -119,7 +119,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     }
                     catch (FormatException e)
                     {
-                        Trace.Error("Invalid socket ip address {0}. Job Notification will be disabled",splitAddress[0]);
+                        Trace.Error("Invalid socket ip address {0}. Job Notification will be disabled", splitAddress[0]);
                         Trace.Error(e);
                         return;
                     }
@@ -157,8 +157,8 @@ namespace Microsoft.VisualStudio.Services.Agent
             if (disposing)
             {
                 _outClient?.Dispose();
-                _socket.Send(Encoding.UTF8.GetBytes("<EOF>"));
-                _socket.Shutdown(SocketShutdown.Both);
+                _socket?.Send(Encoding.UTF8.GetBytes("<EOF>"));
+                _socket?.Shutdown(SocketShutdown.Both);
             }
         }
     }

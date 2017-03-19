@@ -23,7 +23,7 @@ namespace Microsoft.VisualStudio.Services.Agent
     public interface IProcessChannelServer : IAgentService
     {
         IPEndPoint ServerEndPoint { get; }
-        Task WaitingForConnectAsync(TimeSpan timeout, CancellationToken cancellationToken);
+        Task WaitingForConnectAsync(CancellationToken cancellationToken);
         Task SendAsync(ProcessChannelMessage message, CancellationToken cancellationToken);
     }
 
@@ -46,8 +46,10 @@ namespace Microsoft.VisualStudio.Services.Agent
             {
                 try
                 {
+                    Trace.Info($"Start ProcessChannelServer TCP Listener. Attemp {retryCount}");
                     _tcpListener.Start();
                     ServerEndPoint = _tcpListener.Server.LocalEndPoint as IPEndPoint;
+                    Trace.Info($"ProcessChannelServer is listen at: '{ServerEndPoint.Address}:{ServerEndPoint.Port}'");
                     break;
                 }
                 catch (SocketException socketEx)
@@ -63,17 +65,18 @@ namespace Microsoft.VisualStudio.Services.Agent
             }
         }
 
-        public async Task WaitingForConnectAsync(TimeSpan timeout, CancellationToken cancellationToken)
+        public async Task WaitingForConnectAsync(CancellationToken cancellationToken)
         {
+            Trace.Entering();
             ArgUtil.NotNull(_tcpListener, nameof(_tcpListener));
 
-            Task timer = Task.Delay(timeout, cancellationToken);
+            Task timer = Task.Delay(-1, cancellationToken);
             Task<TcpClient> connect = _tcpListener.AcceptTcpClientAsync();
 
             Task completeTask = await Task.WhenAny(timer, connect);
             if (completeTask == timer)
             {
-                throw new OperationCanceledException();
+                cancellationToken.ThrowIfCancellationRequested();
             }
             else
             {

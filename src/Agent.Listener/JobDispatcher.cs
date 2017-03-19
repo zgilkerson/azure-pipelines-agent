@@ -305,11 +305,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
                 Task<int> workerProcessTask = null;
                 var processChannelServer = HostContext.GetService<IProcessChannelServer>();
-                Trace.Info($"ProcessChannelServer is listen at: '{processChannelServer.ServerEndPoint.Address}:{processChannelServer.ServerEndPoint.Port}'");
-
                 using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
                 {
                     // Start the child process.
+                    Trace.Info("Start worker process.");
                     var assemblyDirectory = IOUtil.GetBinPath();
                     string workerFileName = Path.Combine(assemblyDirectory, _workerProcessName);
                     workerProcessTask = processInvoker.ExecuteAsync(
@@ -322,7 +321,38 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                         killProcessOnCancel: true,
                         cancellationToken: workerProcessCancelTokenSource.Token);
 
-                    await processChannelServer.WaitingForConnectAsync(ChannelTimeout, CancellationToken.None);
+                    try
+                    {
+                        Trace.Info($"Waiting for worker connect back through TCP, worker need connect back within {ChannelTimeout.TotalSeconds} seconds.");
+                        using (CancellationTokenSource workerConnectToken = new CancellationTokenSource(ChannelTimeout))
+                        {
+                            await processChannelServer.WaitingForConnectAsync(workerConnectToken.Token);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // waiting for worker connect back been cancelled.
+                        // timeout 30 sec. kill worker.
+                        Trace.Info($"Job request message sending for job {message.JobId} been cancelled, kill running worker.");
+                        workerProcessCancelTokenSource.Cancel();
+                        try
+                        {
+                            await workerProcessTask;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            Trace.Info("worker process has been killed.");
+                        }
+
+                        Trace.Info($"Stop renew job request for job {message.JobId}.");
+                        // stop renew lock
+                        lockRenewalTokenSource.Cancel();
+                        // renew job request should never blows up.
+                        await renewJobRequest;
+
+                        // not finish the job request since the job haven't run on worker at all, we will not going to set a result to server.
+                        return;
+                    }
                     // // Start the process channel.
                     // // It's OK if StartServer bubbles an execption after the worker process has already started.
                     // // The worker will shutdown after 30 seconds if it hasn't received the job message.

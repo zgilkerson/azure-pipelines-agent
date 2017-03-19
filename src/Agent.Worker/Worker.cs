@@ -12,18 +12,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
     [ServiceLocator(Default = typeof(Worker))]
     public interface IWorker : IAgentService
     {
-        Task<int> RunAsync(string pipeIn, string pipeOut);
+        Task<int> RunAsync(IPEndPoint agentEndpoint);
     }
 
     public sealed class Worker : AgentService, IWorker
     {
         private readonly TimeSpan _workerStartTimeout = TimeSpan.FromSeconds(30);
 
-        public async Task<int> RunAsync(string pipeIn, string pipeOut)
+        public async Task<int> RunAsync(IPEndPoint agentEndpoint)
         {
             // Validate args.
-            ArgUtil.NotNullOrEmpty(pipeIn, nameof(pipeIn));
-            ArgUtil.NotNullOrEmpty(pipeOut, nameof(pipeOut));
+            ArgUtil.NotNull(agentEndpoint, nameof(agentEndpoint));
             var proxyConfig = HostContext.GetService<IProxyConfiguration>();
             proxyConfig.ApplyProxySettings();
 
@@ -34,7 +33,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             using (var channelTokenSource = new CancellationTokenSource())
             {
                 // Start the channel.
-                await processChannelClient.ConnectAsync(new IPEndPoint(IPAddress.Parse(pipeIn), int.Parse(pipeOut)));
+                await processChannelClient.ConnectAsync(agentEndpoint);
 
                 // Wait for up to 30 seconds for a message from the channel.
                 Trace.Info("Waiting to receive the job message from the channel.");

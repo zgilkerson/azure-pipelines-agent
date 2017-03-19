@@ -2,6 +2,7 @@
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Net;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker
 {
@@ -34,12 +35,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     ArgUtil.NotNullOrEmpty(args[0], $"{nameof(args)}[0]");
                     ArgUtil.NotNullOrEmpty(args[1], $"{nameof(args)}[1]");
 
+                    IPAddress agentIP;
+                    if (!IPAddress.TryParse(args[0], out agentIP))
+                    {
+                        throw new ArgumentException(nameof(IPEndPoint.Address));
+                    }
+
+                    Int32 agentPort;
+                    if (!Int32.TryParse(args[1], out agentPort))
+                    {
+                        throw new ArgumentException(nameof(IPEndPoint.Port));
+                    }
                     var worker = hc.GetService<IWorker>();
 
                     // Run the worker.
-                    return await worker.RunAsync(
-                        pipeIn: args[0],
-                        pipeOut: args[1]);
+                    return await worker.RunAsync(new IPEndPoint(agentIP, agentPort));
                 }
                 catch (Exception ex)
                 {

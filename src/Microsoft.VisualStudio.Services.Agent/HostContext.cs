@@ -254,6 +254,17 @@ namespace Microsoft.VisualStudio.Services.Agent
                     _loadContext.Unloading -= LoadContext_Unloading;
                     _loadContext = null;
                 }
+
+                // disposing all GetService instance
+                foreach (var service in _serviceInstances)
+                {
+                    if (service.Value is IDisposable)
+                    {
+                        (service.Value as IDisposable)?.Dispose();
+                    }
+                }
+
+                _serviceInstances.Clear();
                 _httpTraceSubscription?.Dispose();
                 _diagListenerSubscription?.Dispose();
                 _traceManager?.Dispose();
