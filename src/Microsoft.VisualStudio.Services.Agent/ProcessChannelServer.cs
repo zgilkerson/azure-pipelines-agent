@@ -23,7 +23,7 @@ namespace Microsoft.VisualStudio.Services.Agent
     public interface IProcessChannelServer : IAgentService
     {
         IPEndPoint ServerEndPoint { get; }
-        Task WaitingForConnectAsync(CancellationToken cancellationToken);
+        Task AcceptTcpClientAsync(CancellationToken cancellationToken);
         Task SendAsync(ProcessChannelMessage message, CancellationToken cancellationToken);
     }
 
@@ -65,22 +65,23 @@ namespace Microsoft.VisualStudio.Services.Agent
             }
         }
 
-        public async Task WaitingForConnectAsync(CancellationToken cancellationToken)
+        public async Task AcceptTcpClientAsync(CancellationToken cancellationToken)
         {
             Trace.Entering();
             ArgUtil.NotNull(_tcpListener, nameof(_tcpListener));
 
-            Task timer = Task.Delay(-1, cancellationToken);
-            Task<TcpClient> connect = _tcpListener.AcceptTcpClientAsync();
-
-            Task completeTask = await Task.WhenAny(timer, connect);
-            if (completeTask == timer)
+            using (cancellationToken.Register(() => { _tcpListener.Stop(); }))
             {
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-            else
-            {
-                _tcpConnection = await connect;
+                try
+                {
+                    _tcpConnection = await _tcpListener.AcceptTcpClientAsync();
+                }
+                catch (Exception ex) when (cancellationToken.IsCancellationRequested)
+                {
+                    Trace.Error("Catch exception when attemp to stop TcpListener while it is blocking on AcceptTcpClientAsync.");
+                    Trace.Error(ex);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
             }
         }
 

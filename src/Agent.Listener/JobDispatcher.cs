@@ -326,7 +326,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                         Trace.Info($"Waiting for worker connect back through TCP, worker need connect back within {ChannelTimeout.TotalSeconds} seconds.");
                         using (CancellationTokenSource workerConnectToken = new CancellationTokenSource(ChannelTimeout))
                         {
-                            await processChannelServer.WaitingForConnectAsync(workerConnectToken.Token);
+                            await processChannelServer.AcceptTcpClientAsync(workerConnectToken.Token);
                         }
                     }
                     catch (OperationCanceledException)
