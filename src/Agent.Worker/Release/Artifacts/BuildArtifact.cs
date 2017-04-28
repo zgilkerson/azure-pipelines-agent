@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -156,9 +157,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 || string.Equals(buildArtifact.Resource.Type, WellKnownArtifactResourceTypes.FilePath, StringComparison.OrdinalIgnoreCase))
             {
                 executionContext.Output("Artifact Type: FileShare");
-#if !OS_WINDOWS
-                throw new NotSupportedException(StringUtil.Loc("RMFileShareArtifactErrorOnNonWindowsAgent"));
-#else
                 string fileShare;
                 if (buildArtifact.Id == 0)
                 {
@@ -185,8 +183,148 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 executionContext.Output(StringUtil.Loc("RMDownloadingArtifactFromFileShare", fileShare));
 
                 var fileShareArtifact = new FileShareArtifact();
-                await fileShareArtifact.DownloadArtifactAsync(executionContext, HostContext, artifactDefinition, fileShare, downloadFolderPath);
-#endif
+
+				Boolean robocopyEnabled = true;
+
+                //System.Threading.Thread.Sleep(20000);
+
+                if (robocopyEnabled == true)
+                {
+                    Task<int> workerProcessTask = null;
+
+                    object _outputLock = new object();
+
+                    List<string> workerOutput = new List<string>();
+
+                    using (var processChannel = HostContext.CreateService<IProcessChannel>())
+
+                    using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+
+                    {
+
+                        // Start the process channel.
+
+                        // It's OK if StartServer bubbles an execption after the worker process has already started.
+
+                        // The worker will shutdown after 30 seconds if it hasn't received the job message.
+
+                        processChannel.StartServer(
+
+                            // Delegate to start the child process.
+
+                            startProcess: (string pipeHandleOut, string pipeHandleIn) =>
+
+                            {
+
+                                // Validate args.
+
+                                ArgUtil.NotNullOrEmpty(pipeHandleOut, nameof(pipeHandleOut));
+
+                                ArgUtil.NotNullOrEmpty(pipeHandleIn, nameof(pipeHandleIn));
+
+
+
+                                // Save STDOUT from worker, worker will use STDOUT report unhandle exception.
+
+                                processInvoker.OutputDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stdout)
+
+                                    {
+
+                                        if (!string.IsNullOrEmpty(stdout.Data))
+
+                                        {
+
+                                            lock (_outputLock)
+
+                                            {
+
+                                                workerOutput.Add(stdout.Data);
+
+                                            }
+
+                                        }
+
+                                    };
+
+
+
+                                // Save STDERR from worker, worker will use STDERR on crash.
+
+                                processInvoker.ErrorDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stderr)
+
+                                    {
+
+                                        if (!string.IsNullOrEmpty(stderr.Data))
+
+                                        {
+
+                                            lock (_outputLock)
+
+                                            {
+
+                                                workerOutput.Add(stderr.Data);
+
+                                            }
+
+                                        }
+
+                                    };
+
+
+                                var trimChars = new[] { '\\', '/' };
+                                var relativePath = artifactDefinition.Details.RelativePath;
+
+                                // If user has specified a relative folder in the drop, change the drop location itself. 
+                                fileShare = Path.Combine(fileShare.TrimEnd(trimChars), relativePath.Trim(trimChars));
+
+                                // Start the child process.
+
+
+
+
+                                workerProcessTask = processInvoker.ExecuteAsync(
+
+                                    workingDirectory: "C:/",
+
+                                    fileName: "robocopy",
+
+                                    arguments: downloadFolderPath + fileShare + "/E /MT:50 ",
+
+                                    environment: null,
+
+                                    requireExitCodeZero: false,
+
+                                    outputEncoding: null,
+
+                                    killProcessOnCancel: true,
+
+                                    cancellationToken: executionContext.CancellationToken);
+
+                            });
+
+
+                        try
+                        {
+
+                            await workerProcessTask;
+
+                            executionContext.Warning("Click, click. We are executing the process");
+                        }
+
+                        catch (OperationCanceledException)
+
+                        {
+
+                            Trace.Info("worker process has been killed.");
+
+                        }
+
+                    }
+                }
+                else
+                { 
+                    await fileShareArtifact.DownloadArtifactAsync(executionContext, HostContext, artifactDefinition, fileShare, downloadFolderPath);
+                }
             }
             else if (buildArtifactDetails != null
                      && string.Equals(buildArtifact.Resource.Type, WellKnownArtifactResourceTypes.Container, StringComparison.OrdinalIgnoreCase))
