@@ -214,7 +214,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 string rootDestinationDir = Path.Combine(localFolderPath, rootLocation);
                 var containerFetchEngineOptions = new ContainerFetchEngineOptions
                 {
-                    ParallelDownloadLimit = 4,
+                    ParallelDownloadLimit = executionContext.Variables.Release_Parallel_Download_Limit ?? 4,
+                    DownloadBufferSize = executionContext.Variables.Release_Download_BufferSize ?? ContainerFetchEngineDefaultOptions.DownloadBufferSize
                 };
 
                 using (var engine = new ContainerFetchEngine.ContainerFetchEngine(containerProvider, rootLocation, rootDestinationDir))

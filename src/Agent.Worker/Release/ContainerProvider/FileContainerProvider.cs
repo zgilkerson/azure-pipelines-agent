@@ -82,14 +82,20 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerProvider
 
         public async Task<Stream> GetFileTask(ContainerItem ticketedItem, CancellationToken cancellationToken)
         {
+            this._executionContext.Debug(StringUtil.Loc("RMDownloadGetFileContainerClient", ticketedItem.Path));
+
             VssConnection vssConnection = await GetVssConnection();
             var fileContainer = vssConnection.GetClient<FileContainerHttpClient>();
+
+            this._executionContext.Debug(StringUtil.Loc("RMDownloadFetchFileStreamFromContainerService", ticketedItem.Path));
 
             Stream stream = await fileContainer.DownloadFileAsync(
                 ticketedItem.ContainerId,
                 ticketedItem.Path,
                 cancellationToken,
                 scopeIdentifier: ticketedItem.ScopeIdentifier);
+
+            this._executionContext.Debug(StringUtil.Loc("RMDownloadFinishFetchFileStreamFromContainerService", ticketedItem.Path));
 
             return stream;
         }

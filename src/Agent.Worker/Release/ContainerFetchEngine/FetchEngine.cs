@@ -240,6 +240,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
         {
             try
             {
+                lock (_lock)
+                {
+                    ExecutionLogger.Warning(StringUtil.Loc("RMDownloadAcquireSemaphore", downloadPath));
+                }
+
                 await downloadThrottle.WaitAsync().ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -253,6 +258,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
 
                 FileSystemManager.EnsureParentDirectory(tmpDownloadPath);
                 FileSystemManager.DeleteFile(downloadPath);
+
+                lock (_lock)
+                {
+                    ExecutionLogger.Warning(StringUtil.Loc("RMDownloadStartDownloadOfFile", downloadPath));
+                }
 
                 await GetFileAsync(ticketedItem, tmpDownloadPath, cancellationToken).ConfigureAwait(false);
 
@@ -289,6 +299,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
                     Task<Stream> getFileTask = Provider.GetFileTask(ticketedItem, cancellationToken);
                     Task timeoutTask = Task.Delay(ContainerFetchEngineOptions.GetFileAsyncTimeout, cancellationToken);
 
+                    lock (_lock)
+                    {
+                        ExecutionLogger.Info(StringUtil.Loc("RMDownloadFetchFileContents", tmpDownloadPath));
+                    }
+
                     // Wait for GetFileAsync or the timeout to elapse.
                     await Task.WhenAny(getFileTask, timeoutTask).ConfigureAwait(false);
 
@@ -303,9 +318,19 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
                             StringUtil.Loc("RMGetFileAsyncTimedOut", GetFileAsyncTimeoutMinutes));
                     }
 
+                    lock (_lock)
+                    {
+                        ExecutionLogger.Info(StringUtil.Loc("RMDownloadWriteFileToDisk", tmpDownloadPath));
+                    }
+
                     using (Stream stream = await getFileTask.ConfigureAwait(false))
                     {
-                        await FileSystemManager.WriteStreamToFile(stream, tmpDownloadPath, cancellationToken);
+                        await FileSystemManager.WriteStreamToFile(stream, tmpDownloadPath, ContainerFetchEngineOptions.DownloadBufferSize, cancellationToken);
+                    }
+
+                    lock (_lock)
+                    {
+                        ExecutionLogger.Info(StringUtil.Loc("RMDownloadFinishWritingFileToDisk", tmpDownloadPath));
                     }
 
                     break;

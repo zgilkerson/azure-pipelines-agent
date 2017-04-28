@@ -34,6 +34,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
             if (filePaths.Any())
             {
+                int? bufferSize = executionContext.Variables.Release_Download_BufferSize;
+
                 foreach (var filePath in filePaths)
                 {
                     string fullPath = Path.GetFullPath(filePath);
@@ -46,6 +48,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                                 fileSystemManager.WriteStreamToFile(
                                     fileReader.BaseStream,
                                     Path.Combine(localFolderPath, filePathRelativeToDrop),
+                                    bufferSize,
                                     executionContext.CancellationToken);
                         }
                     }
