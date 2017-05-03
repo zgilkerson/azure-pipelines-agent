@@ -37,8 +37,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
         private int RobocopyMT { get; set; }
 
-
-
         public async Task DownloadAsync(IExecutionContext executionContext, ArtifactDefinition artifactDefinition, string localFolderPath)
         {
             ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
@@ -203,11 +201,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                     Task<int> workerProcessTask = null;
                     object _outputLock = new object();
                     List<string> workerOutput = new List<string>();
+                    bool isArtifactDownloadFailed = false;
 
                     ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
                     ArgUtil.NotNull(executionContext, nameof(executionContext));
                     ArgUtil.NotNullOrEmpty(localFolderPath, nameof(localFolderPath));
-                    ArgUtil.NotNullOrEmpty(fileShare, nameof(fileShare));
 
                     RobocopyMT = executionContext.Variables.GetInt(Constants.Variables.Release.RobocopyMT) ?? 8;
                     SystemDebug = executionContext.Variables.GetBoolean(Constants.Variables.System.Debug) ?? false;
@@ -248,6 +246,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                                                 executionContext.Output(stdout.Data);
                                             }
                                         }
+                                        if(stdout.Data.Contains("ERROR :"))
+                                        {
+                                            isArtifactDownloadFailed = true;
+                                        }
                                     };
 
                                     // Save STDERR from worker, worker will use STDERR on crash.
@@ -259,6 +261,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                                             {
                                                 executionContext.Error(stderr.Data);
                                             }
+                                            isArtifactDownloadFailed = true;
                                         }
                                     };
 
@@ -292,14 +295,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                             try
                             {
                                 await workerProcessTask;
+                                if (isArtifactDownloadFailed == true)
+                                {
+                                    throw new ArtifactDownloadException(StringUtil.Loc("RMRobocopyBasedArtifactDownloadFailed"));
+                                }
                             }
                             catch (OperationCanceledException)
                             {
                                 Trace.Info("worker process has been killed.");
                             }
-
-                            int a = workerProcessTask.Result;
-                            bool b = workerProcessTask.IsCompleted;
                         }
                     }
                 }
