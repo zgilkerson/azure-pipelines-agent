@@ -101,6 +101,9 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string Version = "version";
                     public static readonly string MachineGroup = "machinegroup";
                     public static readonly string DeploymentGroup = "deploymentgroup";
+                    public static readonly string EnableAutoLogon = "enableautologon";
+                    public static readonly string ContinueWithoutAutoLogon = "continuewithoutautologon";
+                    public static readonly string RestartIfNeeded = "restartifneeded";
                 }
             }
 

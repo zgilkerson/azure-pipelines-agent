@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.VisualStudio.Services.OAuth;
 using System.Security.Principal;
+using System.Diagnostics;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 {
@@ -358,11 +359,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 var serviceControlManager = HostContext.GetService<IWindowsServiceControlManager>();
                 serviceControlManager.ConfigureService(settings, command);
             }
+            else
+            {
+                Trace.Info("Agent is going to run as process so 'InteractiveSession' capability will be set for the agent.");
+                ConfigureAutoLogonIfNeeded(command);
+            }
+
 #elif OS_LINUX || OS_OSX
             // generate service config script for OSX and Linux, GenerateScripts() will no-opt on windows.
             var serviceControlManager = HostContext.GetService<ILinuxServiceControlManager>();
             serviceControlManager.GenerateScripts(settings);
-#endif
+#endif      
         }
 
         public async Task UnconfigureAsync(CommandSettings command)
@@ -477,6 +484,38 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
         }
 
+        private void ConfigureAutoLogonIfNeeded(CommandSettings command)
+        {
+            bool enableAutoLogon = command.GetEnableAutoLogon();
+            if(!enableAutoLogon)
+            {
+                return;
+            }
+
+            try
+            {
+                AssertAdminAccess(command);
+                
+                var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
+                iConfigManager.Configure(command);
+
+                if(iConfigManager.RestartNeeded())
+                {
+                    _term.WriteLine(StringUtil.Loc("RestartMessage"));
+                    var shallRestart = command.GetRestartPermission();
+                    if(shallRestart)
+                    {
+                        System.Diagnostics.Process.Start("shutdown.exe", "-r -t 0");
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                Trace.Error(ex);
+                _term.WriteLine(StringUtil.Loc("AutoLogonConfigurationFailureMessage"));
+            }
+        }
+        
         private ICredentialProvider GetCredentialProvider(CommandSettings command, string serverUrl)
         {
             Trace.Info(nameof(GetCredentialProvider));
@@ -493,6 +532,28 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             var provider = credentialManager.GetCredentialProvider(authType);
             provider.EnsureCredential(HostContext, command, serverUrl);
             return provider;
+        }
+
+        private void AssertAdminAccess(CommandSettings command)
+        {
+            if (new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
+            {
+                return;
+            }
+
+            Trace.Error("Needs Administrator privileges for configure agent as interactive process with autologon capability.");
+            if(command.Unattended)
+            {
+                throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
+            }
+
+            bool continueWithoutAutologon = command.GetContinueWithoutAutoLogon();
+            if(continueWithoutAutologon)
+            {
+                return;
+            }
+            Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");
+            throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));            
         }
 
         private async Task TestConnectAsync(string url, VssCredentials creds)

@@ -1,9 +1,12 @@
-using Microsoft.VisualStudio.Services.Agent.Util;
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
+using Microsoft.VisualStudio.Services.Agent.Util;
+using Microsoft.Win32;
+
+
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 {
@@ -34,6 +37,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 #if OS_WINDOWS
             Add(capabilities, "Agent.OSVersion", GetOSVersionString());
             Add(capabilities, "Cmd", Environment.GetEnvironmentVariable("comspec"));
+
+            var configurationManager = HostContext.GetService<IConfigurationManager>();
+            Add(capabilities, "InteractiveSession", (!configurationManager.IsServiceConfigured()).ToString());
 #endif
             Add(capabilities, "Agent.Version", Constants.Agent.Version);
             Add(capabilities, "Agent.ComputerName", Environment.MachineName ?? string.Empty);
