@@ -31,6 +31,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
         private const string AllArtifacts = "*";
 
+        private bool UseRobocopy { get; set; }
+
+        private bool SystemDebug { get; set; }
+
+        private int RobocopyMT { get; set; }
+
+
+
         public async Task DownloadAsync(IExecutionContext executionContext, ArtifactDefinition artifactDefinition, string localFolderPath)
         {
             ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
@@ -184,141 +192,115 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
                 var fileShareArtifact = new FileShareArtifact();
 
-				Boolean robocopyEnabled = true;
+				//Boolean robocopyEnabled = true;
 
                 //System.Threading.Thread.Sleep(20000);
 
-                if (robocopyEnabled == true)
+                UseRobocopy = executionContext.Variables.GetBoolean(Constants.Variables.Release.UseRobocopy) ?? false;
+
+                if (UseRobocopy == true)
                 {
                     Task<int> workerProcessTask = null;
-
                     object _outputLock = new object();
-
                     List<string> workerOutput = new List<string>();
 
-                    using (var processChannel = HostContext.CreateService<IProcessChannel>())
+                    ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
+                    ArgUtil.NotNull(executionContext, nameof(executionContext));
+                    ArgUtil.NotNullOrEmpty(localFolderPath, nameof(localFolderPath));
+                    ArgUtil.NotNullOrEmpty(fileShare, nameof(fileShare));
 
-                    using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+                    RobocopyMT = executionContext.Variables.GetInt(Constants.Variables.Release.RobocopyMT) ?? 8;
+                    SystemDebug = executionContext.Variables.GetBoolean(Constants.Variables.System.Debug) ?? false;
 
+                    if(RobocopyMT < 8)
                     {
+                        RobocopyMT = 8;
+                    }
+                    else if (RobocopyMT > 128)
+                    {
+                        RobocopyMT = 128;
+                    }
 
-                        // Start the process channel.
+                    executionContext.Output("Downloading Artifacts using robocopy");
+                    using (var processChannel = HostContext.CreateService<IProcessChannel>())
+                    {
+                        using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+                        {
+                            // Start the process channel.
+                            // It's OK if StartServer bubbles an execption after the worker process has already started.
+                            // The worker will shutdown after 30 seconds if it hasn't received the job message.
 
-                        // It's OK if StartServer bubbles an execption after the worker process has already started.
+                            processChannel.StartServer(
+                                // Delegate to start the child process.
+                                startProcess: (string pipeHandleOut, string pipeHandleIn) =>
+                                {
+                                    // Validate args.
+                                    ArgUtil.NotNullOrEmpty(pipeHandleOut, nameof(pipeHandleOut));
+                                    ArgUtil.NotNullOrEmpty(pipeHandleIn, nameof(pipeHandleIn));
 
-                        // The worker will shutdown after 30 seconds if it hasn't received the job message.
-
-                        processChannel.StartServer(
-
-                            // Delegate to start the child process.
-
-                            startProcess: (string pipeHandleOut, string pipeHandleIn) =>
-
-                            {
-
-                                // Validate args.
-
-                                ArgUtil.NotNullOrEmpty(pipeHandleOut, nameof(pipeHandleOut));
-
-                                ArgUtil.NotNullOrEmpty(pipeHandleIn, nameof(pipeHandleIn));
-
-
-
-                                // Save STDOUT from worker, worker will use STDOUT report unhandle exception.
-
-                                processInvoker.OutputDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stdout)
-
+                                    // Save STDOUT from worker, worker will use STDOUT report unhandle exception.
+                                    processInvoker.OutputDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stdout)
                                     {
-
                                         if (!string.IsNullOrEmpty(stdout.Data))
-
                                         {
-
                                             lock (_outputLock)
-
                                             {
-
-                                                workerOutput.Add(stdout.Data);
-
+                                                executionContext.Output(stdout.Data);
                                             }
-
                                         }
-
                                     };
 
-
-
-                                // Save STDERR from worker, worker will use STDERR on crash.
-
-                                processInvoker.ErrorDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stderr)
-
+                                    // Save STDERR from worker, worker will use STDERR on crash.
+                                    processInvoker.ErrorDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stderr)
                                     {
-
                                         if (!string.IsNullOrEmpty(stderr.Data))
-
                                         {
-
                                             lock (_outputLock)
-
                                             {
-
-                                                workerOutput.Add(stderr.Data);
-
+                                                executionContext.Error(stderr.Data);
                                             }
-
                                         }
-
                                     };
 
+                                    var trimChars = new[] { '\\', '/' };
+                                    var relativePath = artifactDefinition.Details.RelativePath;
 
-                                var trimChars = new[] { '\\', '/' };
-                                var relativePath = artifactDefinition.Details.RelativePath;
+                                    // If user has specified a relative folder in the drop, change the drop location itself. 
+                                    fileShare = Path.Combine(fileShare.TrimEnd(trimChars), relativePath.Trim(trimChars));
 
-                                // If user has specified a relative folder in the drop, change the drop location itself. 
-                                fileShare = Path.Combine(fileShare.TrimEnd(trimChars), relativePath.Trim(trimChars));
-
-                                // Start the child process.
-
-
-
-
-                                workerProcessTask = processInvoker.ExecuteAsync(
-
-                                    workingDirectory: "C:/",
-
-                                    fileName: "robocopy",
-
-                                    arguments: downloadFolderPath + fileShare + "/E /MT:50 ",
-
-                                    environment: null,
-
-                                    requireExitCodeZero: false,
-
-                                    outputEncoding: null,
-
-                                    killProcessOnCancel: true,
-
-                                    cancellationToken: executionContext.CancellationToken);
-
+                                    String robocopyArguments;
+                                    // Start the child process.
+                                    if (SystemDebug == true)
+                                    {
+                                        robocopyArguments = fileShare + " " + localFolderPath + " /E /Z /MT:" + RobocopyMT;
+                                    }
+                                    else
+                                    {
+                                        robocopyArguments = fileShare + " " + localFolderPath + " /E /Z /NDL /NFL /NP /MT:" + RobocopyMT;
+                                    }
+                                    workerProcessTask = processInvoker.ExecuteAsync(
+                                            workingDirectory: "C:\\",
+                                            fileName: "robocopy",
+                                            arguments: robocopyArguments,
+                                            environment: null,
+                                            requireExitCodeZero: false,
+                                            outputEncoding: null,
+                                            killProcessOnCancel: true,
+                                            cancellationToken: executionContext.CancellationToken);
                             });
 
+                            try
+                            {
+                                await workerProcessTask;
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                Trace.Info("worker process has been killed.");
+                            }
 
-                        try
-                        {
-
-                            await workerProcessTask;
-
-                            executionContext.Warning("Click, click. We are executing the process");
+                            int a = workerProcessTask.Result;
+                            bool b = workerProcessTask.IsCompleted;
                         }
-
-                        catch (OperationCanceledException)
-
-                        {
-
-                            Trace.Info("worker process has been killed.");
-
-                        }
-
                     }
                 }
                 else
