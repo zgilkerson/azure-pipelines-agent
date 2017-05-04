@@ -1,3 +1,4 @@
+#if OS_WINDOWS
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -44,9 +45,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
 //todo: move this #if to top of the class, keeping it here (for the time being) to leverage intellisense
             string logonPassword = string.Empty;
-#if OS_WINDOWS
-            var windowsServiceHelper = HostContext.GetService<INativeWindowsServiceHelper>();      
-                
+            var windowsServiceHelper = HostContext.GetService<INativeWindowsServiceHelper>();                
             while (true)
             {
                 logonPassword = command.GetWindowsLogonPassword(logonAccount);
@@ -55,25 +54,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     Trace.Info("Credential validation succeed");
                     break;
                 }
-                else
+                
+                if (command.Unattended)
                 {
-                    if (command.Unattended)
-                    {
-                        throw new SecurityException(StringUtil.Loc("InvalidWindowsCredential"));
-                    }
-                        
-                    Trace.Info("Invalid credential entered");
-                    _terminal.WriteLine(StringUtil.Loc("InvalidWindowsCredential"));
+                    throw new SecurityException(StringUtil.Loc("InvalidWindowsCredential"));
                 }
+                    
+                Trace.Info("Invalid credential entered");
+                _terminal.WriteLine(StringUtil.Loc("InvalidWindowsCredential"));
             }
-#endif
-            _isCurrentUserSameAsAutoLogonUser = IsTheAutoLogonUserSameAsCurrentUser(domainName, userName);
-            var regManager = HostContext.GetService<IWindowsRegistryManager>();
-            
+
+            _isCurrentUserSameAsAutoLogonUser = windowsServiceHelper.IsTheSameUserLoggedIn(domainName, userName);       
+            var regManager = HostContext.GetService<IWindowsRegistryManager>();    
             WindowsRegistryHelper regHelper = _isCurrentUserSameAsAutoLogonUser 
                                                 ? new WindowsRegistryHelper(regManager) 
-                                                : new WindowsRegistryHelper(regManager, userName);
-            
+                                                : new WindowsRegistryHelper(regManager, userName);            
             
             if(!_isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(userName))
             {
@@ -126,7 +121,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
         }
 
-        public void UpdateRegistrySettingsforUITesting(WindowsRegistryHelper regHelper, string userName, string domainName, string logonPassword)
+        private void UpdateRegistrySettingsforUITesting(WindowsRegistryHelper regHelper, string userName, string domainName, string logonPassword)
         {
             regHelper.SetRegistry(WellKnownRegistries.ScreenSaver, "0");
             regHelper.SetRegistry(WellKnownRegistries.ScreenSaverDomainPolicy, "0");
@@ -145,9 +140,19 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             regHelper.SetRegistry(WellKnownRegistries.ShutdownReasonUI, "0");
         }
 
+
         public bool RestartNeeded()
         {
-            return !_isCurrentUserSameAsAutoLogonUser;
+            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
+            var userName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
+            var domainName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonDomainName);
+
+            if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(domainName))
+            {
+                return false;
+            }
+            var nativeWindowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
+            return !nativeWindowsHelper.IsTheSameUserLoggedIn(domainName, userName);
         }
 
         public void UnConfigure()
@@ -181,10 +186,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 user = segments[1];
             }
         }
-
-        private bool IsTheAutoLogonUserSameAsCurrentUser(string domainName, string userName)
-        {
-            return EnumerateUsers.IsActiveSessionExists(domainName, userName);  
-        }
     }
 }
+#endif
