@@ -1,3 +1,4 @@
+#if OS_WINDOWS
 using System;
 using System.Security.Principal;
 using Microsoft.Win32;
@@ -41,17 +42,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     public class WindowsRegistryHelper
     {
         private IWindowsRegistryManager _registryManager;
-        private string _userName;
+        private string _userSecurityId;
 
-        public WindowsRegistryHelper(IWindowsRegistryManager regManager, string userName = null)
+        public WindowsRegistryHelper(IWindowsRegistryManager regManager, string sid = null)
         {
             _registryManager = regManager;
-            _userName = userName;            
+            _userSecurityId = sid;
         }
 
-        public bool ValidateIfRegistryExistsForTheUser(string userName)
+        public bool ValidateIfRegistryExistsForTheUser(string sid)
         {
-            return _registryManager.RegsitryExists(userName);
+            return _registryManager.RegsitryExists(sid);
         }
 
         public void SetRegistry(WellKnownRegistries targetRegistry, string keyValue)
@@ -60,15 +61,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             {
                 //user specific registry settings
                 case WellKnownRegistries.ScreenSaver :
-                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(_userName));
+                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(_userSecurityId));
                     _registryManager.SetKeyValue(regPath, RegistryConstants.KeyNames.ScreenSaver, keyValue);
                     break;
                 case WellKnownRegistries.ScreenSaverDomainPolicy:
-                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(_userName));
+                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(_userSecurityId));
                     _registryManager.SetKeyValue(regPath, RegistryConstants.KeyNames.ScreenSaver, keyValue);
                     break;
                 case WellKnownRegistries.StartupProcess:
-                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(_userName));
+                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(_userSecurityId));
                     _registryManager.SetKeyValue(regPath, RegistryConstants.KeyNames.StartupProcess, keyValue);
                     break;
                 //machine specific registry settings
@@ -96,13 +97,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             {
                 //user specific registry settings
                 case WellKnownRegistries.ScreenSaver :
-                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(_userName));
+                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(_userSecurityId));
                     return _registryManager.GetKeyValue(regPath, RegistryConstants.KeyNames.ScreenSaver);
                 case WellKnownRegistries.ScreenSaverDomainPolicy:
-                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(_userName));
+                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(_userSecurityId));
                     return _registryManager.GetKeyValue(regPath, RegistryConstants.KeyNames.ScreenSaver);
                 case WellKnownRegistries.StartupProcess:
-                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(_userName));
+                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(_userSecurityId));
                     return _registryManager.GetKeyValue(regPath, RegistryConstants.KeyNames.StartupProcess);
                 //machine specific registry settings
                 case WellKnownRegistries.AutoLogon :
@@ -136,18 +137,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
         }
 
-        private string GetUserRegistryRootPath(string userName)
+        private string GetUserRegistryRootPath(string sid)
         {
-            return string.IsNullOrEmpty(userName) ?
+            return string.IsNullOrEmpty(sid) ?
                 RegistryConstants.CurrentUserRootPath :
-                String.Format(RegistryConstants.DifferentUserRootPath, GetSecurityIdForTheUser(userName));
-        }
-
-        private string GetSecurityIdForTheUser(string userName)
-        {
-            var account = new NTAccount(userName);
-            var sid = account.Translate(typeof(SecurityIdentifier));
-            return sid.ToString();
+                String.Format(RegistryConstants.DifferentUserRootPath, sid);
         }
     }
     
@@ -194,3 +188,4 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         }
     }
 }
+#endif

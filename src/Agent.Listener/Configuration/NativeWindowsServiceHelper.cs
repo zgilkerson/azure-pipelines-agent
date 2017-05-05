@@ -57,6 +57,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         void DeleteVstsAgentRegistryKey();
 
         bool IsTheSameUserLoggedIn(string domainName, string userName);
+        
+        string GetSecurityIdForTheUser(string userName);
+        
+        void SetAutoLogonPassword(string password);
     }
 
     public class NativeWindowsServiceHelper : AgentService, INativeWindowsServiceHelper
@@ -796,6 +800,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             return EnumerateUsers.IsActiveSessionExists(domainName, userName);
         }
 
+        public string GetSecurityIdForTheUser(string userName)
+        {
+            var account = new NTAccount(userName);
+            var sid = account.Translate(typeof(SecurityIdentifier));
+            return sid != null ? sid.ToString() : null;
+        }
+
+        public void SetAutoLogonPassword(string password)
+        {
+            using (LsaPolicy lsaPolicy = new LsaPolicy(LSA_AccessPolicy.POLICY_CREATE_SECRET))
+            {
+                lsaPolicy.SetSecretData(LsaPolicy.DefaultPassword, password);
+            }
+        }
+
         // Helper class not to repeat whenever we deal with LSA* api
         internal class LsaPolicy : IDisposable
         {
@@ -824,12 +843,75 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 Handle = handle;
             }
 
+            public LsaPolicy(LSA_AccessPolicy access)
+            {
+                NativeMethods.LSA_UNICODE_STRING system = new NativeMethods.LSA_UNICODE_STRING();
+
+                NativeMethods.LSA_OBJECT_ATTRIBUTES attrib = new NativeMethods.LSA_OBJECT_ATTRIBUTES()
+                {
+                    Length = 0,
+                    RootDirectory = IntPtr.Zero,
+                    Attributes = 0,
+                    SecurityDescriptor = IntPtr.Zero,
+                    SecurityQualityOfService = IntPtr.Zero,
+                };
+
+                IntPtr handle = IntPtr.Zero;
+                uint hr = NativeMethods.LsaOpenPolicy(ref system, ref attrib, (uint)access, out handle);
+                if (hr != 0 || handle == IntPtr.Zero)
+                {
+                    throw new Exception("OpenLsaFailed");
+                }
+
+                Handle = handle;
+            }
+
+            public void SetSecretData(string key, string value)
+            {
+                NativeMethods.LSA_UNICODE_STRING secretData = new NativeMethods.LSA_UNICODE_STRING();
+                NativeMethods.LSA_UNICODE_STRING secretName = new NativeMethods.LSA_UNICODE_STRING();
+
+                secretName.Buffer = Marshal.StringToHGlobalUni(key);
+                
+                //todo: this API is not available in .net core hence going with the hardcoding for the time being
+                //var charSize = UnicodeEncoding.CharSize;
+                var charSize = 2; //2 byte for the time being.
+
+                secretName.Length = (UInt16)(key.Length * charSize);
+                secretName.MaximumLength = (UInt16)((key.Length + 1) * charSize);
+
+                if (value.Length > 0)
+                {
+                    // Create data and key
+                    secretData.Buffer = Marshal.StringToHGlobalUni(value);
+                    secretData.Length = (UInt16)(value.Length * charSize);
+                    secretData.MaximumLength = (UInt16)((value.Length + 1) * charSize);
+                }
+                else
+                {
+                    // Delete data and key
+                    secretData.Buffer = IntPtr.Zero;
+                    secretData.Length = 0;
+                    secretData.MaximumLength = 0;
+                }
+
+                uint result = NativeMethods.LsaStorePrivateData(Handle, ref secretName, ref secretData);
+
+                uint winErrorCode = NativeMethods.LsaNtStatusToWinError(result);
+                if (winErrorCode != 0)
+                {
+                    throw new Exception("FailedLsaStoreData: " + winErrorCode);
+                }
+            }
+
             void IDisposable.Dispose()
             {
                 // We will ignore LsaClose error
                 LsaClose(Handle);
                 GC.SuppressFinalize(this);
             }
+
+            internal static string DefaultPassword = "DefaultPassword";
         }
 
         internal static class EnumerateUsers

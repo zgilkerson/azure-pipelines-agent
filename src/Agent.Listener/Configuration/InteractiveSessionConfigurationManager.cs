@@ -64,13 +64,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 _terminal.WriteLine(StringUtil.Loc("InvalidWindowsCredential"));
             }
 
-            _isCurrentUserSameAsAutoLogonUser = windowsServiceHelper.IsTheSameUserLoggedIn(domainName, userName);       
-            var regManager = HostContext.GetService<IWindowsRegistryManager>();    
+            _isCurrentUserSameAsAutoLogonUser = windowsServiceHelper.IsTheSameUserLoggedIn(domainName, userName);                
+            var securityIdForTheUser = windowsServiceHelper.GetSecurityIdForTheUser(userName);
+            var regManager = HostContext.GetService<IWindowsRegistryManager>();
             WindowsRegistryHelper regHelper = _isCurrentUserSameAsAutoLogonUser 
                                                 ? new WindowsRegistryHelper(regManager) 
-                                                : new WindowsRegistryHelper(regManager, userName);            
+                                                : new WindowsRegistryHelper(regManager, securityIdForTheUser);
             
-            if(!_isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(userName))
+            if(!_isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(securityIdForTheUser))
             {
                 Trace.Error(String.Format($"The autologon user '{logonAccount}' doesnt have a user profile on the machine. Please login once and reconfigure the agent agian"));
                 throw new InvalidOperationException("No user profile exists for the AutoLogon user");
@@ -128,7 +129,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
             ShowAutoLogonWarningIfAlreadyEnabled(regHelper, userName);
 
-            AutoLogonPasswordStorageHelper.SetAutoLogonPassword(logonPassword);
+            var windowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
+            windowsHelper.SetAutoLogonPassword(logonPassword);
+
             regHelper.SetRegistry(WellKnownRegistries.AutoLogonUserName, userName);
             regHelper.SetRegistry(WellKnownRegistries.AutoLogonDomainName, domainName);
             regHelper.SetRegistry(WellKnownRegistries.AutoLogon, "1");
