@@ -163,6 +163,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 || string.Equals(buildArtifact.Resource.Type, WellKnownArtifactResourceTypes.FilePath, StringComparison.OrdinalIgnoreCase))
             {
                 executionContext.Output("Artifact Type: FileShare");
+#if !OS_WINDOWS
+                throw new NotSupportedException(StringUtil.Loc("RMFileShareArtifactErrorOnNonWindowsAgent"));
+#else
                 string fileShare;
                 if (buildArtifact.Id == 0)
                 {
@@ -189,10 +192,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 executionContext.Output(StringUtil.Loc("RMDownloadingArtifactFromFileShare", fileShare));
 
                 var fileShareArtifact = new FileShareArtifact();
-
-				//Boolean robocopyEnabled = true;
-
-                //System.Threading.Thread.Sleep(20000);
 
                 UseRobocopy = executionContext.Variables.GetBoolean(Constants.Variables.Release.UseRobocopy) ?? false;
 
@@ -267,8 +266,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
                                     var trimChars = new[] { '\\', '/' };
                                     var relativePath = artifactDefinition.Details.RelativePath;
-
-                                    // If user has specified a relative folder in the drop, change the drop location itself. 
+ 
                                     fileShare = Path.Combine(fileShare.TrimEnd(trimChars), relativePath.Trim(trimChars));
 
                                     String robocopyArguments;
@@ -282,7 +280,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                                         robocopyArguments = fileShare + " " + localFolderPath + " /E /Z /NDL /NFL /NP /MT:" + RobocopyMT;
                                     }
                                     workerProcessTask = processInvoker.ExecuteAsync(
-                                            workingDirectory: "C:\\",
+                                            workingDirectory: "",
                                             fileName: "robocopy",
                                             arguments: robocopyArguments,
                                             environment: null,
@@ -308,9 +306,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                     }
                 }
                 else
-                { 
+                {
                     await fileShareArtifact.DownloadArtifactAsync(executionContext, HostContext, artifactDefinition, fileShare, downloadFolderPath);
                 }
+#endif
             }
             else if (buildArtifactDetails != null
                      && string.Equals(buildArtifact.Resource.Type, WellKnownArtifactResourceTypes.Container, StringComparison.OrdinalIgnoreCase))

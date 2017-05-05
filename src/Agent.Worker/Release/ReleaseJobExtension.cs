@@ -176,8 +176,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
 
                 // download the artifact to this path. 
                 RetryExecutor retryExecutor = new RetryExecutor();
-
-                System.Threading.Thread.Sleep(20000);
                 retryExecutor.ShouldRetryAction = (ex) =>
                 {
                     executionContext.Output(StringUtil.Loc("RMErrorDuringArtifactDownload", ex));
