@@ -58,7 +58,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 AgentJobRequestMessage message = CreateJobRequestMessage();
                 string strMessage = JsonUtility.ToString(message);
 
-                _processInvoker.Setup(x => x.ExecuteAsync(It.IsAny<String>(), It.IsAny<String>(), "spawnclient 1 2", null, It.IsAny<CancellationToken>()))
+                _processInvoker.Setup(x => x.ExecuteAsync(It.IsAny<String>(), It.IsAny<String>(), "spawnclient 1 2", null, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
                     .Returns(Task.FromResult<int>(56));
 
                 _processChannel.Setup(x => x.StartServer(It.IsAny<StartProcessDelegate>()))

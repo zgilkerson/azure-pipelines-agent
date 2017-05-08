@@ -499,14 +499,31 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
                 iConfigManager.Configure(command);
 
+                var processHelper = HostContext.GetService<IProcessInvoker>();
                 if(iConfigManager.RestartNeeded())
                 {
                     _term.WriteLine(StringUtil.Loc("RestartMessage"));
                     var shallRestart = command.GetRestartPermission();
                     if(shallRestart)
                     {
-                        System.Diagnostics.Process.Start("shutdown.exe", "-r -t 0");
+                        processHelper.ExecuteAsync(
+                            workingDirectory: string.Empty,
+                            fileName: "shutdown.exe",
+                            arguments: "-r -t 0",
+                            environment: null,
+                            cancellationToken: CancellationToken.None).Wait();                        
                     }
+                }
+                else
+                {
+                    var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");
+                    processHelper.ExecuteAsync(
+                        workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Bin),
+                        fileName: startupProcessPath,
+                        arguments: "runasprocess",
+                        environment: null,
+                        cancellationToken: CancellationToken.None,
+                        waitForExit: false).Wait();
                 }
             }
             catch(Exception ex)

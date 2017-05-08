@@ -88,6 +88,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 case WellKnownRegistries.ShutdownReasonUI :
                     _registryManager.SetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, RegistryConstants.KeyNames.ShutdownReasonUI, keyValue);
                     break;
+                case WellKnownRegistries.LegalNoticeCaption :
+                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.LegalNotice, RegistryConstants.KeyNames.LegalNoticeCaption, keyValue);
+                    break;
+                case WellKnownRegistries.LegalNoticeText :
+                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.LegalNotice, RegistryConstants.KeyNames.LegalNoticeText, keyValue);
+                    break;
             }
         }
 
@@ -116,6 +122,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     return _registryManager.GetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, RegistryConstants.KeyNames.ShutdownReason);
                 case WellKnownRegistries.ShutdownReasonUI :
                     return _registryManager.GetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, RegistryConstants.KeyNames.ShutdownReasonUI);
+                case WellKnownRegistries.LegalNoticeCaption :
+                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.LegalNotice, RegistryConstants.KeyNames.LegalNoticeCaption);
+                case WellKnownRegistries.LegalNoticeText :
+                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.LegalNotice, RegistryConstants.KeyNames.LegalNoticeText);
                 default:
                    return null;
             }
@@ -157,6 +167,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         StartupProcess,
         ShutdownReason,
         ShutdownReasonUI,
+        LegalNoticeCaption,
+        LegalNoticeText
     }
 
     public struct RegistryConstants
@@ -171,6 +183,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             public const string StartupProcess = @"{0}\SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
             public const string AutoLogon = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
             public const string ShutdownReasonDomainPolicy = @"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability";
+            public const string LegalNotice = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
         }
 
         public struct KeyNames
@@ -185,6 +198,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             public const string ScreenSaver = "ScreenSaveActive";
             public const string ShutdownReason = "ShutdownReasonOn";
             public const string ShutdownReasonUI = "ShutdownReasonUI";
+            public const string LegalNoticeCaption = "legalnoticecaption";
+            public const string LegalNoticeText = "legalnoticetext";
         }
     }
 }

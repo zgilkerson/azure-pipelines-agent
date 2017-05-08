@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 
@@ -18,12 +19,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     public class InteractiveSessionConfigurationManager : AgentService, IInteractiveSessionConfigurationManager
     {
         private ITerminal _terminal;
-        private bool _isCurrentUserSameAsAutoLogonUser;
 
         public override void Initialize(IHostContext hostContext)
         {
             base.Initialize(hostContext);
-            //is there really a need to have it as a member variable?
             _terminal = hostContext.GetService<ITerminal>();    
         }
 
@@ -43,7 +42,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
             Trace.Info("LogonAccount after transforming: {0}, user: {1}, domain: {2}", logonAccount, userName, domainName);
 
-//todo: move this #if to top of the class, keeping it here (for the time being) to leverage intellisense
             string logonPassword = string.Empty;
             var windowsServiceHelper = HostContext.GetService<INativeWindowsServiceHelper>();                
             while (true)
@@ -64,14 +62,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 _terminal.WriteLine(StringUtil.Loc("InvalidWindowsCredential"));
             }
 
-            _isCurrentUserSameAsAutoLogonUser = windowsServiceHelper.IsTheSameUserLoggedIn(domainName, userName);                
+            bool isCurrentUserSameAsAutoLogonUser = windowsServiceHelper.IsTheSameUserLoggedIn(domainName, userName);                
             var securityIdForTheUser = windowsServiceHelper.GetSecurityIdForTheUser(userName);
             var regManager = HostContext.GetService<IWindowsRegistryManager>();
-            WindowsRegistryHelper regHelper = _isCurrentUserSameAsAutoLogonUser 
+            WindowsRegistryHelper regHelper = isCurrentUserSameAsAutoLogonUser 
                                                 ? new WindowsRegistryHelper(regManager) 
                                                 : new WindowsRegistryHelper(regManager, securityIdForTheUser);
             
-            if(!_isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(securityIdForTheUser))
+            if(!isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(securityIdForTheUser))
             {
                 Trace.Error(String.Format($"The autologon user '{logonAccount}' doesnt have a user profile on the machine. Please login once and reconfigure the agent agian"));
                 throw new InvalidOperationException("No user profile exists for the AutoLogon user");
@@ -101,9 +99,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 warningReasons.Add(StringUtil.Loc("UITestingWarning_ShutdownReason"));
             }
 
-            //legal notice
-            //todo:
-            // StringUtil.Loc("UITestingWarning_LegalNotice");
+            var legalNoticeCaption = regHelper.GetRegistry(WellKnownRegistries.LegalNoticeCaption);
+            var legalNoticeText =  regHelper.GetRegistry(WellKnownRegistries.LegalNoticeText);
+            if(!string.IsNullOrEmpty(legalNoticeCaption) || !string.IsNullOrEmpty(legalNoticeText))
+            {
+                warningReasons.Add(StringUtil.Loc("UITestingWarning_LegalNotice"));
+            }
 
             //auto-logon
             var autoLogonCountValue = regHelper.GetRegistry(WellKnownRegistries.AutoLogonCount);            
@@ -136,13 +137,31 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             regHelper.SetRegistry(WellKnownRegistries.AutoLogonDomainName, domainName);
             regHelper.SetRegistry(WellKnownRegistries.AutoLogon, "1");
 
-            var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agent.listener.exe");
-            regHelper.SetRegistry(WellKnownRegistries.StartupProcess, startupProcessPath);
+            var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agent.service.exe");
+            var startupCommand = string.Format("{0} {1}", startupProcessPath, "runAsProcess");
+            regHelper.SetRegistry(WellKnownRegistries.StartupProcess, startupCommand);
 
             regHelper.SetRegistry(WellKnownRegistries.ShutdownReason, "0");
             regHelper.SetRegistry(WellKnownRegistries.ShutdownReasonUI, "0");
-        }
 
+            regHelper.SetRegistry(WellKnownRegistries.LegalNoticeCaption, "");
+            regHelper.SetRegistry(WellKnownRegistries.LegalNoticeText, "");
+
+            var processInvoker = HostContext.GetService<IProcessInvoker>();
+            processInvoker.ExecuteAsync(
+                            workingDirectory: string.Empty,
+                            fileName: "powercfg.exe",
+                            arguments: "/Change monitor-timeout-ac 0",
+                            environment: null,
+                            cancellationToken: CancellationToken.None).Wait();
+
+            processInvoker.ExecuteAsync(
+                            workingDirectory: string.Empty,
+                            fileName: "powercfg.exe",
+                            arguments: "/Change monitor-timeout-dc 0",
+                            environment: null,
+                            cancellationToken: CancellationToken.None).Wait();
+        }
 
         public bool RestartNeeded()
         {
