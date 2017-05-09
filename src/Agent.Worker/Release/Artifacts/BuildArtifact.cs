@@ -273,11 +273,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                                     // Start the child process.
                                     if (SystemDebug == true)
                                     {
-                                        robocopyArguments = fileShare + " " + localFolderPath + " /E /Z /MT:" + RobocopyMT;
+                                        robocopyArguments = fileShare + " " + downloadFolderPath + " /E /Z /MT:" + RobocopyMT;
                                     }
                                     else
                                     {
-                                        robocopyArguments = fileShare + " " + localFolderPath + " /E /Z /NDL /NFL /NP /MT:" + RobocopyMT;
+                                        robocopyArguments = fileShare + " " + downloadFolderPath + " /E /Z /NDL /NFL /NP /MT:" + RobocopyMT;
                                     }
                                     workerProcessTask = processInvoker.ExecuteAsync(
                                             workingDirectory: "",
