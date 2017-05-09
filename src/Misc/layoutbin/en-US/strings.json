@@ -62,7 +62,6 @@
   "ConnectingToServer": "Connecting to server ...",
   "ConnectSectionHeader": "Connect",
   "ConnectToServer": "Connecting to the server.",
-  "ContinueWithoutAutoLogon": "Do you want to continue without AutoLogon? (Y/N)",
   "CouldNotRemoveService": "Could not delete service '{0}'",
   "CurrentUTC": "Current UTC: {0}",
   "CustomLogDoesNotExist": "Log file path is not provided or file doesn't exist: '{0}'",

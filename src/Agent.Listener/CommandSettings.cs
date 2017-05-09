@@ -143,14 +143,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 defaultValue: true);
         }
 
-        public bool GetContinueWithoutAutoLogon()
-        {
-            return TestFlagOrPrompt(
-                name: Constants.Agent.CommandLine.Flags.ContinueWithoutAutoLogon,
-                description: StringUtil.Loc("ContinueWithoutAutoLogon"),
-                defaultValue: false);
-        }
-
         public string GetAutoLogonUserName()
         {
             return GetArgOrPrompt(
