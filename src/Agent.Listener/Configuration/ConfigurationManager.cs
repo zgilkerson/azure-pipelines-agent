@@ -572,7 +572,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");
             throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));            
         }
-
         private async Task TestConnectAsync(string url, VssCredentials creds)
         {
             _term.WriteLine(StringUtil.Loc("ConnectingToServer"));

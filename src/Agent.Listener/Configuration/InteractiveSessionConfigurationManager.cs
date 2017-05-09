@@ -179,7 +179,39 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         public void UnConfigure()
         {
-            throw new NotImplementedException();
+            //assumption : unconfig is called in the same user session
+
+            //find out if autologon was enabled
+            if(!IsInteractiveSessionConfigured())
+            {
+                return;
+            }
+
+            //backup settings            
+            //auto logon (s)
+            //legal notice
+            //legal text
+            //screen saver setting
+            //shutdown reason
+            //shutdown UI
+            
+            //remove
+            //startup
+        }
+
+        private bool IsInteractiveSessionConfigured()
+        {
+            //find out the path for startup process if it is same as current agent location, yes it was configured
+            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
+            var startupProcessPath = regHelper.GetRegistry(WellKnownRegistries.StartupProcess);
+
+            if(string.IsNullOrEmpty(startupProcessPath))
+            {
+                return false;
+            }
+
+            var expectedStartupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agent.service.exe");
+            return startupProcessPath.Equals(expectedStartupProcessPath, StringComparison.CurrentCultureIgnoreCase);
         }
 
         private void ShowAutoLogonWarningIfAlreadyEnabled(WindowsRegistryHelper regHelper, string userName)
