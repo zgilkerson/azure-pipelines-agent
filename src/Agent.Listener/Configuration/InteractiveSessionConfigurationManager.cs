@@ -71,12 +71,32 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             
             if(!isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(securityIdForTheUser))
             {
-                Trace.Error(String.Format($"The autologon user '{logonAccount}' doesnt have a user profile on the machine. Please login once and reconfigure the agent agian"));
+                Trace.Error(String.Format($"The autologon user '{logonAccount}' doesnt have a user profile on the machine. Please login once with the expected autologon user and reconfigure the agent again"));
                 throw new InvalidOperationException("No user profile exists for the AutoLogon user");
             }
 
             DisplayUITestingRelatedWarningsIfAny(regHelper);
             UpdateRegistrySettingsforUITesting(regHelper, userName, domainName, logonPassword);
+            ConfigurePowerOptions();
+        }       
+
+        public bool RestartNeeded()
+        {
+            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
+            var userName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
+            var domainName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonDomainName);
+
+            if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(domainName))
+            {
+                return false;
+            }
+            var nativeWindowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
+            return !nativeWindowsHelper.IsTheSameUserLoggedIn(domainName, userName);
+        }
+
+        public void UnConfigure()
+        {
+            throw new NotImplementedException();
         }
 
         private void DisplayUITestingRelatedWarningsIfAny(WindowsRegistryHelper regHelper)
@@ -146,8 +166,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
             regHelper.SetRegistry(WellKnownRegistries.LegalNoticeCaption, "");
             regHelper.SetRegistry(WellKnownRegistries.LegalNoticeText, "");
+        }
 
-            var processInvoker = HostContext.GetService<IProcessInvoker>();
+        private void ConfigurePowerOptions()
+        {
+            var processInvoker = HostContext.CreateService<IProcessInvoker>();
             processInvoker.ExecuteAsync(
                             workingDirectory: string.Empty,
                             fileName: "powercfg.exe",
@@ -161,25 +184,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                             arguments: "/Change monitor-timeout-dc 0",
                             environment: null,
                             cancellationToken: CancellationToken.None).Wait();
-        }
-
-        public bool RestartNeeded()
-        {
-            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
-            var userName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
-            var domainName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonDomainName);
-
-            if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(domainName))
-            {
-                return false;
-            }
-            var nativeWindowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
-            return !nativeWindowsHelper.IsTheSameUserLoggedIn(domainName, userName);
-        }
-
-        public void UnConfigure()
-        {
-            throw new NotImplementedException();
         }
 
         private void ShowAutoLogonWarningIfAlreadyEnabled(WindowsRegistryHelper regHelper, string userName)
