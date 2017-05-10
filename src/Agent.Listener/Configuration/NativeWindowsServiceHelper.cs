@@ -55,6 +55,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         void CreateVstsAgentRegistryKey();
 
         void DeleteVstsAgentRegistryKey();
+
+        bool IsTheSameUserLoggedIn(string domainName, string userName);
+        
+        string GetSecurityIdForTheUser(string userName);
+        
+        void SetAutoLogonPassword(string password);
     }
 
     public class NativeWindowsServiceHelper : AgentService, INativeWindowsServiceHelper
@@ -789,6 +795,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
         }
 
+        public bool IsTheSameUserLoggedIn(string domainName, string userName)
+        {
+            return EnumerateUsers.IsActiveSessionExists(domainName, userName);
+        }
+
+        public string GetSecurityIdForTheUser(string userName)
+        {
+            var account = new NTAccount(userName);
+            var sid = account.Translate(typeof(SecurityIdentifier));
+            return sid != null ? sid.ToString() : null;
+        }
+
+        public void SetAutoLogonPassword(string password)
+        {
+            using (LsaPolicy lsaPolicy = new LsaPolicy(LSA_AccessPolicy.POLICY_CREATE_SECRET))
+            {
+                lsaPolicy.SetSecretData(LsaPolicy.DefaultPassword, password);
+            }
+        }
+
         // Helper class not to repeat whenever we deal with LSA* api
         internal class LsaPolicy : IDisposable
         {
@@ -817,13 +843,430 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 Handle = handle;
             }
 
+            public LsaPolicy(LSA_AccessPolicy access)
+            {
+                LSA_UNICODE_STRING system = new LSA_UNICODE_STRING();
+                LSA_OBJECT_ATTRIBUTES attrib = new LSA_OBJECT_ATTRIBUTES()
+                {
+                    Length = 0,
+                    RootDirectory = IntPtr.Zero,
+                    Attributes = 0,
+                    SecurityDescriptor = IntPtr.Zero,
+                    SecurityQualityOfService = IntPtr.Zero,
+                };
+
+                IntPtr handle = IntPtr.Zero;
+                uint hr = LsaOpenPolicy(ref system, ref attrib, (uint)access, out handle);
+                if (hr != 0 || handle == IntPtr.Zero)
+                {
+                    throw new Exception(StringUtil.Loc("OperationFailed", nameof(LsaOpenPolicy), hr));
+                }
+
+                Handle = handle;
+            }
+
+            public void SetSecretData(string key, string value)
+            {
+                LSA_UNICODE_STRING secretData = new LSA_UNICODE_STRING();
+                LSA_UNICODE_STRING secretName = new LSA_UNICODE_STRING();
+
+                secretName.Buffer = Marshal.StringToHGlobalUni(key);
+                
+                //todo: this API is not available in .net core hence going with the hardcoding for the time being
+                //var charSize = UnicodeEncoding.CharSize;
+                var charSize = 2; //2 byte for the time being.
+
+                secretName.Length = (UInt16)(key.Length * charSize);
+                secretName.MaximumLength = (UInt16)((key.Length + 1) * charSize);
+
+                if (value.Length > 0)
+                {
+                    // Create data and key
+                    secretData.Buffer = Marshal.StringToHGlobalUni(value);
+                    secretData.Length = (UInt16)(value.Length * charSize);
+                    secretData.MaximumLength = (UInt16)((value.Length + 1) * charSize);
+                }
+                else
+                {
+                    // Delete data and key
+                    secretData.Buffer = IntPtr.Zero;
+                    secretData.Length = 0;
+                    secretData.MaximumLength = 0;
+                }
+
+                uint result = LsaStorePrivateData(Handle, ref secretName, ref secretData);
+                uint winErrorCode = LsaNtStatusToWinError(result);
+                if (winErrorCode != 0)
+                {
+                    throw new Exception(StringUtil.Loc("OperationFailed", nameof(LsaNtStatusToWinError), winErrorCode));
+                }
+            }
+
             void IDisposable.Dispose()
             {
                 // We will ignore LsaClose error
                 LsaClose(Handle);
                 GC.SuppressFinalize(this);
             }
+
+            internal static string DefaultPassword = "DefaultPassword";
         }
+
+        internal static class EnumerateUsers
+        {
+            [DllImport("wtsapi32.dll")]
+            static extern IntPtr WTSOpenServer([MarshalAs(UnmanagedType.LPStr)] String pServerName);
+
+            [DllImport("wtsapi32.dll")]
+            static extern void WTSCloseServer(IntPtr hServer);
+
+            [DllImport("wtsapi32.dll")]
+            static extern Int32 WTSEnumerateSessions(
+                IntPtr hServer,
+                [MarshalAs(UnmanagedType.U4)] Int32 Reserved,
+                [MarshalAs(UnmanagedType.U4)] Int32 Version,
+                ref IntPtr ppSessionInfo,
+                [MarshalAs(UnmanagedType.U4)] ref Int32 pCount);
+
+            [DllImport("wtsapi32.dll")]
+            static extern void WTSFreeMemory(IntPtr pMemory);
+
+            [DllImport("Wtsapi32.dll")]
+            static extern bool WTSQuerySessionInformation(
+                System.IntPtr hServer, int sessionId, WTS_INFO_CLASS wtsInfoClass, out System.IntPtr ppBuffer, out uint pBytesReturned);
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct WTS_SESSION_INFO
+            {
+                public Int32 SessionID;
+
+                [MarshalAs(UnmanagedType.LPStr)]
+                public String pWinStationName;
+
+                public WTS_CONNECTSTATE_CLASS State;
+            }
+
+            public enum WTS_INFO_CLASS
+            {
+                WTSInitialProgram,
+                WTSApplicationName,
+                WTSWorkingDirectory,
+                WTSOEMId,
+                WTSSessionId,
+                WTSUserName,
+                WTSWinStationName,
+                WTSDomainName,
+                WTSConnectState,
+                WTSClientBuildNumber,
+                WTSClientName,
+                WTSClientDirectory,
+                WTSClientProductId,
+                WTSClientHardwareId,
+                WTSClientAddress,
+                WTSClientDisplay,
+                WTSClientProtocolType
+            }
+            public enum WTS_CONNECTSTATE_CLASS
+            {
+                WTSActive,
+                WTSConnected,
+                WTSConnectQuery,
+                WTSShadow,
+                WTSDisconnected,
+                WTSIdle,
+                WTSListen,
+                WTSReset,
+                WTSDown,
+                WTSInit
+            }
+
+            public static IntPtr OpenServer(String Name)
+            {
+                IntPtr server = WTSOpenServer(Name);
+                return server;
+            }
+
+            public static void CloseServer(IntPtr ServerHandle)
+            {
+                WTSCloseServer(ServerHandle);
+            }
+
+            public static bool IsActiveSessionExists(string testUserDomain, string testUsername)
+            {
+                var serverHandle = IntPtr.Zero;
+                serverHandle = OpenServer(Environment.MachineName);
+                var SessionInfoPtr = IntPtr.Zero;
+
+                try
+                {
+                    var userPtr = IntPtr.Zero;
+                    var domainPtr = IntPtr.Zero;
+                    var sessionCount = 0;
+                    var retVal = WTSEnumerateSessions(serverHandle, 0, 1, ref SessionInfoPtr, ref sessionCount);
+                    var dataSize = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
+                    var currentSession = SessionInfoPtr;
+
+                    if (retVal != 0)
+                    {
+                        for (var i = 0; i < sessionCount; i++)
+                        {
+                            uint bytes = 0;
+                            var si = (WTS_SESSION_INFO)Marshal.PtrToStructure(currentSession, typeof(WTS_SESSION_INFO));
+                            currentSession += dataSize;
+
+                            WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSUserName, out userPtr, out bytes);
+                            WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSDomainName, out domainPtr, out bytes);
+
+                            var domain = Marshal.PtrToStringAnsi(domainPtr);
+                            var username = Marshal.PtrToStringAnsi(userPtr);
+
+                            if (testUserDomain.Equals(domain, StringComparison.OrdinalIgnoreCase) &&
+                                testUsername.Equals(username, StringComparison.OrdinalIgnoreCase) &&
+                                si.State == WTS_CONNECTSTATE_CLASS.WTSActive)
+                            {
+                                WTSFreeMemory(userPtr);
+                                WTSFreeMemory(domainPtr);
+                                return true;
+                            }
+                            WTSFreeMemory(userPtr);
+                            WTSFreeMemory(domainPtr);
+                        }
+                    }
+                }
+                finally
+                {
+                    WTSFreeMemory(SessionInfoPtr);
+                    CloseServer(serverHandle);
+                }
+                return false;
+            }
+        }
+
+        internal enum LSA_AccessPolicy : long
+        {
+            POLICY_VIEW_LOCAL_INFORMATION = 0x00000001L,
+            POLICY_VIEW_AUDIT_INFORMATION = 0x00000002L,
+            POLICY_GET_PRIVATE_INFORMATION = 0x00000004L,
+            POLICY_TRUST_ADMIN = 0x00000008L,
+            POLICY_CREATE_ACCOUNT = 0x00000010L,
+            POLICY_CREATE_SECRET = 0x00000020L,
+            POLICY_CREATE_PRIVILEGE = 0x00000040L,
+            POLICY_SET_DEFAULT_QUOTA_LIMITS = 0x00000080L,
+            POLICY_SET_AUDIT_REQUIREMENTS = 0x00000100L,
+            POLICY_AUDIT_LOG_ADMIN = 0x00000200L,
+            POLICY_SERVER_ADMIN = 0x00000400L,
+            POLICY_LOOKUP_NAMES = 0x00000800L,
+            POLICY_NOTIFICATION = 0x00001000L
+        }
+        // serviceStartup types (http://msdn.microsoft.com/en-us/library/ms682450(VS.85).aspx)
+        public static int SERVICE_AUTO_START = 0x00000002;
+
+        // The severity of the error, and action taken, if this service fails to start. 
+        // http://msdn.microsoft.com/en-us/library/ms682450(VS.85).aspx
+        public static int SERVICE_ERROR_NORMAL = 0x00000001;
+
+        /// <summary>
+        /// Standard access rights (http://msdn.microsoft.com/en-us/library/aa379607(VS.85).aspx)
+        /// </summary>
+        public static int WRITE_OWNER = 0x80000;
+        public static int WRITE_DAC = 0x40000;
+        public static int READ_CONTROL = 0x20000;
+        public static int DELETE = 0x10000;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct QUERY_SERVICE_CONFIG
+        {
+            public int serviceType;
+            public int startType;
+            public int errorControl;
+            public string binaryPathName;
+            public string loadOrderGroup;
+            public int tagId;
+            public string dependencies;
+            public string serviceStartName;
+            public string displayName;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct SERVICE_DESCRIPTION
+        {
+            public string lpDescription;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SERVICE_FAILURE_ACTIONS_FLAG
+        {
+            public Boolean FailureActionsOnNonCrashFailures;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SC_ACTION
+        {
+            public SC_ACTION_TYPE Type;
+            public UInt32 Delay;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct LSA_UNICODE_STRING
+        {
+            public UInt16 Length;
+            public UInt16 MaximumLength;
+
+            // We need to use an IntPtr because if we wrap the Buffer with a SafeHandle-derived class, we get a failure during LsaAddAccountRights
+            public IntPtr Buffer;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct PROFILEINFO
+        {
+            public int dwSize;
+            public int dwFlags;
+            [MarshalAs(UnmanagedType.LPTStr)]
+            public String lpUserName;
+            [MarshalAs(UnmanagedType.LPTStr)]
+            public String lpProfilePath;
+            [MarshalAs(UnmanagedType.LPTStr)]
+            public String lpDefaultPath;
+            [MarshalAs(UnmanagedType.LPTStr)]
+            public String lpServerName;
+            [MarshalAs(UnmanagedType.LPTStr)]
+            public String lpPolicyPath;
+            public IntPtr hProfile;
+        }
+
+        [Flags]
+        public enum ServiceAccessRights : uint
+        {
+            SERVICE_QUERY_CONFIG = 0x0001, // Required to call the QueryServiceConfig and QueryServiceConfig2 functions to query the service configuration. 
+            SERVICE_CHANGE_CONFIG = 0x0002, // Required to call the ChangeServiceConfig or ChangeServiceConfig2 function to change the service configuration. Because this grants the caller the right to change the executable file that the system runs, it should be granted only to administrators. 
+            SERVICE_QUERY_STATUS = 0x0004, // Required to call the QueryServiceStatusEx function to ask the service control manager about the status of the service. 
+            SERVICE_ENUMERATE_DEPENDENTS = 0x0008, // Required to call the EnumDependentServices function to enumerate all the services dependent on the service. 
+            SERVICE_START = 0x0010, // Required to call the StartService function to start the service. 
+            SERVICE_STOP = 0x0020, // Required to call the ControlService function to stop the service. 
+            SERVICE_PAUSE_CONTINUE = 0x0040, // Required to call the ControlService function to pause or continue the service. 
+            SERVICE_INTERROGATE = 0x0080, // Required to call the ControlService function to ask the service to report its status immediately. 
+            SERVICE_USER_DEFINED_CONTROL = 0x0100, // Required to call the ControlService function to specify a user-defined control code.
+
+            SERVICE_ALL_ACCESS = 0xF01FF, // Includes STANDARD_RIGHTS_REQUIRED in addition to all access rights in this table. 
+        }
+
+        [Flags]
+        public enum ServiceControlAccessRights : uint
+        {
+            SC_MANAGER_CONNECT = 0x0001, // Required to connect to the service control manager. 
+            SC_MANAGER_CREATE_SERVICE = 0x0002, // Required to call the CreateService function to create a service object and add it to the database. 
+            SC_MANAGER_ENUMERATE_SERVICE = 0x0004, // Required to call the EnumServicesStatusEx function to list the services that are in the database. 
+            SC_MANAGER_LOCK = 0x0008, // Required to call the LockServiceDatabase function to acquire a lock on the database. 
+            SC_MANAGER_QUERY_LOCK_STATUS = 0x0010, // Required to call the QueryServiceLockStatus function to retrieve the lock status information for the database.
+            SC_MANAGER_MODIFY_BOOT_CONFIG = 0x0020, // Required to call the NotifyBootConfigStatus function. 
+            SC_MANAGER_ALL_ACCESS = 0xF003F // Includes STANDARD_RIGHTS_REQUIRED, in addition to all access rights in this table. 
+        }            
+
+        public enum ServiceConfig2InfoLevel : uint
+        {
+            SERVICE_CONFIG_DESCRIPTION = 0x00000001, // The lpInfo parameter is a pointer to a SERVICE_DESCRIPTION structure.
+            SERVICE_CONFIG_FAILURE_ACTIONS = 0x00000002, // The lpInfo parameter is a pointer to a SERVICE_FAILURE_ACTIONS structure.
+            SERVICE_CONFIG_FAILURE_ACTIONS_FLAG = 0x00000004, // The lpInfo parameter is a pointer to a SERVICE_FAILURE_ACTIONS_FLAG structure.
+        }
+
+        public enum SC_ACTION_TYPE : uint
+        {
+            SC_ACTION_NONE = 0x00000000, // No action.
+            SC_ACTION_RESTART = 0x00000001, // Restart the service.
+            SC_ACTION_REBOOT = 0x00000002, // Reboot the computer.
+            SC_ACTION_RUN_COMMAND = 0x00000003 // Run a command.
+        }
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+        public static extern IntPtr OpenSCManager(string machineName, string db, ServiceControlAccessRights desiredAccess);
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+        public static extern IntPtr CreateService(
+            IntPtr serviceHandle,
+            string serviceName,
+            string serviceDisplayName,
+            ServiceAccessRights desiredAccess,
+            int type,
+            int startType,
+            int errorControl,
+            string binaryPathName,
+            string loadOrderGroup,
+            string tagId,
+            string dependencies,
+            string accountName,
+            string password);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern int ChangeServiceConfig(
+            IntPtr handle,
+            uint type,
+            uint startType,
+            uint errorControl,
+            string binaryPathName,
+            string loadOrderGroup,
+            string tagId,
+            string dependencies,
+            string accountName,
+            string password,
+            string displayName
+            );
+
+        [DllImport("advapi32.dll", SetLastError = true, EntryPoint = "ChangeServiceConfig2", CharSet = CharSet.Unicode)]
+        public static extern int ChangeServiceDescription(IntPtr serviceHandle, ServiceConfig2InfoLevel dwInfoLevel,
+            [MarshalAs(UnmanagedType.Struct)] ref SERVICE_DESCRIPTION serviceDescription);
+
+        [DllImport("advapi32.dll", SetLastError = true, EntryPoint = "ChangeServiceConfig2")]
+        public static extern int ChangeServiceConfig2(
+            IntPtr hService,
+            ServiceConfig2InfoLevel dwInfoLevel,
+            IntPtr lpInfo);
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+        public static extern int QueryServiceConfigW(
+            IntPtr handle,
+            IntPtr serviceConfigHandle,
+            int bufferSize,
+            out int bytesNeeded
+            );
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr OpenService(IntPtr serviceHandle, string serviceName, int desiredAccess);
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode)]
+        public static extern int StartService(IntPtr serviceHandle, int dwNumServiceArgs, string lpServiceArgVectors);
+
+        [DllImport("advapi32.dll", SetLastError = true, PreserveSig = true)]
+        public static extern uint LsaRemoveAccountRights(
+        IntPtr PolicyHandle,
+        byte[] AccountSid,
+        byte AllRights,
+        LSA_UNICODE_STRING[] UserRights,
+        uint CountOfRights);
+
+        [DllImport("advapi32.dll", SetLastError = true, PreserveSig = true)]
+        public static extern uint LsaStorePrivateData(
+            IntPtr policyHandle,
+            ref LSA_UNICODE_STRING KeyName,
+            ref LSA_UNICODE_STRING PrivateData
+        );
+
+        [DllImport("advapi32.dll", SetLastError = true, PreserveSig = true)]
+        public static extern uint LsaNtStatusToWinError(
+            uint status
+        );
+
+        public const uint QueryToken = 0x0008;
+
+        [DllImportAttribute("advapi32.dll", EntryPoint = "OpenProcessToken")]
+        [return: MarshalAsAttribute(UnmanagedType.Bool)]
+        public static extern bool OpenProcessToken(
+            [InAttribute()]
+            System.IntPtr ProcessHandle,
+            uint DesiredAccess,
+            out System.IntPtr TokenHandle);
+
+        // [DllImport("userenv.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        // public static extern bool LoadUserProfile(IntPtr hToken, ref PROFILEINFO lpProfileInfo);            
 
         // Declaration of external pinvoke functions
         private static readonly uint LSA_POLICY_ALL_ACCESS = 0x1FFF;
@@ -879,16 +1322,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             public string Name;
             [MarshalAs(UnmanagedType.LPWStr)]
             public string Comment;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct LSA_UNICODE_STRING
-        {
-            public UInt16 Length;
-            public UInt16 MaximumLength;
-
-            // We need to use an IntPtr because if we wrap the Buffer with a SafeHandle-derived class, we get a failure during LsaAddAccountRights
-            public IntPtr Buffer;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -1100,7 +1533,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         [DllImport("kernel32.dll")]
         static extern uint GetLastError();
-
     }
 }
 #endif

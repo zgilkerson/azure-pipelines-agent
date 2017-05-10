@@ -127,6 +127,31 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 defaultValue: false);
         }
 
+        public bool GetEnableAutoLogon()
+        {
+            return TestFlagOrPrompt(
+                name: Constants.Agent.CommandLine.Flags.EnableAutoLogon,
+                description: StringUtil.Loc("EnableAutoLogon"),
+                defaultValue: true);
+        }
+
+        public bool GetRestartPermission()
+        {
+            return TestFlagOrPrompt(
+                name: Constants.Agent.CommandLine.Flags.RestartIfNeeded,
+                description: StringUtil.Loc("RestartNow"),
+                defaultValue: true);
+        }
+
+        public string GetAutoLogonUserName()
+        {
+            return GetArgOrPrompt(
+                name: Constants.Agent.CommandLine.Args.WindowsLogonAccount,
+                description: StringUtil.Loc("AutoLogonAccountNameDescription"),
+                defaultValue: string.Empty,
+                validator: Validators.NTAccountValidator);
+        }
+
         public bool GetDeploymentGroupTagsRequired()
         {
             return TestFlag(Constants.Agent.CommandLine.Flags.AddMachineGroupTags)
