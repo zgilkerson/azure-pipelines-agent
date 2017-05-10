@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq; 
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -24,8 +24,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             string fileName,
             string arguments,
             IDictionary<string, string> environment,
-            CancellationToken cancellationToken,
-            bool waitForExit = true);
+            CancellationToken cancellationToken);
 
         Task<int> ExecuteAsync(
             string workingDirectory,
@@ -33,8 +32,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             string arguments,
             IDictionary<string, string> environment,
             bool requireExitCodeZero,
-            CancellationToken cancellationToken,
-            bool waitForExit = true);
+            CancellationToken cancellationToken);
 
         Task<int> ExecuteAsync(
             string workingDirectory,
@@ -43,8 +41,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             IDictionary<string, string> environment,
             bool requireExitCodeZero,
             Encoding outputEncoding,
-            CancellationToken cancellationToken,
-            bool waitForExit = true);
+            CancellationToken cancellationToken);
 
         Task<int> ExecuteAsync(
             string workingDirectory,
@@ -54,8 +51,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             bool requireExitCodeZero,
             Encoding outputEncoding,
             bool killProcessOnCancel,
-            CancellationToken cancellationToken,
-            bool waitForExit = true);
+            CancellationToken cancellationToken);
     }
 
     // The implementation of the process invoker does not hook up DataReceivedEvent and ErrorReceivedEvent of Process,
@@ -86,8 +82,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             string fileName,
             string arguments,
             IDictionary<string, string> environment,
-            CancellationToken cancellationToken,
-            bool waitForExit=true)
+            CancellationToken cancellationToken)
         {
             return ExecuteAsync(
                 workingDirectory: workingDirectory,
@@ -95,8 +90,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 arguments: arguments,
                 environment: environment,
                 requireExitCodeZero: false,
-                cancellationToken: cancellationToken,
-                waitForExit: waitForExit);
+                cancellationToken: cancellationToken);
         }
 
         public Task<int> ExecuteAsync(
@@ -105,8 +99,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             string arguments,
             IDictionary<string, string> environment,
             bool requireExitCodeZero,
-            CancellationToken cancellationToken,
-            bool waitForExit=true)
+            CancellationToken cancellationToken)
         {
             return ExecuteAsync(
                 workingDirectory: workingDirectory,
@@ -115,8 +108,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 environment: environment,
                 requireExitCodeZero: requireExitCodeZero,
                 outputEncoding: null,
-                cancellationToken: cancellationToken,
-                waitForExit: waitForExit);
+                cancellationToken: cancellationToken);
         }
 
         public Task<int> ExecuteAsync(
@@ -126,8 +118,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             IDictionary<string, string> environment,
             bool requireExitCodeZero,
             Encoding outputEncoding,
-            CancellationToken cancellationToken,
-            bool waitForExit=true)
+            CancellationToken cancellationToken)
         {
             return ExecuteAsync(
                 workingDirectory: workingDirectory,
@@ -137,8 +128,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 requireExitCodeZero: requireExitCodeZero,
                 outputEncoding: outputEncoding,
                 killProcessOnCancel: false,
-                cancellationToken: cancellationToken,
-                waitForExit: waitForExit);
+                cancellationToken: cancellationToken);
         }
 
         public async Task<int> ExecuteAsync(
@@ -149,8 +139,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             bool requireExitCodeZero,
             Encoding outputEncoding,
             bool killProcessOnCancel,
-            CancellationToken cancellationToken,
-            bool waitForExit=true)
+            CancellationToken cancellationToken)
         {
             ArgUtil.Null(_proc, nameof(_proc));
             ArgUtil.NotNullOrEmpty(fileName, nameof(fileName));
@@ -224,13 +213,6 @@ namespace Microsoft.VisualStudio.Services.Agent
                 _proc.StandardInput.Dispose();
             }
 
-            if(!waitForExit)
-            {
-                //just give some time for the AgentService.exe to warm up
-                Thread.Sleep(5*1000);
-                return 0;
-            }
-            
             // Start the standard error notifications, if appropriate.
             if (_proc.StartInfo.RedirectStandardError)
             {

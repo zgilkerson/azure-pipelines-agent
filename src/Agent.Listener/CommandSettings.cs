@@ -132,7 +132,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return TestFlagOrPrompt(
                 name: Constants.Agent.CommandLine.Flags.EnableAutoLogon,
                 description: StringUtil.Loc("EnableAutoLogon"),
-                defaultValue: !Unattended);
+                defaultValue: false);
         }
 
         public bool GetRestartPermission()
@@ -141,14 +141,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 name: Constants.Agent.CommandLine.Flags.RestartIfNeeded,
                 description: StringUtil.Loc("RestartNow"),
                 defaultValue: true);
-        }
-
-        public bool GetContinueWithoutAutoLogon()
-        {
-            return TestFlagOrPrompt(
-                name: Constants.Agent.CommandLine.Flags.ContinueWithoutAutoLogon,
-                description: StringUtil.Loc("ContinueWithoutAutoLogon"),
-                defaultValue: false);
         }
 
         public string GetAutoLogonUserName()

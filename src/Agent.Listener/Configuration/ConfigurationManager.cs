@@ -369,7 +369,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             // generate service config script for OSX and Linux, GenerateScripts() will no-opt on windows.
             var serviceControlManager = HostContext.GetService<ILinuxServiceControlManager>();
             serviceControlManager.GenerateScripts(settings);
-#endif      
+#endif
         }
 
         public async Task UnconfigureAsync(CommandSettings command)
@@ -464,6 +464,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     _term.WriteLine(StringUtil.Loc("Skipping") + currentAction);
                 }
 
+                if(isConfigured && !_store.IsServiceConfigured())
+                {
+                    UnConfigureAutoLogonIfNeeded();
+                }
+
                 //delete settings config file                
                 currentAction = StringUtil.Loc("DeletingSettings");
                 _term.WriteLine(currentAction);
@@ -486,50 +491,67 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private void ConfigureAutoLogonIfNeeded(CommandSettings command)
         {
+            Trace.Info(nameof(ConfigureAutoLogonIfNeeded));
+
             bool enableAutoLogon = command.GetEnableAutoLogon();
             if(!enableAutoLogon)
             {
+                Trace.Info("AutoLogon will not be enabled as per user's input.");
                 return;
             }
 
             try
             {
-                AssertAdminAccess(command);
+                AssertAdminAccess();
                 
                 var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
                 iConfigManager.Configure(command);
 
-                var processHelper = HostContext.GetService<IProcessInvoker>();
                 if(iConfigManager.RestartNeeded())
                 {
+                    Trace.Info("AutoLogon is configured for a different user than the current user. Machine needs a restart.");
                     _term.WriteLine(StringUtil.Loc("RestartMessage"));
                     var shallRestart = command.GetRestartPermission();
                     if(shallRestart)
                     {
-                        processHelper.ExecuteAsync(
-                            workingDirectory: string.Empty,
-                            fileName: "shutdown.exe",
-                            arguments: "-r -t 0",
-                            environment: null,
-                            cancellationToken: CancellationToken.None).Wait();                        
+                        Trace.Info("Restarting the machine now");
+                        _term.WriteLine("Restarting the machine...");
+                        Process.Start("shutdown.exe", "-r -t 0");
                     }
                 }
                 else
                 {
-                    var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");
-                    processHelper.ExecuteAsync(
-                        workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Bin),
-                        fileName: startupProcessPath,
-                        arguments: "runasprocess",
-                        environment: null,
-                        cancellationToken: CancellationToken.None,
-                        waitForExit: false).Wait();
+                    var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");                    
+                    Trace.Info("Launching the agent process.");
+                    _term.WriteLine(StringUtil.Loc("AgentLaunch"));
+                    Process.Start(startupProcessPath, "runasprocess");
                 }
             }
             catch(Exception ex)
             {
                 Trace.Error(ex);
                 _term.WriteLine(StringUtil.Loc("AutoLogonConfigurationFailureMessage"));
+            }
+        }
+
+        private void UnConfigureAutoLogonIfNeeded()
+        {
+            try
+            {
+                var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
+                if(iConfigManager.IsInteractiveSessionConfigured())
+                {
+                    Trace.Verbose("Interactive session was not configured on the agent. Returning.");
+                    return;
+                }
+
+                AssertAdminAccess();
+                iConfigManager.UnConfigure();
+            }
+            catch(Exception ex)
+            {
+                Trace.Error(ex);
+                _term.WriteLine(StringUtil.Loc("AutoLogonUnConfigurationFailureMessage"));
             }
         }
         
@@ -551,26 +573,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             return provider;
         }
 
-        private void AssertAdminAccess(CommandSettings command)
+        private void AssertAdminAccess()
         {
             if (new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
             {
                 return;
             }
-
+            
             Trace.Error("Needs Administrator privileges for configure agent as interactive process with autologon capability.");
-            if(command.Unattended)
-            {
-                throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
-            }
-
-            bool continueWithoutAutologon = command.GetContinueWithoutAutoLogon();
-            if(continueWithoutAutologon)
-            {
-                return;
-            }
-            Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");
-            throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));            
+            Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");            
+            throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
         }
         private async Task TestConnectAsync(string url, VssCredentials creds)
         {

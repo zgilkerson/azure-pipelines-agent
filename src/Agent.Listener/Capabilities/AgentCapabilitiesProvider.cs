@@ -6,8 +6,6 @@ using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.Win32;
 
-
-
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 {
     public sealed class AgentCapabilitiesProvider : AgentService, ICapabilitiesProvider

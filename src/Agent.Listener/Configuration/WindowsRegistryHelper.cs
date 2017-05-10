@@ -1,5 +1,6 @@
 #if OS_WINDOWS
 using System;
+using System.Collections.Generic;
 using System.Security.Principal;
 using Microsoft.Win32;
 
@@ -43,11 +44,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     {
         private IWindowsRegistryManager _registryManager;
         private string _userSecurityId;
+        private List<string> _regSettingsForBackup;
 
-        public WindowsRegistryHelper(IWindowsRegistryManager regManager, string sid = null)
+        public WindowsRegistryHelper(IWindowsRegistryManager regManager, List<string> registriesForBackup = null, string sid = null)
         {
             _registryManager = regManager;
             _userSecurityId = sid;
+            _regSettingsForBackup = registriesForBackup;
         }
 
         public bool ValidateIfRegistryExistsForTheUser(string sid)
@@ -55,14 +58,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             return _registryManager.RegsitryExists(sid);
         }
 
-        public void SetRegistry(string targetRegistry, string keyValue, bool takeBackup = false)
+        public void SetRegistry(string targetRegistry, string keyValue)
         {
-            if(takeBackup)
+            if(ShouldTakeBackup(targetRegistry))
             {
                 string origValue = GetRegistry(targetRegistry);
                 if(!string.IsNullOrEmpty(origValue))
                 {
-                    SetRegistryInternal(targetRegistry, RegistryConstants.BackupKeyPrefix + targetRegistry, origValue);
+                    SetRegistryInternal(targetRegistry, GetBackupKeyName(targetRegistry), origValue);
                 }
             }
 
@@ -76,10 +79,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 //user specific registry settings
                 case WellKnownRegistries.ScreenSaver :
                     var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(_userSecurityId));
-                    return _registryManager.GetKeyValue(regPath, targetRegistry);
+                    return _registryManager.GetKeyValue(regPath, RegistryConstants.ScreenSaverSettingsKeyName);
+
                 case WellKnownRegistries.ScreenSaverDomainPolicy:
                     regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(_userSecurityId));
-                    return _registryManager.GetKeyValue(regPath, targetRegistry);
+                    return _registryManager.GetKeyValue(regPath, RegistryConstants.ScreenSaverSettingsKeyName);
+
                 case WellKnownRegistries.StartupProcess:
                     regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(_userSecurityId));
                     return _registryManager.GetKeyValue(regPath, targetRegistry);
@@ -109,28 +114,97 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 //machine specific registry settings
                 case WellKnownRegistries.AutoLogonCount :
                 case WellKnownRegistries.AutoLogonPassword :
-                     _registryManager.DeleteKey(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogonCount);
+                     _registryManager.DeleteKey(RegistryConstants.RegPaths.AutoLogon, targetRegistry);
                      break;
                 default:
                    throw new InvalidOperationException("Delete registry is called for a undocumented registry");
             }
         }
 
+        public void RevertBackOriginalRegistry(string targetRegistryKey)
+        {
+            var userRegSettingPath = GetUserRegistryRootPath(_userSecurityId);
+
+            switch(targetRegistryKey)
+            {
+                //user specific registry settings
+                case WellKnownRegistries.ScreenSaver :
+                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, userRegSettingPath);
+                    RevertBackOriginalRegistryInternal(regPath, targetRegistryKey);
+                    break;
+
+                case WellKnownRegistries.ScreenSaverDomainPolicy:
+                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, userRegSettingPath);
+                    RevertBackOriginalRegistryInternal(regPath, targetRegistryKey);
+                    break;
+
+                case WellKnownRegistries.StartupProcess:
+                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, userRegSettingPath);
+                    RevertBackOriginalRegistryInternal(regPath, targetRegistryKey);
+                    break;
+                
+                //machine specific registry settings
+                case WellKnownRegistries.AutoLogon :
+                case WellKnownRegistries.AutoLogonUserName:
+                case WellKnownRegistries.AutoLogonDomainName :
+                case WellKnownRegistries.AutoLogonPassword:
+                case WellKnownRegistries.AutoLogonCount:
+                    RevertBackOriginalRegistryInternal(RegistryConstants.RegPaths.AutoLogon, targetRegistryKey);
+                    break;
+
+                case WellKnownRegistries.ShutdownReason :
+                case WellKnownRegistries.ShutdownReasonUI :
+                    RevertBackOriginalRegistryInternal(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, targetRegistryKey);
+                    break;
+
+                case WellKnownRegistries.LegalNoticeCaption :
+                case WellKnownRegistries.LegalNoticeText :
+                    RevertBackOriginalRegistryInternal(RegistryConstants.RegPaths.LegalNotice, targetRegistryKey);                    
+                    break;
+            }
+        }
+
+        private void RevertBackOriginalRegistryInternal(string regPath, string targetRegistryKey)
+        {
+            var backupKeyName = GetBackupKeyName(targetRegistryKey);
+            var originalValue = _registryManager.GetKeyValue(regPath, backupKeyName);
+            
+            if(string.IsNullOrEmpty(originalValue))
+            {
+                _registryManager.DeleteKey(regPath, targetRegistryKey);
+                return;
+            }
+
+            //revert back the original value
+            _registryManager.SetKeyValue(regPath, targetRegistryKey, originalValue);
+            //delete the backup key
+            _registryManager.DeleteKey(regPath, backupKeyName);
+        }
+
+        private string GetBackupKeyName(string targetKey)
+        {
+            return RegistryConstants.BackupKeyPrefix + targetKey;
+        }
+        
         private void SetRegistryInternal(string targetRegistry, string keyName, string keyValue)
         {
+            var userRegSettingPath = GetUserRegistryRootPath(_userSecurityId);
+
             switch(targetRegistry)
             {
                 //user specific registry settings
                 case WellKnownRegistries.ScreenSaver :
-                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(_userSecurityId));
-                    _registryManager.SetKeyValue(regPath, keyName, keyValue);                    
+                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, userRegSettingPath);
+                    _registryManager.SetKeyValue(regPath, RegistryConstants.ScreenSaverSettingsKeyName, keyValue);                    
                     break;
+
                 case WellKnownRegistries.ScreenSaverDomainPolicy:
-                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(_userSecurityId));
-                    _registryManager.SetKeyValue(regPath, keyName, keyValue);
+                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, userRegSettingPath);
+                    _registryManager.SetKeyValue(regPath, RegistryConstants.ScreenSaverSettingsKeyName, keyValue);
                     break;
+
                 case WellKnownRegistries.StartupProcess:
-                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(_userSecurityId));
+                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, userRegSettingPath);
                     _registryManager.SetKeyValue(regPath, keyName, keyValue);
                     break;
                 
@@ -138,6 +212,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 case WellKnownRegistries.AutoLogon :
                 case WellKnownRegistries.AutoLogonUserName:
                 case WellKnownRegistries.AutoLogonDomainName :
+                case WellKnownRegistries.AutoLogonPassword:
+                case WellKnownRegistries.AutoLogonCount:
                     _registryManager.SetKeyValue(RegistryConstants.RegPaths.AutoLogon, keyName, keyValue);
                     break;
 
@@ -147,7 +223,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     break;
 
                 case WellKnownRegistries.LegalNoticeCaption :
-                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.LegalNotice, keyName, keyValue);
+                case WellKnownRegistries.LegalNoticeText :
                     _registryManager.SetKeyValue(RegistryConstants.RegPaths.LegalNotice, keyName, keyValue);
                     break;
             }
@@ -159,12 +235,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 RegistryConstants.CurrentUserRootPath :
                 String.Format(RegistryConstants.DifferentUserRootPath, sid);
         }
+
+        private bool ShouldTakeBackup(string registryKey)
+        {
+            return _regSettingsForBackup!= null 
+                    && _regSettingsForBackup.Exists(item => item.Equals(registryKey, StringComparison.OrdinalIgnoreCase));
+        }
     }
     
     public class WellKnownRegistries
     {
         public const string ScreenSaver = "ScreenSaveActive";
-        public const string ScreenSaverDomainPolicy = "ScreenSaveActive";
+        public const string ScreenSaverDomainPolicy = "ScreenSaveActiveDomainPolicy";
         public const string AutoLogon = "AutoAdminLogon";
         public const string AutoLogonUserName = "DefaultUserName";
         public const string AutoLogonDomainName = "DefaultDomainName";
@@ -182,6 +264,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         public const string CurrentUserRootPath = @"HKEY_CURRENT_USER";
         public const string DifferentUserRootPath = @"HKEY_USERS\{0}";
         public const string BackupKeyPrefix = "VSTSAgentBackup_";
+        public const string ScreenSaverSettingsKeyName ="ScreenSaverActive";
 
         public struct RegPaths
         {
@@ -191,7 +274,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             public const string AutoLogon = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
             public const string ShutdownReasonDomainPolicy = @"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability";
             public const string LegalNotice = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
-        }
+        }        
     }
 }
 #endif

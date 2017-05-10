@@ -13,17 +13,33 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     {
         void Configure(CommandSettings command);
         void UnConfigure();
-        bool RestartNeeded();        
+        bool RestartNeeded();
+        bool IsInteractiveSessionConfigured();
     }
 
     public class InteractiveSessionConfigurationManager : AgentService, IInteractiveSessionConfigurationManager
     {
         private ITerminal _terminal;
+        private List<string> _regSettingsForBackup;
 
         public override void Initialize(IHostContext hostContext)
         {
             base.Initialize(hostContext);
-            _terminal = hostContext.GetService<ITerminal>();    
+            _terminal = hostContext.GetService<ITerminal>();
+            _regSettingsForBackup = new List<string>
+            {
+                WellKnownRegistries.AutoLogon,
+                WellKnownRegistries.AutoLogonUserName,
+                WellKnownRegistries.AutoLogonDomainName,
+                WellKnownRegistries.AutoLogonPassword,
+                WellKnownRegistries.AutoLogonCount,
+                WellKnownRegistries.ShutdownReason,
+                WellKnownRegistries.ShutdownReasonUI,
+                WellKnownRegistries.ScreenSaver,
+                WellKnownRegistries.ScreenSaverDomainPolicy,
+                WellKnownRegistries.LegalNoticeCaption,
+                WellKnownRegistries.LegalNoticeText
+            };
         }
 
         public void Configure(CommandSettings command)
@@ -43,7 +59,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Trace.Info("LogonAccount after transforming: {0}, user: {1}, domain: {2}", logonAccount, userName, domainName);
 
             string logonPassword = string.Empty;
-            var windowsServiceHelper = HostContext.GetService<INativeWindowsServiceHelper>();                
+            var windowsServiceHelper = HostContext.GetService<INativeWindowsServiceHelper>();
             while (true)
             {
                 logonPassword = command.GetWindowsLogonPassword(logonAccount);
@@ -65,18 +81,84 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             bool isCurrentUserSameAsAutoLogonUser = windowsServiceHelper.IsTheSameUserLoggedIn(domainName, userName);                
             var securityIdForTheUser = windowsServiceHelper.GetSecurityIdForTheUser(userName);
             var regManager = HostContext.GetService<IWindowsRegistryManager>();
+            
             WindowsRegistryHelper regHelper = isCurrentUserSameAsAutoLogonUser 
-                                                ? new WindowsRegistryHelper(regManager) 
-                                                : new WindowsRegistryHelper(regManager, securityIdForTheUser);
+                                                ? new WindowsRegistryHelper(regManager, _regSettingsForBackup) 
+                                                : new WindowsRegistryHelper(regManager, _regSettingsForBackup, securityIdForTheUser);
             
             if(!isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(securityIdForTheUser))
             {
-                Trace.Error(String.Format($"The autologon user '{logonAccount}' doesnt have a user profile on the machine. Please login once and reconfigure the agent agian"));
+                Trace.Error(String.Format($"The autologon user '{logonAccount}' doesnt have a user profile on the machine. Please login once with the expected autologon user and reconfigure the agent again"));
                 throw new InvalidOperationException("No user profile exists for the AutoLogon user");
             }
 
             DisplayUITestingRelatedWarningsIfAny(regHelper);
             UpdateRegistrySettingsforUITesting(regHelper, userName, domainName, logonPassword);
+            ConfigurePowerOptions();
+        }       
+
+        public bool RestartNeeded()
+        {
+            return !IsCurrentUserSameAsAutoLogonUser();
+        }
+
+        public void UnConfigure()
+        {
+            WindowsRegistryHelper regHelper = null;
+            if(IsCurrentUserSameAsAutoLogonUser())
+            {
+                regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>(), _regSettingsForBackup);
+            }
+            else
+            {
+                FetchAutoLogonUserDetails(out string userName, out string domainName);
+                var windowsServiceHelper = HostContext.GetService<INativeWindowsServiceHelper>();
+                var securityIdForTheUser = windowsServiceHelper.GetSecurityIdForTheUser(userName);
+                Trace.Info(@"Interactive session was configured for the different user. UserName: ${userName}, DomainName: ${domainName}");
+                regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>(), _regSettingsForBackup, securityIdForTheUser);
+            }
+            
+            foreach(var registryKey in _regSettingsForBackup)
+            {
+                regHelper.RevertBackOriginalRegistry(registryKey);
+            }
+        }
+
+        public bool IsInteractiveSessionConfigured()
+        {
+            //find out the path for startup process if it is same as current agent location, yes it was configured
+            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>(), null);
+            var startupProcessPath = regHelper.GetRegistry(WellKnownRegistries.StartupProcess);
+
+            if(string.IsNullOrEmpty(startupProcessPath))
+            {
+                return false;
+            }
+
+            var expectedStartupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agent.service.exe");
+            return startupProcessPath.Equals(expectedStartupProcessPath, StringComparison.CurrentCultureIgnoreCase);
+        }
+
+        private bool IsCurrentUserSameAsAutoLogonUser()
+        {
+            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
+            var userName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
+            var domainName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonDomainName);
+
+            if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(domainName))
+            {
+                return false;
+            }
+
+            var nativeWindowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
+            return nativeWindowsHelper.IsTheSameUserLoggedIn(domainName, userName);
+        }
+
+        private void FetchAutoLogonUserDetails(out string userName, out string domainName)
+        {
+            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
+            userName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
+            domainName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonDomainName);
         }
 
         private void DisplayUITestingRelatedWarningsIfAny(WindowsRegistryHelper regHelper)
@@ -137,6 +219,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             regHelper.SetRegistry(WellKnownRegistries.AutoLogonDomainName, domainName);
             regHelper.SetRegistry(WellKnownRegistries.AutoLogon, "1");
 
+            //this call is to take the backup of the password key if already exists as we delete the key in the next step
+            regHelper.SetRegistry(WellKnownRegistries.AutoLogonPassword, "");
+            regHelper.DeleteRegistry(WellKnownRegistries.AutoLogonPassword);
+
+            //this call is to take the backup of the password key if already exists as we delete the key in the next step
+            regHelper.SetRegistry(WellKnownRegistries.AutoLogonCount, "");
+            regHelper.DeleteRegistry(WellKnownRegistries.AutoLogonCount);
+
             var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agent.service.exe");
             var startupCommand = string.Format("{0} {1}", startupProcessPath, "runAsProcess");
             regHelper.SetRegistry(WellKnownRegistries.StartupProcess, startupCommand);
@@ -146,8 +236,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
             regHelper.SetRegistry(WellKnownRegistries.LegalNoticeCaption, "");
             regHelper.SetRegistry(WellKnownRegistries.LegalNoticeText, "");
+        }
 
-            var processInvoker = HostContext.GetService<IProcessInvoker>();
+        private void ConfigurePowerOptions()
+        {
+            var processInvoker = HostContext.CreateService<IProcessInvoker>();
             processInvoker.ExecuteAsync(
                             workingDirectory: string.Empty,
                             fileName: "powercfg.exe",
@@ -162,58 +255,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                             environment: null,
                             cancellationToken: CancellationToken.None).Wait();
         }
-
-        public bool RestartNeeded()
-        {
-            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
-            var userName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
-            var domainName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonDomainName);
-
-            if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(domainName))
-            {
-                return false;
-            }
-            var nativeWindowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
-            return !nativeWindowsHelper.IsTheSameUserLoggedIn(domainName, userName);
-        }
-
-        public void UnConfigure()
-        {
-            //assumption : unconfig is called in the same user session
-
-            //find out if autologon was enabled
-            if(!IsInteractiveSessionConfigured())
-            {
-                return;
-            }
-
-            //backup settings            
-            //auto logon (s)
-            //legal notice
-            //legal text
-            //screen saver setting
-            //shutdown reason
-            //shutdown UI
-            
-            //remove
-            //startup
-        }
-
-        private bool IsInteractiveSessionConfigured()
-        {
-            //find out the path for startup process if it is same as current agent location, yes it was configured
-            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
-            var startupProcessPath = regHelper.GetRegistry(WellKnownRegistries.StartupProcess);
-
-            if(string.IsNullOrEmpty(startupProcessPath))
-            {
-                return false;
-            }
-
-            var expectedStartupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agent.service.exe");
-            return startupProcessPath.Equals(expectedStartupProcessPath, StringComparison.CurrentCultureIgnoreCase);
-        }
-
+        
         private void ShowAutoLogonWarningIfAlreadyEnabled(WindowsRegistryHelper regHelper, string userName)
         {
             var regValue = regHelper.GetRegistry(WellKnownRegistries.AutoLogon);
@@ -226,7 +268,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     _terminal.WriteLine(string.Format(StringUtil.Loc("AutoLogonAlreadyEnabledWarning"), userName));
                 }
             }
-        }
+        }        
 
         //todo: move it to a utility class so that at other places it can be re-used
         private void GetAccountSegments(string account, out string domain, out string user)
