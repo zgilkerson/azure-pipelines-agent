@@ -128,7 +128,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         {
             //find out the path for startup process if it is same as current agent location, yes it was configured
             var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>(), null);
-            var startupProcessPath = regHelper.GetRegistry(WellKnownRegistries.StartupProcess);
+            var startupProcessPath = regHelper.GetRegistryKeyValue(WellKnownRegistries.StartupProcess);
 
             if(string.IsNullOrEmpty(startupProcessPath))
             {
@@ -142,8 +142,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         private bool IsCurrentUserSameAsAutoLogonUser()
         {
             var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
-            var userName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
-            var domainName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonDomainName);
+            var userName = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName);
+            var domainName = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonDomainName);
 
             if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(domainName))
             {
@@ -157,8 +157,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         private void FetchAutoLogonUserDetails(out string userName, out string domainName)
         {
             var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
-            userName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
-            domainName = regHelper.GetRegistry(WellKnownRegistries.AutoLogonDomainName);
+            userName = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName);
+            domainName = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonDomainName);
         }
 
         private void DisplayUITestingRelatedWarningsIfAny(WindowsRegistryHelper regHelper)
@@ -166,7 +166,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             var warningReasons = new List<string>();
 
             //screen saver
-            var screenSaverValue = regHelper.GetRegistry(WellKnownRegistries.ScreenSaverDomainPolicy);
+            var screenSaverValue = regHelper.GetRegistryKeyValue(WellKnownRegistries.ScreenSaverDomainPolicy);
             int.TryParse(screenSaverValue, out int isScreenSaverDomainPolicySet);
             if(isScreenSaverDomainPolicySet == 1)
             {
@@ -174,22 +174,22 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
 
             //shutdown reason
-            var shutdownReasonValue = regHelper.GetRegistry(WellKnownRegistries.ShutdownReason);
+            var shutdownReasonValue = regHelper.GetRegistryKeyValue(WellKnownRegistries.ShutdownReason);
             int.TryParse(shutdownReasonValue, out int shutdownReasonOn);
             if(shutdownReasonOn == 1)
             {
                 warningReasons.Add(StringUtil.Loc("UITestingWarning_ShutdownReason"));
             }
 
-            var legalNoticeCaption = regHelper.GetRegistry(WellKnownRegistries.LegalNoticeCaption);
-            var legalNoticeText =  regHelper.GetRegistry(WellKnownRegistries.LegalNoticeText);
+            var legalNoticeCaption = regHelper.GetRegistryKeyValue(WellKnownRegistries.LegalNoticeCaption);
+            var legalNoticeText =  regHelper.GetRegistryKeyValue(WellKnownRegistries.LegalNoticeText);
             if(!string.IsNullOrEmpty(legalNoticeCaption) || !string.IsNullOrEmpty(legalNoticeText))
             {
                 warningReasons.Add(StringUtil.Loc("UITestingWarning_LegalNotice"));
             }
 
             //auto-logon
-            var autoLogonCountValue = regHelper.GetRegistry(WellKnownRegistries.AutoLogonCount);            
+            var autoLogonCountValue = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonCount);            
             if(!string.IsNullOrEmpty(autoLogonCountValue))
             {
                 warningReasons.Add(StringUtil.Loc("UITestingWarning_AutoLogonCount"));
@@ -207,35 +207,35 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private void UpdateRegistrySettingsforUITesting(WindowsRegistryHelper regHelper, string userName, string domainName, string logonPassword)
         {
-            regHelper.SetRegistry(WellKnownRegistries.ScreenSaver, "0");
-            regHelper.SetRegistry(WellKnownRegistries.ScreenSaverDomainPolicy, "0");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.ScreenSaver, "0");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.ScreenSaverDomainPolicy, "0");
 
             ShowAutoLogonWarningIfAlreadyEnabled(regHelper, userName);
 
             var windowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
             windowsHelper.SetAutoLogonPassword(logonPassword);
 
-            regHelper.SetRegistry(WellKnownRegistries.AutoLogonUserName, userName);
-            regHelper.SetRegistry(WellKnownRegistries.AutoLogonDomainName, domainName);
-            regHelper.SetRegistry(WellKnownRegistries.AutoLogon, "1");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName, userName);
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.AutoLogonDomainName, domainName);
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.AutoLogon, "1");
 
             //this call is to take the backup of the password key if already exists as we delete the key in the next step
-            regHelper.SetRegistry(WellKnownRegistries.AutoLogonPassword, "");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.AutoLogonPassword, "");
             regHelper.DeleteRegistry(WellKnownRegistries.AutoLogonPassword);
 
             //this call is to take the backup of the password key if already exists as we delete the key in the next step
-            regHelper.SetRegistry(WellKnownRegistries.AutoLogonCount, "");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.AutoLogonCount, "");
             regHelper.DeleteRegistry(WellKnownRegistries.AutoLogonCount);
 
             var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agent.service.exe");
-            var startupCommand = string.Format("{0} {1}", startupProcessPath, "runAsProcess");
-            regHelper.SetRegistry(WellKnownRegistries.StartupProcess, startupCommand);
+            var startupCommand = string.Format($@"{startupProcessPath} runAsProcess");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.StartupProcess, startupCommand);
 
-            regHelper.SetRegistry(WellKnownRegistries.ShutdownReason, "0");
-            regHelper.SetRegistry(WellKnownRegistries.ShutdownReasonUI, "0");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.ShutdownReason, "0");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.ShutdownReasonUI, "0");
 
-            regHelper.SetRegistry(WellKnownRegistries.LegalNoticeCaption, "");
-            regHelper.SetRegistry(WellKnownRegistries.LegalNoticeText, "");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.LegalNoticeCaption, "");
+            regHelper.SetRegistryKeyValue(WellKnownRegistries.LegalNoticeText, "");
         }
 
         private void ConfigurePowerOptions()
@@ -258,11 +258,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         
         private void ShowAutoLogonWarningIfAlreadyEnabled(WindowsRegistryHelper regHelper, string userName)
         {
-            var regValue = regHelper.GetRegistry(WellKnownRegistries.AutoLogon);
+            var regValue = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogon);
             int.TryParse(regValue, out int autoLogonEnabled);
             if(autoLogonEnabled == 1)
             {
-                var autoLogonUser = regHelper.GetRegistry(WellKnownRegistries.AutoLogonUserName);
+                var autoLogonUser = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName);
                 if(!userName.Equals(autoLogonUser, StringComparison.CurrentCultureIgnoreCase))
                 {
                     _terminal.WriteLine(string.Format(StringUtil.Loc("AutoLogonAlreadyEnabledWarning"), userName));

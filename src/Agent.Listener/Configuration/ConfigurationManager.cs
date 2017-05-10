@@ -557,10 +557,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 return;
             }
             
+            _term.WriteError(StringUtil.Loc("NeedAdminForAutologonCapability"));
             Trace.Error("Needs Administrator privileges for configure agent as interactive process with autologon capability.");
             Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");            
             throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
         }
+        
         private async Task TestConnectAsync(string url, VssCredentials creds)
         {
             _term.WriteLine(StringUtil.Loc("ConnectingToServer"));

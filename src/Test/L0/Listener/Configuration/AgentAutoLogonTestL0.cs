@@ -29,6 +29,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
         [Trait("Category", "Agent")]
         public async void TestAutoLogonConfiguration()
         {
+            Debugger.Launch();
             using (var hc = new TestHostContext(this))
             {
                 SetupTestEnv(hc);
@@ -122,7 +123,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
         }
 
         private int SetPowerCfgFlags(bool isForACOption)
-        {            
+        {
             if(isForACOption)
             {
                 _powerCfgCalledForACOption = true;
@@ -136,22 +137,25 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
 
         public async void VerifyTheRegistryChanges(IWindowsRegistryManager regManager, string expectedUserName, string expectedDomainName, string userSid = null)
         {
-            var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(userSid));
+            var regPath = GetRegistryKeyPath(WellKnownRegistries.ScreenSaver, userSid);
+            // var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(userSid));
             Assert.Equal("0", regManager.GetKeyValue(regPath, RegistryConstants.ScreenSaverSettingsKeyName));
 
-            regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(userSid));
+            regPath = GetRegistryKeyPath(WellKnownRegistries.ScreenSaverDomainPolicy, userSid);
             Assert.Equal("0", regManager.GetKeyValue(regPath, RegistryConstants.ScreenSaverSettingsKeyName));
 
-            regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(userSid));
+            regPath = GetRegistryKeyPath(WellKnownRegistries.StartupProcess, userSid);
             var processPath = regManager.GetKeyValue(regPath, WellKnownRegistries.StartupProcess);
             //todo: add validation
 
-            Assert.Equal("1", regManager.GetKeyValue(RegistryConstants.RegPaths.AutoLogon, WellKnownRegistries.AutoLogon));
-            Assert.Equal(expectedUserName, regManager.GetKeyValue(RegistryConstants.RegPaths.AutoLogon, WellKnownRegistries.AutoLogonUserName));
-            Assert.Equal(expectedDomainName, regManager.GetKeyValue(RegistryConstants.RegPaths.AutoLogon, WellKnownRegistries.AutoLogonDomainName));
+            regPath = GetRegistryKeyPath(WellKnownRegistries.AutoLogon, userSid);
+            Assert.Equal("1", regManager.GetKeyValue(regPath, WellKnownRegistries.AutoLogon));
+            Assert.Equal(expectedUserName, regManager.GetKeyValue(regPath, WellKnownRegistries.AutoLogonUserName));
+            Assert.Equal(expectedDomainName, regManager.GetKeyValue(regPath, WellKnownRegistries.AutoLogonDomainName));
 
-            Assert.Equal("0", regManager.GetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, WellKnownRegistries.ShutdownReason));
-            Assert.Equal("0", regManager.GetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, WellKnownRegistries.ShutdownReasonUI));
+            regPath = GetRegistryKeyPath(WellKnownRegistries.ShutdownReason, userSid);
+            Assert.Equal("0", regManager.GetKeyValue(regPath, WellKnownRegistries.ShutdownReason));
+            Assert.Equal("0", regManager.GetKeyValue(regPath, WellKnownRegistries.ShutdownReasonUI));
         }
 
         private string GetUserRegistryRootPath(string sid)
@@ -159,6 +163,41 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             return string.IsNullOrEmpty(sid) ?
                 RegistryConstants.CurrentUserRootPath :
                 String.Format(RegistryConstants.DifferentUserRootPath, sid);
+        }
+
+        private string GetRegistryKeyPath(string targetRegistryKey, string userSid = null)
+        {
+            var userHivePath = GetUserRegistryRootPath(userSid);
+            switch(targetRegistryKey)
+            {
+                //user specific registry settings
+                case WellKnownRegistries.ScreenSaver :
+                    return string.Format($@"{userHivePath}\{RegistryConstants.RegPaths.ScreenSaver}");
+
+                case WellKnownRegistries.ScreenSaverDomainPolicy:
+                    return string.Format($@"{userHivePath}\{RegistryConstants.RegPaths.ScreenSaverDomainPolicy}");
+
+                case WellKnownRegistries.StartupProcess:
+                    return string.Format($@"{userHivePath}\{RegistryConstants.RegPaths.StartupProcess}");
+
+                //machine specific registry settings         
+                case WellKnownRegistries.AutoLogon :
+                case WellKnownRegistries.AutoLogonUserName:
+                case WellKnownRegistries.AutoLogonDomainName :
+                case WellKnownRegistries.AutoLogonPassword:
+                case WellKnownRegistries.AutoLogonCount:
+                    return string.Format($@"{RegistryConstants.LocalMachineRootPath}\{RegistryConstants.RegPaths.AutoLogon}");
+
+                case WellKnownRegistries.ShutdownReason :
+                case WellKnownRegistries.ShutdownReasonUI :
+                    return string.Format($@"{RegistryConstants.LocalMachineRootPath}\{RegistryConstants.RegPaths.ShutdownReasonDomainPolicy}");
+
+                case WellKnownRegistries.LegalNoticeCaption :
+                case WellKnownRegistries.LegalNoticeText :
+                    return string.Format($@"{RegistryConstants.LocalMachineRootPath}\{RegistryConstants.RegPaths.LegalNotice}");
+                default:
+                   return null;
+            }
         }
     }
 
