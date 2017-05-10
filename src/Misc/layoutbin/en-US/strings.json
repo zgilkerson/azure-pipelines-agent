@@ -323,6 +323,7 @@
   "RegisterAgentSectionHeader": "Register Agent",
   "RenameIndexFileCoberturaFailed": "Renaming '{0}' to '{1}' failed while publishing code coverage files for '{2}'. Inner Exception: '{3}'",
   "Replace": "replace? (Y/N)",
+  "RestartIn5SecMessage": "Restarting the machine in 5 seconds...",
   "RestartMessage": "Agent configuration for autologon capability is completed. It needs a restart for the changes to take effect.",
   "RestartNow": "Do you want to restart the machine now? (Y/N)",
   "ResultsCommandNotFound": "##vso[results.{0}] is not a recognized command for Task command extension. TODO: DOC aka link",

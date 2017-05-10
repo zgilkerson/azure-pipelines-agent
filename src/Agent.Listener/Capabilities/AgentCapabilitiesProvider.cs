@@ -36,6 +36,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             Add(capabilities, "Agent.OSVersion", GetOSVersionString());
             Add(capabilities, "Cmd", Environment.GetEnvironmentVariable("comspec"));
 
+            //This capability gets set irrespective of agent being run in auto-logon mode or not.
             var configurationManager = HostContext.GetService<IConfigurationManager>();
             Add(capabilities, "InteractiveSession", (!configurationManager.IsServiceConfigured()).ToString());
 #endif

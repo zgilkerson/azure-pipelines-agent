@@ -132,7 +132,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return TestFlagOrPrompt(
                 name: Constants.Agent.CommandLine.Flags.EnableAutoLogon,
                 description: StringUtil.Loc("EnableAutoLogon"),
-                defaultValue: false);
+                defaultValue: true);
         }
 
         public bool GetRestartPermission()

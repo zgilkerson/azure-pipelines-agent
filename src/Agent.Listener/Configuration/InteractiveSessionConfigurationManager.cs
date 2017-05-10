@@ -49,7 +49,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 logonPassword = command.GetWindowsLogonPassword(logonAccount);
                 if (windowsServiceHelper.IsValidCredential(domainName, userName, logonPassword))
                 {
-                    Trace.Info("Credential validation succeed");
+                    Trace.Info("Credential validation succeeded");
                     break;
                 }
                 
