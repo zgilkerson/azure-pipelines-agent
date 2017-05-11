@@ -492,8 +492,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     if(shallRestart)
                     {
                         Trace.Info("Restarting the machine now");
-                        _term.WriteLine("Restarting the machine...");
-                        Process.Start("shutdown.exe", "-r -t 0");
+                        _term.WriteLine(StringUtil.Loc("RestartIn5SecMessage"));
+                        Process.Start("shutdown.exe", "-r -t 5");
                     }
                 }
                 else
@@ -549,7 +549,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             provider.EnsureCredential(HostContext, command, serverUrl);
             return provider;
         }
-
         private void AssertAdminAccess()
         {
             if (new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
