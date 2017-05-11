@@ -22,7 +22,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
         private string _domainName = "avengers";
         private MockRegistryManager _mockRegManager;
         private bool _powerCfgCalledForACOption = false;
-        private bool _powerCfgCalledForDCOption = false;        
+        private bool _powerCfgCalledForDCOption = false;    
 
         [Fact]
         [Trait("Level", "L0")]
@@ -38,7 +38,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 iConfigManager.Initialize(hc);
                 iConfigManager.Configure(_command);
 
-                VerifyTheRegistryChanges(_mockRegManager, _userName, _domainName);
+                VerifyTheRegistryChanges(_userName, _domainName);
                 Assert.True(_powerCfgCalledForACOption);
                 Assert.True(_powerCfgCalledForDCOption);
                 Assert.Equal(false, iConfigManager.RestartNeeded());
@@ -61,7 +61,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 iConfigManager.Initialize(hc);
                 iConfigManager.Configure(_command);
                 
-                VerifyTheRegistryChanges(_mockRegManager, _userName, _domainName, _sid);
+                VerifyTheRegistryChanges(_userName, _domainName, _sid);
                 Assert.True(_powerCfgCalledForACOption);
                 Assert.True(_powerCfgCalledForDCOption);
                 Assert.Equal(true, iConfigManager.RestartNeeded());
@@ -135,27 +135,37 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             return 0;
         }
 
-        public async void VerifyTheRegistryChanges(IWindowsRegistryManager regManager, string expectedUserName, string expectedDomainName, string userSid = null)
+        public async void VerifyTheRegistryChanges(string expectedUserName, string expectedDomainName, string userSid = null)
         {
-            var regPath = GetRegistryKeyPath(WellKnownRegistries.ScreenSaver, userSid);
-            // var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(userSid));
-            Assert.Equal("0", regManager.GetKeyValue(regPath, RegistryConstants.ScreenSaverSettingsKeyName));
+            ValidateRegistryValue(WellKnownRegistries.ScreenSaver, "0", userSid);
+            ValidateRegistryValue(WellKnownRegistries.ScreenSaverDomainPolicy, "0", userSid);
+            
+            //autologon
+            ValidateRegistryValue(WellKnownRegistries.AutoLogon, "1", userSid);
+            ValidateRegistryValue(WellKnownRegistries.AutoLogonUserName, expectedUserName, userSid);
+            ValidateRegistryValue(WellKnownRegistries.AutoLogonDomainName, expectedDomainName, userSid);
+            ValidateRegistryValue(WellKnownRegistries.AutoLogonCount, null, userSid);
+            ValidateRegistryValue(WellKnownRegistries.AutoLogonPassword, null, userSid);
 
-            regPath = GetRegistryKeyPath(WellKnownRegistries.ScreenSaverDomainPolicy, userSid);
-            Assert.Equal("0", regManager.GetKeyValue(regPath, RegistryConstants.ScreenSaverSettingsKeyName));
+            //shutdown reason
+            ValidateRegistryValue(WellKnownRegistries.ShutdownReason, "0", userSid);
+            ValidateRegistryValue(WellKnownRegistries.ShutdownReasonUI, "0", userSid);
 
-            regPath = GetRegistryKeyPath(WellKnownRegistries.StartupProcess, userSid);
-            var processPath = regManager.GetKeyValue(regPath, WellKnownRegistries.StartupProcess);
-            //todo: add validation
+            //todo: startup process validation
+            // ValidateRegistryValue(WellKnownRegistries.StartupProcess, , usersid);
 
-            regPath = GetRegistryKeyPath(WellKnownRegistries.AutoLogon, userSid);
-            Assert.Equal("1", regManager.GetKeyValue(regPath, WellKnownRegistries.AutoLogon));
-            Assert.Equal(expectedUserName, regManager.GetKeyValue(regPath, WellKnownRegistries.AutoLogonUserName));
-            Assert.Equal(expectedDomainName, regManager.GetKeyValue(regPath, WellKnownRegistries.AutoLogonDomainName));
+            // regPath = GetRegistryKeyPath(WellKnownRegistries.StartupProcess, userSid);
+            // var processPath = regManager.GetKeyValue(regPath, WellKnownRegistries.StartupProcess);
+        }
 
-            regPath = GetRegistryKeyPath(WellKnownRegistries.ShutdownReason, userSid);
-            Assert.Equal("0", regManager.GetKeyValue(regPath, WellKnownRegistries.ShutdownReason));
-            Assert.Equal("0", regManager.GetKeyValue(regPath, WellKnownRegistries.ShutdownReasonUI));
+        public async void ValidateRegistryValue(WellKnownRegistries registry, string expectedValue, string userSid)
+        {
+            var regPath = GetRegistryKeyPath(registry, userSid);
+            var regKey = RegistryConstants.GetActualKeyNameForWellKnownRegistry(registry);
+            var actualValue = _mockRegManager.GetKeyValue(regPath, regKey);
+
+            var validationPassed = string.Equals(expectedValue, actualValue, StringComparison.OrdinalIgnoreCase);
+            Assert.True(validationPassed, $"{registry.ToString()} validation failed. Expected - {expectedValue} Actual - {actualValue}");
         }
 
         private string GetUserRegistryRootPath(string sid)
@@ -165,7 +175,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 String.Format(RegistryConstants.DifferentUserRootPath, sid);
         }
 
-        private string GetRegistryKeyPath(string targetRegistryKey, string userSid = null)
+        private string GetRegistryKeyPath(WellKnownRegistries targetRegistryKey, string userSid = null)
         {
             var userHivePath = GetUserRegistryRootPath(userSid);
             switch(targetRegistryKey)

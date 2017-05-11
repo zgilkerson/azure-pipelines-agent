@@ -31,6 +31,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             _agentServer = new Mock<IAgentServer>();
             _term = new Mock<ITerminal>();
             _proxy = new Mock<IProxyConfiguration>();
+            Assert.Equal()
         }
 
         private AgentJobRequestMessage CreateJobRequestMessage(string jobName)

@@ -20,26 +20,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     public class InteractiveSessionConfigurationManager : AgentService, IInteractiveSessionConfigurationManager
     {
         private ITerminal _terminal;
-        private List<string> _regSettingsForBackup;
 
         public override void Initialize(IHostContext hostContext)
         {
             base.Initialize(hostContext);
             _terminal = hostContext.GetService<ITerminal>();
-            _regSettingsForBackup = new List<string>
-            {
-                WellKnownRegistries.AutoLogon,
-                WellKnownRegistries.AutoLogonUserName,
-                WellKnownRegistries.AutoLogonDomainName,
-                WellKnownRegistries.AutoLogonPassword,
-                WellKnownRegistries.AutoLogonCount,
-                WellKnownRegistries.ShutdownReason,
-                WellKnownRegistries.ShutdownReasonUI,
-                WellKnownRegistries.ScreenSaver,
-                WellKnownRegistries.ScreenSaverDomainPolicy,
-                WellKnownRegistries.LegalNoticeCaption,
-                WellKnownRegistries.LegalNoticeText
-            };
         }
 
         public void Configure(CommandSettings command)
@@ -82,9 +67,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             var securityIdForTheUser = windowsServiceHelper.GetSecurityIdForTheUser(userName);
             var regManager = HostContext.GetService<IWindowsRegistryManager>();
             
-            WindowsRegistryHelper regHelper = isCurrentUserSameAsAutoLogonUser 
-                                                ? new WindowsRegistryHelper(regManager, _regSettingsForBackup) 
-                                                : new WindowsRegistryHelper(regManager, _regSettingsForBackup, securityIdForTheUser);
+            InteractiveSessionRegHelper regHelper = isCurrentUserSameAsAutoLogonUser 
+                                                ? new InteractiveSessionRegHelper(regManager)
+                                                : new InteractiveSessionRegHelper(regManager, securityIdForTheUser);
             
             if(!isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(securityIdForTheUser))
             {
@@ -104,10 +89,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         public void UnConfigure()
         {
-            WindowsRegistryHelper regHelper = null;
+            InteractiveSessionRegHelper regHelper = null;
             if(IsCurrentUserSameAsAutoLogonUser())
             {
-                regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>(), _regSettingsForBackup);
+                regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>());
             }
             else
             {
@@ -115,19 +100,19 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 var windowsServiceHelper = HostContext.GetService<INativeWindowsServiceHelper>();
                 var securityIdForTheUser = windowsServiceHelper.GetSecurityIdForTheUser(userName);
                 Trace.Info(@"Interactive session was configured for the different user. UserName: ${userName}, DomainName: ${domainName}");
-                regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>(), _regSettingsForBackup, securityIdForTheUser);
+                regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>(), _backupRegistries, securityIdForTheUser);
             }
             
-            foreach(var registryKey in _regSettingsForBackup)
+            foreach(var registry in _backupRegistries)
             {
-                regHelper.RevertBackOriginalRegistry(registryKey);
+                regHelper.RevertBackOriginalRegistry(registry);
             }
         }
 
         public bool IsInteractiveSessionConfigured()
         {
             //find out the path for startup process if it is same as current agent location, yes it was configured
-            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>(), null);
+            var regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>(), null);
             var startupProcessPath = regHelper.GetRegistryKeyValue(WellKnownRegistries.StartupProcess);
 
             if(string.IsNullOrEmpty(startupProcessPath))
@@ -141,7 +126,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private bool IsCurrentUserSameAsAutoLogonUser()
         {
-            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
+            var regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>());
             var userName = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName);
             var domainName = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonDomainName);
 
@@ -156,12 +141,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private void FetchAutoLogonUserDetails(out string userName, out string domainName)
         {
-            var regHelper = new WindowsRegistryHelper(HostContext.GetService<IWindowsRegistryManager>());
+            var regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>());
             userName = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName);
             domainName = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogonDomainName);
         }
 
-        private void DisplayUITestingRelatedWarningsIfAny(WindowsRegistryHelper regHelper)
+        private void DisplayUITestingRelatedWarningsIfAny(InteractiveSessionRegHelper regHelper)
         {
             var warningReasons = new List<string>();
 
@@ -205,8 +190,19 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
         }
 
-        private void UpdateRegistrySettingsforUITesting(WindowsRegistryHelper regHelper, string userName, string domainName, string logonPassword)
+        private void UpdateRegistrySettingsforUITesting(InteractiveSessionRegHelper regHelper, string userName, string domainName, string logonPassword)
         {
+            List<Tuple<WellKnownRegistries, string>> stdRegistries = new List<Tuple<WellKnownRegistries, string>>()
+            {
+                new Tuple<WellKnownRegistries, string> {WellKnownRegistries.ScreenSaver, "0"},
+                new Tuple<WellKnownRegistries, string> {WellKnownRegistriesScreenSaverDomainPolicy., "0"},                
+                new Tuple<WellKnownRegistries, string> {WellKnownRegistries.AutoLogon, "1"},
+                new Tuple<WellKnownRegistries, string> {WellKnownRegistries.ShutdownReason, "0"},
+                new Tuple<WellKnownRegistries, string> {WellKnownRegistries.ShutdownReasonUI, "0"},
+                new Tuple<WellKnownRegistries, string> {WellKnownRegistries.LegalNoticeCaption, ""},
+                new Tuple<WellKnownRegistries, string> {WellKnownRegistries.LegalNoticeText, ""}                
+            };
+
             regHelper.SetRegistryKeyValue(WellKnownRegistries.ScreenSaver, "0");
             regHelper.SetRegistryKeyValue(WellKnownRegistries.ScreenSaverDomainPolicy, "0");
 
@@ -256,7 +252,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                             cancellationToken: CancellationToken.None).Wait();
         }
         
-        private void ShowAutoLogonWarningIfAlreadyEnabled(WindowsRegistryHelper regHelper, string userName)
+        private void ShowAutoLogonWarningIfAlreadyEnabled(InteractiveSessionRegHelper regHelper, string userName)
         {
             var regValue = regHelper.GetRegistryKeyValue(WellKnownRegistries.AutoLogon);
             int.TryParse(regValue, out int autoLogonEnabled);

@@ -42,14 +42,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     public class WindowsRegistryHelper
     {
         private IWindowsRegistryManager _registryManager;
-        private string _userSecurityId;
-        private List<WellKnownRegistries> _regSettingsForBackup;
+        private string _userSecurityId;        
 
-        public WindowsRegistryHelper(IWindowsRegistryManager regManager, List<WellKnownRegistries> registriesForBackup = null, string sid = null)
+        public WindowsRegistryHelper(IWindowsRegistryManager regManager, string sid = null)
         {
             _registryManager = regManager;
             _userSecurityId = sid;
-            _regSettingsForBackup = registriesForBackup;
         }
 
         public bool ValidateIfRegistryExistsForTheUser(string sid)
@@ -59,30 +57,25 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         public void SetRegistryKeyValue(WellKnownRegistries targetRegistry, string keyValue)
         {
-            if(ShouldTakeBackup(targetRegistry))
-            {
-                string origValue = GetRegistryKeyValue(targetRegistry);
-                if(!string.IsNullOrEmpty(origValue))
-                {
-                    SetRegistryKeyInternal(targetRegistry, GetBackupKeyName(targetRegistry), origValue);
-                }
-            }
-
-            SetRegistryKeyInternal(targetRegistry, RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry), keyValue);
-        }       
+            TakeBackupIfNeeded(targetRegistry);
+            SetRegistryKeyInternal(targetRegistry, keyValue);
+        }
 
         public string GetRegistryKeyValue(WellKnownRegistries targetRegistry)
         {
             var regPath = GetRegistryKeyPath(targetRegistry, _userSecurityId);
+            if(string.IsNullOrEmpty(regPath))
+            {
+                return null;
+            }
             
-            return string.IsNullOrEmpty(regPath)
-                    ? null
-                    : _registryManager.GetKeyValue(regPath, RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry));
-        }       
+            var regKey = RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
+            return _registryManager.GetKeyValue(regPath, regKey);
+        }
 
         public void DeleteRegistry(WellKnownRegistries targetRegistry)
         {
-            switch(targetRegistryKey)
+            switch(targetRegistry)
             {                
                 //machine specific registry settings
                 case WellKnownRegistries.AutoLogonCount :
@@ -96,7 +89,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         public void RevertBackOriginalRegistry(WellKnownRegistries targetRegistry)
         {
-            var regPath = GetRegistryKeyPath(targetRegistryKey, _userSecurityId);
+            var regPath = GetRegistryKeyPath(targetRegistry, _userSecurityId);
             RevertBackOriginalRegistryInternal(regPath, targetRegistry);
         }
 
@@ -137,36 +130,28 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private void RevertBackOriginalRegistryInternal(string regPath, WellKnownRegistries targetRegistry)
         {
-            var backupKeyName = GetBackupKeyName(targetRegistry);
+            var originalKeyName = RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
+            var backupKeyName = RegistryConstants.BackupKeyPrefix + RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
+
             var originalValue = _registryManager.GetKeyValue(regPath, backupKeyName);
             
             if(string.IsNullOrEmpty(originalValue))
             {
-                _registryManager.DeleteKey(regPath, RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry));
+                _registryManager.DeleteKey(regPath, originalKeyName);
                 return;
             }
 
             //revert back the original value
-            _registryManager.SetKeyValue(regPath, RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry), originalValue);
+            _registryManager.SetKeyValue(regPath, originalKeyName, originalValue);
             //delete the backup key
             _registryManager.DeleteKey(regPath, backupKeyName);
         }
-
-        private string GetBackupKeyName(WellKnownRegistries registry)
-        {
-            return RegistryConstants.BackupKeyPrefix + RegistryConstants.GetActualKeyNameForWellKnownRegistry(registry);
-        }
         
-        private void SetRegistryKeyInternal(WellKnownRegistries targetRegistry, string keyName, string keyValue)
+        private void SetRegistryKeyInternal(WellKnownRegistries targetRegistry, string keyValue)
         {
             var regPath = GetRegistryKeyPath(targetRegistry, _userSecurityId);
-            
-            if(string.IsNullOrEmpty(regPath))
-            {
-                //trace
-                return;
-            }
-            _registryManager.SetKeyValue(regPath, keyName, keyValue);
+            var regKeyName = RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
+            _registryManager.SetKeyValue(regPath, regKeyName, keyValue);
         }
 
         private string GetUserRegistryRootPath(string sid)
@@ -176,10 +161,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 String.Format(RegistryConstants.DifferentUserRootPath, sid);
         }
 
-        private bool ShouldTakeBackup(WellKnownRegistries registry)
+        private void TakeBackupIfNeeded(WellKnownRegistries registry)
         {
-            return _regSettingsForBackup!= null 
-                    && _regSettingsForBackup.Exists(item => item.Equals(registry));
+            string origValue = GetRegistryKeyValue(registry);
+            if(!string.IsNullOrEmpty(origValue))
+            {
+                SetRegistryKeyInternal(registry, origValue);
+            }
         }
     }
     
