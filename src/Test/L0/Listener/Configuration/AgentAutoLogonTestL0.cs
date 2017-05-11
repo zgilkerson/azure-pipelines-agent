@@ -29,7 +29,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
         [Trait("Category", "Agent")]
         public async void TestAutoLogonConfiguration()
         {
-            Debugger.Launch();
             using (var hc = new TestHostContext(this))
             {
                 SetupTestEnv(hc);
@@ -220,9 +219,22 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             _regStore = new Dictionary<string, string>();
         }
         
-        public void DeleteKey(string path, string keyName)
+        public void DeleteKey(RegistryScope scope, string path, string keyName)
         {
-            var key = string.Concat(path, keyName);
+            var completePath = path;
+            switch(scope)
+            {
+                case RegistryScope.CurrentUser :
+                    completePath = string.Format($@"{RegistryConstants.CurrentUserRootPath}\{path}");
+                    break;
+                case RegistryScope.LocalMachine:
+                    completePath = string.Format($@"{RegistryConstants.LocalMachineRootPath}\{path}");
+                    break;
+                default:
+                    throw new InvalidOperationException("wrong scope");
+            }
+
+            var key = string.Concat(completePath, keyName);
             _regStore.Remove(key);
         }
 
