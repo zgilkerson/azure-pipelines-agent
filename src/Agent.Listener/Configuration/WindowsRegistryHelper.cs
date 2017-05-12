@@ -23,17 +23,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             switch(scope)
             {
                 case RegistryScope.CurrentUser :
-                    var key = Registry.CurrentUser.OpenSubKey(path);
+                    var key = Registry.CurrentUser.OpenSubKey(path, true);
                     if(key != null)
                     {
-                        key.DeleteSubKey(subKeyName);
+                        key.DeleteSubKey(subKeyName, false);
                     }
                     break;
                 case RegistryScope.LocalMachine:
-                    key = Registry.LocalMachine.OpenSubKey(path);
+                    key = Registry.LocalMachine.OpenSubKey(path, true);
                     if(key != null)
                     {
-                        key.DeleteSubKey(subKeyName);
+                        key.DeleteSubKey(subKeyName, false);
                     }
                     break;
             }

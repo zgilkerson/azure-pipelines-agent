@@ -49,7 +49,6 @@ namespace AgentService
                     {
                         CreateAndStartAgentListenerProcess();
                     }
-
                     _listenerProcess.WaitForExit();
                     exitCode = HandleExitOfListenerProcess(_listenerProcess.ExitCode);
                     if (Stopping)
@@ -64,7 +63,7 @@ namespace AgentService
 
                     lock (ServiceLock)
                     {
-                        DispostAgentListenerProcess();
+                        DisposeAgentListenerProcess();
                         stopping = Stopping;
                     }
                 }
@@ -146,7 +145,7 @@ namespace AgentService
             _listenerProcess.BeginErrorReadLine();
         }
 
-        private void DispostAgentListenerProcess()
+        private void DisposeAgentListenerProcess()
         {
             _listenerProcess.OutputDataReceived -= AgentListener_OutputDataReceived;
             _listenerProcess.ErrorDataReceived -= AgentListener_ErrorDataReceived;

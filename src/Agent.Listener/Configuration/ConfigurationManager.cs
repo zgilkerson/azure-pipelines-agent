@@ -381,11 +381,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 #endif
                 }
 
-                //delete agent from the server
-                currentAction = StringUtil.Loc("UnregisteringAgent");
-                _term.WriteLine(currentAction);
                 bool isConfigured = _store.IsConfigured();
                 bool hasCredentials = _store.HasCredentials();
+
+                if(isConfigured && !_store.IsServiceConfigured())
+                {
+                    UnConfigureAutoLogonIfNeeded();
+                }
+
+                //delete agent from the server
+                currentAction = StringUtil.Loc("UnregisteringAgent");
+                _term.WriteLine(currentAction);                
                 if (isConfigured && hasCredentials)
                 {
                     AgentSettings settings = _store.GetSettings();
@@ -424,7 +430,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 else
                 {
                     _term.WriteLine(StringUtil.Loc("MissingConfig"));
-                }
+                }               
 
                 //delete credential config files               
                 currentAction = StringUtil.Loc("DeletingCredentials");
@@ -439,12 +445,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 else
                 {
                     _term.WriteLine(StringUtil.Loc("Skipping") + currentAction);
-                }
-
-                if(isConfigured && !_store.IsServiceConfigured())
-                {
-                    UnConfigureAutoLogonIfNeeded();
-                }
+                }                
 
                 //delete settings config file                
                 currentAction = StringUtil.Loc("DeletingSettings");
@@ -491,18 +492,29 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     var shallRestart = command.GetRestartPermission();
                     if(shallRestart)
                     {
-                        Trace.Info("Restarting the machine now");
+                        Trace.Info("Restarting the machine in 5 seconds");
                         _term.WriteLine(StringUtil.Loc("RestartIn5SecMessage"));
                         Process.Start("shutdown.exe", "-r -t 5");
                     }
+                    else
+                    {
+                        Trace.Info("No restart happened. As the interactive session is configured for a different user agent will not be launched");
+                    }
+                    return;
                 }
-                else
-                {
-                    var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");                    
-                    Trace.Info("Launching the agent process.");
-                    _term.WriteLine(StringUtil.Loc("AgentLaunch"));
-                    Process.Start(startupProcessPath, "runasprocess");
-                }
+
+                var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");
+                Trace.Info("Launching the agent process.");
+                _term.WriteLine(StringUtil.Loc("AgentLaunch"));
+                
+                var processInfo = new ProcessStartInfo();
+                processInfo.UseShellExecute = false;
+                processInfo.CreateNoWindow = true;
+                processInfo.FileName = startupProcessPath;
+                processInfo.Arguments = "runasprocess";                
+
+                var agentServiceProcess = Process.Start(processInfo);
+                Trace.Verbose($"Started the agentservice process. Id - {agentServiceProcess.Id}");
             }
             catch(Exception ex)
             {
@@ -520,9 +532,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 {
                     Trace.Verbose("Interactive session was not configured on the agent. Returning.");
                     return;
-                }
+                }                
 
                 AssertAdminAccess();
+                var agentServiceProcess = Process.GetProcessesByName("agentservice");
+                if(agentServiceProcess.Length > 0)
+                {
+                    agentServiceProcess[0].Kill(); 
+                }
                 iConfigManager.UnConfigure();
             }
             catch(Exception ex)

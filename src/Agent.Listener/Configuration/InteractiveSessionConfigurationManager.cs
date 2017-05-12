@@ -104,7 +104,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 return false;
             }
 
-            var expectedStartupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agent.service.exe");
+            var expectedStartupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");
             return startupCommand.StartsWith(expectedStartupProcessPath, StringComparison.CurrentCultureIgnoreCase);
         }
 
@@ -179,6 +179,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                             environment: null,
                             cancellationToken: CancellationToken.None).Wait();
 
+            processInvoker = HostContext.CreateService<IProcessInvoker>();
             processInvoker.ExecuteAsync(
                             workingDirectory: string.Empty,
                             fileName: "powercfg.exe",

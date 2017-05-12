@@ -21,9 +21,9 @@ namespace AgentService
 
                 if(args[0].Equals("runAsProcess", StringComparison.InvariantCultureIgnoreCase))
                 {
+                    //Not attaching the Ctrl+C event handler on this process
                     LaunchAgentListener();
                     //togo: log
-                    return -1;
                 }
             }
 
