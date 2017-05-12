@@ -95,6 +95,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
 
             _processInvoker = new Mock<IProcessInvoker>();
             hc.EnqueueInstance<IProcessInvoker>(_processInvoker.Object);
+            hc.EnqueueInstance<IProcessInvoker>(_processInvoker.Object);
             _processInvoker.Setup(x => x.ExecuteAsync(
                                                 It.IsAny<String>(), 
                                                 "powercfg.exe", 

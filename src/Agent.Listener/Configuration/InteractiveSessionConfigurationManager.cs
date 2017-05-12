@@ -171,22 +171,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private void ConfigurePowerOptions()
         {
-            var processInvoker = HostContext.CreateService<IProcessInvoker>();
-            processInvoker.ExecuteAsync(
-                            workingDirectory: string.Empty,
-                            fileName: "powercfg.exe",
-                            arguments: "/Change monitor-timeout-ac 0",
-                            environment: null,
-                            cancellationToken: CancellationToken.None).Wait();
+            using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+            {
+                processInvoker.ExecuteAsync(
+                                workingDirectory: string.Empty,
+                                fileName: "powercfg.exe",
+                                arguments: "/Change monitor-timeout-ac 0",
+                                environment: null,
+                                cancellationToken: CancellationToken.None).Wait();
+            }
 
-            processInvoker = HostContext.CreateService<IProcessInvoker>();
-            processInvoker.ExecuteAsync(
+            using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+            {
+                processInvoker.ExecuteAsync(
                             workingDirectory: string.Empty,
                             fileName: "powercfg.exe",
                             arguments: "/Change monitor-timeout-dc 0",
                             environment: null,
                             cancellationToken: CancellationToken.None).Wait();
-        }       
+            }
+        }   
 
         //todo: move it to a utility class so that at other places it can be re-used
         private void GetAccountSegments(string account, out string domain, out string user)
