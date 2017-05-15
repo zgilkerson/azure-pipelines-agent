@@ -65,7 +65,97 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 Assert.True(_powerCfgCalledForDCOption);
                 Assert.Equal(true, iConfigManager.RestartNeeded());
             }
-        }       
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Agent")]
+        public async void TestInteractiveSessionUnConfigure()
+        {            
+            //strategy-
+            //1. fill some existing values in the registry
+            //2. run configure
+            //3. make sure the old values are there in the backup
+            //4. unconfigure
+            //5. make sure original values are reverted back
+
+            using (var hc = new TestHostContext(this))
+            {
+                SetupTestEnv(hc);
+
+                SetupRegistrySettings(hc);
+
+                var iConfigManager = new InteractiveSessionConfigurationManager();
+                iConfigManager.Initialize(hc);
+                iConfigManager.Configure(_command);
+
+                //make sure the backup was taken for the keys
+                RegistryVerificationForUnConfigure(hc, checkBackupKeys:true);
+
+                iConfigManager.UnConfigure();
+
+                //original values were reverted
+                RegistryVerificationForUnConfigure(hc);
+            }
+        }
+
+        private async void RegistryVerificationForUnConfigure(TestHostContext hc, string sid = null, bool checkBackupKeys=false)
+        {
+            var regManager = hc.GetService<IWindowsRegistryManager>();
+
+            var userRegistryRootPath = string.IsNullOrEmpty(sid) 
+                                        ? RegistryConstants.CurrentUserRootPath : String.Format(RegistryConstants.DifferentUserRootPath, sid);
+            
+            //screen saver (user specific)
+            var screenSaverKeyPath = string.Format($@"{userRegistryRootPath}\{RegistryConstants.RegPaths.ScreenSaver}");
+            var keyName = checkBackupKeys 
+                            ? RegistryConstants.GetBackupKeyName(WellKnownRegistries.ScreenSaver)
+                            : RegistryConstants.KeyNames.ScreenSaver;
+            var screenSaverValue = regManager.GetKeyValue(screenSaverKeyPath, keyName);
+            var expectedValue = "1";
+            var validationPassed = string.Equals(expectedValue, screenSaverValue, StringComparison.OrdinalIgnoreCase);
+
+            Assert.True(validationPassed, $"UnConfigure (verifying backupkeys - {checkBackupKeys}) : {WellKnownRegistries.ScreenSaver} Key value is not correct. Expected - {expectedValue} Actual - {screenSaverValue}");
+
+            //autologon (machine wide)
+            var autoLogonKeyPath = string.Format($@"{RegistryConstants.LocalMachineRootPath}\{RegistryConstants.RegPaths.AutoLogon}");
+            keyName = checkBackupKeys 
+                        ? RegistryConstants.GetBackupKeyName(WellKnownRegistries.AutoLogon)
+                        : RegistryConstants.KeyNames.AutoLogon;
+
+            var autoLogonValue = regManager.GetKeyValue(autoLogonKeyPath, keyName);
+            expectedValue = "0";
+            validationPassed = string.Equals(expectedValue, autoLogonValue, StringComparison.OrdinalIgnoreCase);
+            Assert.True(validationPassed, $"UnConfigure (verifying backupkeys - {checkBackupKeys}) : {WellKnownRegistries.AutoLogon} Key value is not correct. Expected - {expectedValue} Actual - {autoLogonValue}");
+
+            //autologon password (delete key)
+            keyName = checkBackupKeys 
+                        ? RegistryConstants.GetBackupKeyName(WellKnownRegistries.AutoLogonPassword)
+                        : RegistryConstants.KeyNames.AutoLogonPassword;
+            var autologonPwdValue = regManager.GetKeyValue(autoLogonKeyPath, keyName);
+            expectedValue = "xyz";
+            validationPassed = string.Equals(expectedValue, autologonPwdValue, StringComparison.OrdinalIgnoreCase);
+            Assert.True(validationPassed, $"UnConfigure (verifying backupkeys - {checkBackupKeys}) : {WellKnownRegistries.AutoLogonPassword} Key value is not correct. Expected - {expectedValue} Actual - {autologonPwdValue}");
+        }
+
+        private async void SetupRegistrySettings(TestHostContext hc, string sid = null)
+        {
+            var regManager = hc.GetService<IWindowsRegistryManager>();
+
+            var userRegistryRootPath = string.IsNullOrEmpty(sid) 
+                                        ? RegistryConstants.CurrentUserRootPath : String.Format(RegistryConstants.DifferentUserRootPath, sid);
+            
+            //screen saver (user specific)
+            var screenSaverKeyPath = string.Format($@"{userRegistryRootPath}\{RegistryConstants.RegPaths.ScreenSaver}");
+            regManager.SetKeyValue(screenSaverKeyPath, RegistryConstants.KeyNames.ScreenSaver, "1");            
+
+            //autologon (machine wide)
+            var autoLogonKeyPath = string.Format($@"{RegistryConstants.LocalMachineRootPath}\{RegistryConstants.RegPaths.AutoLogon}");
+            regManager.SetKeyValue(autoLogonKeyPath, RegistryConstants.KeyNames.AutoLogon, "0");
+
+            //autologon password (delete key)            
+            regManager.SetKeyValue(autoLogonKeyPath, RegistryConstants.KeyNames.AutoLogonPassword , "xyz");
+        }
 
         private async void SetupTestEnv(TestHostContext hc)
         {
@@ -248,7 +338,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
         public void SetKeyValue(string path, string keyName, string keyValue)
         {
             var key = string.Concat(path, keyName);
-            _regStore.Add(key, keyValue);
+            if(_regStore.ContainsKey(key))
+            {
+                _regStore[key] = keyValue;
+            }
+            else
+            {
+                _regStore.Add(key, keyValue);
+            }
         }
 
         public bool RegsitryExists(string securityId)
