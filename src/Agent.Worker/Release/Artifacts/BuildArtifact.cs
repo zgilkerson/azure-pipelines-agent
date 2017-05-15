@@ -200,7 +200,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                     Task<int> workerProcessTask = null;
                     object _outputLock = new object();
                     List<string> workerOutput = new List<string>();
-                    bool isArtifactDownloadFailed = false;
 
                     ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
                     ArgUtil.NotNull(executionContext, nameof(executionContext));
@@ -245,10 +244,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                                                 executionContext.Output(stdout.Data);
                                             }
                                         }
-                                        if(stdout.Data.Contains("ERROR :"))
-                                        {
-                                            isArtifactDownloadFailed = true;
-                                        }
                                     };
 
                                     // Save STDERR from worker, worker will use STDERR on crash.
@@ -260,7 +255,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                                             {
                                                 executionContext.Error(stderr.Data);
                                             }
-                                            isArtifactDownloadFailed = true;
                                         }
                                     };
 
@@ -292,8 +286,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
                             try
                             {
-                                await workerProcessTask;
-                                if (isArtifactDownloadFailed == true)
+                                int returnValue= await workerProcessTask;
+                                if (returnValue >= 8)
                                 {
                                     throw new ArtifactDownloadException(StringUtil.Loc("RMRobocopyBasedArtifactDownloadFailed"));
                                 }
