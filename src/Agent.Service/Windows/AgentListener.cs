@@ -86,7 +86,7 @@ namespace AgentService
 
                 // throw exception during OnStop() will make SCM think the service crash and trigger recovery option.
                 // in this way we can self-update the service host.
-                if (_restart)
+                if (_currentExecutionMode == ExecutionMode.Service && _restart)
                 {
                     throw new Exception(Resource.CrashServiceHost);
                 }
@@ -272,6 +272,8 @@ namespace AgentService
 
         private Process CreateAgentListener()
         {
+            var pId = Process.GetCurrentProcess().Id;
+            
             string exeLocation = Assembly.GetEntryAssembly().Location;
             string agentExeLocation = Path.Combine(Path.GetDirectoryName(exeLocation), "Agent.Listener.exe");
             Process newProcess = new Process();

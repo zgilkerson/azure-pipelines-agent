@@ -118,10 +118,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     PrintUsage();
                     return Constants.Agent.ReturnCode.TerminatedError;
                 }
+                bool isInteractiveSessionConfigured = false;
 
+            #if OS_WINDOWS
+                var interactiveSessionManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
+                isInteractiveSessionConfigured = interactiveSessionManager.IsInteractiveSessionConfigured();
+            #endif
+
+                int hostProcessId = -1;
+                if(!runAsService && isInteractiveSessionConfigured)
+                {
+                    hostProcessId = command.GetParentProcessId();
+                }
                 // Run the agent interactively or as service
                 Trace.Verbose($"Run as service: '{runAsService}'");
-                return await RunAsync(TokenSource.Token, settings, runAsService);
+                return await RunAsync(TokenSource.Token, settings, runAsService, hostProcessId);
 
                 //}
 
@@ -173,7 +184,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         }
 
         //create worker manager, create message listener and start listening to the queue
-        private async Task<int> RunAsync(CancellationToken token, AgentSettings settings, bool runAsService)
+        private async Task<int> RunAsync(CancellationToken token, AgentSettings settings, bool runAsService, int hostProcessId = -1)
         {
             Trace.Info(nameof(RunAsync));
             _listener = HostContext.GetService<IMessageListener>();
@@ -256,7 +267,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                                     autoUpdateInProgress = true;
                                     var agentUpdateMessage = JsonUtility.FromString<AgentRefreshMessage>(message.Body);
                                     var selfUpdater = HostContext.GetService<ISelfUpdater>();
-                                    selfUpdateTask = selfUpdater.SelfUpdate(agentUpdateMessage, jobDispatcher, !runAsService, token);
+
+                                    var restartInteractiveProcess = !runAsService;
+
+                                #if OS_WINDOWS
+                                    //if Interactivesession is configured (i.e., auto-logon), we dont need to start the interactive process by ourself.
+                                    var interactiveSessionMgr = HostContext.GetService<IInteractiveSessionConfigurationManager>();
+                                    restartInteractiveProcess = restartInteractiveProcess && !interactiveSessionMgr.IsInteractiveSessionConfigured();
+                                #endif
+
+                                    Trace.Info($"Need to start the interactive process? - {restartInteractiveProcess}");
+                                    selfUpdateTask = selfUpdater.SelfUpdate(agentUpdateMessage, jobDispatcher, restartInteractiveProcess, token);
                                     Trace.Info("Refresh message received, kick-off selfupdate background process.");
                                 }
                                 else
