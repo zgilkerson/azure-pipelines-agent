@@ -21,7 +21,6 @@ namespace AgentService
         private Process _listenerProcess;
         private bool Stopping { get; set; }
         private bool _restart = false;
-        private const int CTRL_C_EVENT = 0;
 
         public AgentListener(ExecutionMode mode)
         {
@@ -49,6 +48,8 @@ namespace AgentService
                     {
                         CreateAndStartAgentListenerProcess();
                     }
+                    EventLogger.WriteInfo(String.Format("Agent.Listner.exe process Id - {0}", _listenerProcess.Id));
+                    
                     _listenerProcess.WaitForExit();
                     exitCode = HandleExitOfListenerProcess(_listenerProcess.ExitCode);
                     if (Stopping)
@@ -86,51 +87,19 @@ namespace AgentService
 
                 // throw exception during OnStop() will make SCM think the service crash and trigger recovery option.
                 // in this way we can self-update the service host.
+<<<<<<< HEAD
                 if (_currentExecutionMode == ExecutionMode.Service && _restart)
+=======
+                // in case of process mode, we are catching it and agentservice.exe is getting restarted
+                if (_restart)
+>>>>>>> users/dsinghal/iagentUnconfigure
                 {
                     throw new Exception(Resource.CrashServiceHost);
                 }
 
-                // TODO If agent service is killed make sure AgentListener also is killed
-                try
+                if(_listenerProcess != null)
                 {
-                    if (_listenerProcess != null && !_listenerProcess.HasExited)
-                    {
-                        // Try to let the agent process know that we are stopping
-                        //Attach service process to console of Agent.Listener process. This is needed,
-                        //because windows service doesn't use its own console.
-                        if (AttachConsole((uint)_listenerProcess.Id))
-                        {
-                            //Prevent main service process from stopping because of Ctrl + C event with SetConsoleCtrlHandler
-                            SetConsoleCtrlHandler(null, true);
-                            try
-                            {
-                                //Generate console event for current console with GenerateConsoleCtrlEvent (processGroupId should be zero)
-                                GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
-                                //Wait for the process to finish (give it up to 30 seconds)
-                                _listenerProcess.WaitForExit(30000);
-                            }
-                            finally
-                            {
-                                //Disconnect from console and restore Ctrl+C handling by main process
-                                FreeConsole();
-                                SetConsoleCtrlHandler(null, false);
-                            }
-                        }
-
-                        // if agent is still running, kill it
-                        if (!_listenerProcess.HasExited)
-                        {
-                            _listenerProcess.Kill();
-                        }
-                    }
-                }
-                catch (Exception exception)
-                {
-                    // InvalidOperationException is thrown when there is no process associated to the process object. 
-                    // There is no process to kill, Log the exception and shutdown the service. 
-                    // If we don't handle this here, the service get into a state where it can neither be stoped nor restarted (Error 1061)
-                    EventLogger.WriteException(exception);
+                    ProcessHelper.StopProcess(_listenerProcess.Id);
                 }
             }
         }
@@ -308,20 +277,5 @@ namespace AgentService
             Failed,
             SucceedNeedRestart,
         }
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool AttachConsole(uint dwProcessId);
-
-        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-        private static extern bool FreeConsole();
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool SetConsoleCtrlHandler(ConsoleCtrlDelegate HandlerRoutine, bool Add);
-
-        // Delegate type to be used as the Handler Routine for SetConsoleCtrlHandler
-        delegate Boolean ConsoleCtrlDelegate(uint CtrlType);
     }
 }

@@ -20,22 +20,23 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     {
         public void DeleteKey(RegistryScope scope, string path, string subKeyName)
         {
+            RegistryKey key = null;
             switch(scope)
             {
                 case RegistryScope.CurrentUser :
-                    var key = Registry.CurrentUser.OpenSubKey(path, true);
-                    if(key != null)
-                    {
-                        key.DeleteSubKey(subKeyName, false);
-                    }
+                    key = Registry.CurrentUser.OpenSubKey(path, true);                    
                     break;
                 case RegistryScope.LocalMachine:
-                    key = Registry.LocalMachine.OpenSubKey(path, true);
-                    if(key != null)
-                    {
-                        key.DeleteSubKey(subKeyName, false);
-                    }
+                    key = Registry.LocalMachine.OpenSubKey(path, true);                    
                     break;
+            }
+
+            if(key != null)
+            {
+                using(key)
+                {
+                    key.DeleteSubKey(subKeyName, false);
+                }
             }
         }
 
