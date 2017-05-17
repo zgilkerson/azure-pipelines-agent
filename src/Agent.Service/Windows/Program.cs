@@ -2,18 +2,27 @@
 using System.ServiceProcess;
 using System.Diagnostics;
 using System.ComponentModel;
+using System.Threading;
+using System.Reflection;
 
 namespace AgentService
 {
     static class Program
     {
+        static string[] _originalArgs;
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         static int Main(String[] args)
         {
-            if (args != null && args.Length == 1)
+            //keep it for restart purpose
+            _originalArgs = args;
+
+            if (args != null && args.Length >= 1)
             {
+                EventLogger.WriteInfo(String.Format("Received Command - {0}", args[0]));
+
                 if(args[0].Equals("init", StringComparison.InvariantCultureIgnoreCase))
                 {
                     return SetupEventSource();
@@ -21,9 +30,27 @@ namespace AgentService
 
                 if(args[0].Equals("runAsProcess", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    //Not attaching the Ctrl+C event handler on this process
                     LaunchAgentListener();
-                    //togo: log
+                    return 0;
+                }
+
+                if(args[0].Equals("stopagentlistener", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    Debugger.Launch();
+                    if(args.Length > 1 && !string.IsNullOrEmpty(args[1]))
+                    {
+                        int pId = -1;
+                        int.TryParse(args[1], out pId);
+                        EventLogger.WriteInfo(String.Format("Received stopagentlistener command to stop process with Id - {0}", pId));
+                        ProcessHelper.StopProcess(pId);
+                    }
+                    else
+                    {
+                        var ex = new Exception("Incorrect process id for AgentListener process");
+                        EventLogger.WriteException(ex);
+                        throw ex;
+                    }
+                    return 0;
                 }
             }
 
@@ -40,23 +67,38 @@ namespace AgentService
         public static void LaunchAgentListener()
         {
             AgentListener agentListener = null;
-            while(true)
+            int returnCode = -1;
+            while(returnCode != 0)
             {
                 try
                 {
                     agentListener = new AgentListener(ExecutionMode.Process);
-                    EventLogger.WriteInfo("Starting VSTS Agent Process");                
-                    agentListener.Run();
+                    EventLogger.WriteInfo("Starting VSTS Agent Process");
+                    returnCode = agentListener.Run();
+                    EventLogger.WriteInfo(string.Format("Agent.Listener.exe, return code - {0}", returnCode));
+                    //waiting for sometime before resuming the Agent.Listener.exe
+                    Thread.Sleep(5*1000);
                 }
                 catch(Exception ex)
                 {
                     EventLogger.WriteException(ex);
+                    
+                    //used in upgrade cases when the host itself needs to restart
+                    if(string.Equals(ex.Message, Resource.CrashServiceHost, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        EventLogger.WriteInfo("Need to restart the AgentService.exe");
+                        var newProcessId = SelfRestart();
+                        EventLogger.WriteInfo(string.Format("Started new AgentService.exe from the same location. id - {0}", newProcessId));
+                        break;
+                    }
+
                     if(agentListener != null)
                     {
                         agentListener.Stop();
                     }
                 }
             }
+            EventLogger.WriteInfo(string.Format("Stopping the AgentService.exe"));
         }
 
         public static int SetupEventSource()
@@ -86,6 +128,30 @@ namespace AgentService
                 Console.WriteLine("[ERROR] {0}",ex.Message);
                 Console.WriteLine("[ERROR] Error Code: {0}", ex.ErrorCode);
                 return 1;
+            }
+        }
+
+        public static int SelfRestart()
+        {
+            try
+            {
+                var filePath = Assembly.GetEntryAssembly().Location;
+                var arguments = "";            
+                if(_originalArgs != null && _originalArgs.Length > 0)
+                {
+                    foreach(var arg in _originalArgs)
+                    {
+                        arguments = string.Concat(arguments, " ", arg);
+                    }
+                }
+                ProcessStartInfo psi = new ProcessStartInfo(filePath, arguments);
+                Process newProcess = Process.Start(psi);
+                return newProcess.Id;
+            }
+            catch(Exception ex)
+            {
+                EventLogger.WriteException(ex);
+                throw;
             }
         }
     }

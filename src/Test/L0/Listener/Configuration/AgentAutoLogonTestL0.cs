@@ -22,7 +22,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
         private string _domainName = "avengers";
         private MockRegistryManager _mockRegManager;
         private bool _powerCfgCalledForACOption = false;
-        private bool _powerCfgCalledForDCOption = false;    
+        private bool _powerCfgCalledForDCOption = false;
+        private bool _stopListenerCalled = false;
 
         [Fact]
         [Trait("Level", "L0")]
@@ -92,14 +93,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 //make sure the backup was taken for the keys
                 RegistryVerificationForUnConfigure(hc, checkBackupKeys:true);
 
-                iConfigManager.UnConfigure();
+                iConfigManager.UnConfigure(-1);
 
                 //original values were reverted
                 RegistryVerificationForUnConfigure(hc);
+                Assert.True(_stopListenerCalled, "Stop listener was not called as part of unconfigure.");
             }
         }
 
-        private async void RegistryVerificationForUnConfigure(TestHostContext hc, string sid = null, bool checkBackupKeys=false)
+        private void RegistryVerificationForUnConfigure(TestHostContext hc, string sid = null, bool checkBackupKeys=false)
         {
             var regManager = hc.GetService<IWindowsRegistryManager>();
 
@@ -138,7 +140,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             Assert.True(validationPassed, $"UnConfigure (verifying backupkeys - {checkBackupKeys}) : {WellKnownRegistries.AutoLogonPassword} Key value is not correct. Expected - {expectedValue} Actual - {autologonPwdValue}");
         }
 
-        private async void SetupRegistrySettings(TestHostContext hc, string sid = null)
+        private void SetupRegistrySettings(TestHostContext hc, string sid = null)
         {
             var regManager = hc.GetService<IWindowsRegistryManager>();
 
@@ -157,9 +159,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             regManager.SetKeyValue(autoLogonKeyPath, RegistryConstants.KeyNames.AutoLogonPassword , "xyz");
         }
 
-        private async void SetupTestEnv(TestHostContext hc)
+        private void SetupTestEnv(TestHostContext hc)
         {
             _powerCfgCalledForACOption = _powerCfgCalledForDCOption = false;
+            _stopListenerCalled = false;
 
             _windowsServiceHelper = new Mock<INativeWindowsServiceHelper>();
             hc.SetSingleton<INativeWindowsServiceHelper>(_windowsServiceHelper.Object);
@@ -181,9 +184,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             _windowsServiceHelper.Setup(x => x.SetAutoLogonPassword(It.IsAny<string>()));
             _windowsServiceHelper.Setup(x => x.IsTheSameUserLoggedIn(It.IsAny<string>(), It.IsAny<string>())).Returns(true);             
             _windowsServiceHelper.Setup(x => x.GetSecurityIdForTheUser(It.IsAny<string>())).Returns(_sid);
-            
 
             _processInvoker = new Mock<IProcessInvoker>();
+            hc.EnqueueInstance<IProcessInvoker>(_processInvoker.Object);
             hc.EnqueueInstance<IProcessInvoker>(_processInvoker.Object);
             hc.EnqueueInstance<IProcessInvoker>(_processInvoker.Object);
             _processInvoker.Setup(x => x.ExecuteAsync(
@@ -199,6 +202,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                                                 "/Change monitor-timeout-dc 0", 
                                                 null,
                                                 It.IsAny<CancellationToken>())).Returns(Task.FromResult<int>(SetPowerCfgFlags(false)));
+
+            _processInvoker.Setup(x => x.ExecuteAsync(
+                                                It.IsAny<String>(),
+                                                It.IsAny<String>(),
+                                                "stopagentlistener -1",
+                                                null,
+                                                It.IsAny<CancellationToken>())).Returns(Task.FromResult<int>(CallStopListener()));
 
             _mockRegManager = new MockRegistryManager();
             hc.SetSingleton<IWindowsRegistryManager>(_mockRegManager);
@@ -225,7 +235,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             return 0;
         }
 
-        public async void VerifyTheRegistryChanges(string expectedUserName, string expectedDomainName, string userSid = null)
+        private int CallStopListener()
+        {
+            _stopListenerCalled = true;
+            return 0;
+        }
+
+        public void VerifyTheRegistryChanges(string expectedUserName, string expectedDomainName, string userSid = null)
         {
             ValidateRegistryValue(WellKnownRegistries.ScreenSaver, "0", userSid);
             ValidateRegistryValue(WellKnownRegistries.ScreenSaverDomainPolicy, "0", userSid);
@@ -248,7 +264,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             // var processPath = regManager.GetKeyValue(regPath, WellKnownRegistries.StartupProcess);
         }
 
-        public async void ValidateRegistryValue(WellKnownRegistries registry, string expectedValue, string userSid)
+        public void ValidateRegistryValue(WellKnownRegistries registry, string expectedValue, string userSid)
         {
             var regPath = GetRegistryKeyPath(registry, userSid);
             var regKey = RegistryConstants.GetActualKeyNameForWellKnownRegistry(registry);

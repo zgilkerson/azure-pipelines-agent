@@ -533,20 +533,30 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     Trace.Verbose("Interactive session was not configured on the agent. Returning.");
                     return;
                 }                
-
-                AssertAdminAccess();
-                var agentServiceProcess = Process.GetProcessesByName("agentservice");
-                if(agentServiceProcess.Length > 0)
-                {
-                    agentServiceProcess[0].Kill(); 
-                }
-                iConfigManager.UnConfigure();
+                var listenerProcessId = GetAgentListenerProcessId();                
+                iConfigManager.UnConfigure(listenerProcessId);
             }
             catch(Exception ex)
             {
                 Trace.Error(ex);
                 _term.WriteLine(StringUtil.Loc("AutoLogonUnConfigurationFailureMessage"));
             }
+        }
+
+        private int GetAgentListenerProcessId()
+        {
+            var processes = Process.GetProcessesByName("agent.listener");
+            var currentProcessId = Process.GetCurrentProcess().Id;
+            var executionPath = HostContext.GetDirectory(WellKnownDirectory.Bin);
+            foreach(var process in processes)
+            {                
+                if(process.Id != currentProcessId 
+                    && process.MainModule.FileName.StartsWith(executionPath, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    return process.Id;
+                }
+            }
+            return -1;
         }
         
         private ICredentialProvider GetCredentialProvider(CommandSettings command, string serverUrl)
@@ -577,8 +587,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Trace.Error("Needs Administrator privileges for configure agent as interactive process with autologon capability.");
             Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");            
             throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
-        }
-        
+        }        
         private async Task TestConnectAsync(string url, VssCredentials creds)
         {
             _term.WriteLine(StringUtil.Loc("ConnectingToServer"));

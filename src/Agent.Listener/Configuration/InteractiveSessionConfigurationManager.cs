@@ -12,7 +12,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
     public interface IInteractiveSessionConfigurationManager : IAgentService
     {
         void Configure(CommandSettings command);
-        void UnConfigure();
+        void UnConfigure(int listenerProcessId);
         bool RestartNeeded();
         bool IsInteractiveSessionConfigured();
     }
@@ -87,8 +87,40 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             return !IsCurrentUserSameAsAutoLogonUser();
         }
 
-        public void UnConfigure()
+        public void UnConfigure(int listenerProcessId)
         {
+            /* When AutoLogon is enabled on the agent, the processes are launched in following manner
+            AgentService.exe (in process mode) hosts (has handle of) Agent.Listener.exe
+            To stop the agent gracefully we need to sent 'Ctrl+C' to Agent.Listener.exe so that it can stop itself (through CtrlCEventHandler)
+            
+            Approach 1- Propogating Ctrl+C from one process to the other
+            If we implement the same CtrlC handler in AgentService.exe and let it know about the exit and then it can route Ctrl+C to Agent.listener.exe.
+            Agent unconfiguration happens through Agent.Listener.exe (called with remove flag), lets call it UnInstaller process
+            So UnInstaller process has to send Ctrl+C to AgentService.exe, to do so UnInstaller has to detach its own console
+            which is not possible as "Config.cmd remove" call is run through the console and user is shown couple of messages.
+            The similar issue occurs when AgentService.exe has to supply the Ctrl+C to Agent.Listener.exe
+
+            Approach 2- Invoke AgentService.exe seperately with a specific argument
+            We can invoke AgentService.exe with a specific argument and then it can send Ctrl+C to Agent.Lister.exe.
+            If Ctrl+C fires up Agent.Listener.exe exits itself with '0' exit code.  AgentService.exe which is hosting the Agent.Listener.exe
+            receives the exit code of the process and then it can stop itself based on the exit code.
+            
+            Given the limitaion of Approach 1, we are taking approach 2.
+             */
+            var agentServicePath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");
+            Trace.Info($"Stopping the agent listener. Process Id - {listenerProcessId}");
+
+            using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+            {
+                processInvoker.ExecuteAsync(
+                                workingDirectory: string.Empty,
+                                fileName: agentServicePath,
+                                arguments: string.Format("stopagentlistener {0}", listenerProcessId),
+                                environment: null,
+                                cancellationToken: CancellationToken.None);
+            }
+
+            Trace.Info("Reverting the registry settings now.");
             InteractiveSessionRegHelper regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>());
             regHelper.RevertBackOriginalRegistrySettings();
         }
@@ -149,7 +181,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             regHelper.FetchAutoLogonUserDetails(out string userName, out string domainName);
             if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(domainName))
             {
-                return false;
+                throw new InvalidOperationException("AutoLogon is not configured on the machine.");
             }
 
             var nativeWindowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
@@ -178,7 +210,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                                 fileName: "powercfg.exe",
                                 arguments: "/Change monitor-timeout-ac 0",
                                 environment: null,
-                                cancellationToken: CancellationToken.None).Wait();
+                                cancellationToken: CancellationToken.None);
             }
 
             using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
@@ -188,9 +220,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                             fileName: "powercfg.exe",
                             arguments: "/Change monitor-timeout-dc 0",
                             environment: null,
-                            cancellationToken: CancellationToken.None).Wait();
+                            cancellationToken: CancellationToken.None);
             }
-        }   
+        }
 
         //todo: move it to a utility class so that at other places it can be re-used
         private void GetAccountSegments(string account, out string domain, out string user)
