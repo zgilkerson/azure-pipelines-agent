@@ -31,7 +31,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
         private const string AllArtifacts = "*";
 
-        private bool UseRobocopy { get; set; }
+        private bool DisableRobocopy { get; set; }
 
         private bool SystemDebug { get; set; }
 
@@ -193,9 +193,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
                 var fileShareArtifact = new FileShareArtifact();
 
-                UseRobocopy = executionContext.Variables.GetBoolean(Constants.Variables.Release.UseRobocopy) ?? false;
+                DisableRobocopy = executionContext.Variables.GetBoolean(Constants.Variables.Release.DisableRobocopy) ?? false;
 
-                if (UseRobocopy == true)
+                if (DisableRobocopy == false)
                 {
                     Task<int> workerProcessTask = null;
                     object _outputLock = new object();
