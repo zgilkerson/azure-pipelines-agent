@@ -30,7 +30,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             _jobDispatcher = new Mock<IJobDispatcher>();
             _agentServer = new Mock<IAgentServer>();
             _term = new Mock<ITerminal>();
-            _proxy = new Mock<IProxyConfiguration>();            
             _proxy = new Mock<IVstsAgentWebProxy>();
         }
 
