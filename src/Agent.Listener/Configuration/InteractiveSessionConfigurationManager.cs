@@ -127,6 +127,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         public bool IsInteractiveSessionConfigured()
         {
+            //ToDo: Different user scenario
+            
             //find out the path for startup process if it is same as current agent location, yes it was configured
             var regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>(), null);
             var startupCommand = regHelper.GetStartupProcessCommand();
@@ -136,8 +138,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 return false;
             }
 
-            var expectedStartupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");
-            return startupCommand.StartsWith(expectedStartupProcessPath, StringComparison.CurrentCultureIgnoreCase);
+            var expectedStartupProcessDir = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin));
+            return Path.GetDirectoryName(startupCommand).Equals(expectedStartupProcessDir, StringComparison.CurrentCultureIgnoreCase);
         }
 
         private void UpdateRegistriesForInteractiveSession(InteractiveSessionRegHelper regHelper, string userName, string domainName, string logonPassword)

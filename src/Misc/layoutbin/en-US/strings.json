@@ -291,6 +291,7 @@
   "N": "N",
   "NameRequiredForTimelineRecord": "Name is required for this new timeline record.",
   "NeedAdminForAutologonCapability": "Needs Administrator privileges for configuring agent as interactive process alongwith autologon capability.",
+  "NeedAdminForAutologonRemoval": "Needs Administrator privileges to unconfigure an agent running with autologon capability.",
   "NeedAdminForConfigAgentWinService": "Needs Administrator privileges for configuring agent as windows service.",
   "NeedAdminForUnconfigWinServiceAgent": "Needs Administrator privileges for unconfiguring agent that running as windows service.",
   "NetworkServiceNotFound": "Cannot find network service account",
