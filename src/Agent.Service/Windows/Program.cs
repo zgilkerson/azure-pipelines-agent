@@ -82,16 +82,6 @@ namespace AgentService
                 catch(Exception ex)
                 {
                     EventLogger.WriteException(ex);
-                    
-                    //used in upgrade cases when the host itself needs to restart
-                    if(string.Equals(ex.Message, Resource.CrashServiceHost, StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        EventLogger.WriteInfo("Need to restart the AgentService.exe");
-                        var newProcessId = SelfRestart();
-                        EventLogger.WriteInfo(string.Format("Started new AgentService.exe from the same location. id - {0}", newProcessId));
-                        break;
-                    }
-
                     if(agentListener != null)
                     {
                         agentListener.Stop();
@@ -128,30 +118,6 @@ namespace AgentService
                 Console.WriteLine("[ERROR] {0}",ex.Message);
                 Console.WriteLine("[ERROR] Error Code: {0}", ex.ErrorCode);
                 return 1;
-            }
-        }
-
-        public static int SelfRestart()
-        {
-            try
-            {
-                var filePath = Assembly.GetEntryAssembly().Location;
-                var arguments = "";            
-                if(_originalArgs != null && _originalArgs.Length > 0)
-                {
-                    foreach(var arg in _originalArgs)
-                    {
-                        arguments = string.Concat(arguments, " ", arg);
-                    }
-                }
-                ProcessStartInfo psi = new ProcessStartInfo(filePath, arguments);
-                Process newProcess = Process.Start(psi);
-                return newProcess.Id;
-            }
-            catch(Exception ex)
-            {
-                EventLogger.WriteException(ex);
-                throw;
             }
         }
     }
