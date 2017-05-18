@@ -340,7 +340,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 var serviceControlManager = HostContext.GetService<IWindowsServiceControlManager>();
                 serviceControlManager.ConfigureService(agentSettings, command);
             }
-
             //This will be enabled with AutoLogon code changes are tested
             // else
             // {
@@ -386,12 +385,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 bool isConfigured = _store.IsConfigured();
                 bool hasCredentials = _store.HasCredentials();
 
+#if OS_WINDOWS
                 //This will be enabled with AutoLogon code changes are tested
                 // if(isConfigured && !_store.IsServiceConfigured())
                 // {
                 //     UnConfigureAutoLogonIfNeeded();
                 // }
-
+#endif
                 //delete agent from the server
                 currentAction = StringUtil.Loc("UnregisteringAgent");
                 _term.WriteLine(currentAction);                
@@ -470,6 +470,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
         }
 
+#if OS_WINDOWS
         private void ConfigureAutoLogonIfNeeded(CommandSettings command)
         {
             Trace.Info(nameof(ConfigureAutoLogonIfNeeded));
@@ -538,6 +539,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             var listenerProcessId = GetAgentListenerProcessId();                
             iConfigManager.UnConfigure(listenerProcessId);
         }
+#endif
 
         private int GetAgentListenerProcessId()
         {
