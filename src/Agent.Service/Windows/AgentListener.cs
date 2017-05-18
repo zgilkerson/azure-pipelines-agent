@@ -87,8 +87,9 @@ namespace AgentService
 
                 // throw exception during OnStop() will make SCM think the service crash and trigger recovery option.
                 // in this way we can self-update the service host.
-                // in case of process mode, we are catching it and agentservice.exe is getting restarted
-                if (_restart)
+                // in case of process mode, this is being taken care of by the upgrade script itself.
+                // ToDo: we should explroe doing 'net stop/start' from the upgrade script to avoid this here
+                if (_restart && _currentExecutionMode == ExecutionMode.Service)
                 {
                     throw new Exception(Resource.CrashServiceHost);
                 }
