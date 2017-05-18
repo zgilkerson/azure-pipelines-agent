@@ -340,11 +340,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 var serviceControlManager = HostContext.GetService<IWindowsServiceControlManager>();
                 serviceControlManager.ConfigureService(agentSettings, command);
             }
-            else
-            {
-                Trace.Info("Agent is going to run as process so 'InteractiveSession' capability will be set for the agent.");
-                ConfigureAutoLogonIfNeeded(command);
-            }
+
+            //This will be enabled with AutoLogon code changes are tested
+            // else
+            // {
+            //     Trace.Info("Agent is going to run as process so 'InteractiveSession' capability will be set for the agent.");
+            //     ConfigureAutoLogonIfNeeded(command);
+            // }
 
 #elif OS_LINUX || OS_OSX
             // generate service config script for OSX and Linux, GenerateScripts() will no-opt on windows.
@@ -384,10 +386,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 bool isConfigured = _store.IsConfigured();
                 bool hasCredentials = _store.HasCredentials();
 
-                if(isConfigured && !_store.IsServiceConfigured())
-                {
-                    UnConfigureAutoLogonIfNeeded();
-                }
+                //This will be enabled with AutoLogon code changes are tested
+                // if(isConfigured && !_store.IsServiceConfigured())
+                // {
+                //     UnConfigureAutoLogonIfNeeded();
+                // }
 
                 //delete agent from the server
                 currentAction = StringUtil.Loc("UnregisteringAgent");
@@ -525,22 +528,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private void UnConfigureAutoLogonIfNeeded()
         {
-            try
+            AssertAdminAccess(true);
+            var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
+            if(!iConfigManager.IsInteractiveSessionConfigured())
             {
-                var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
-                if(iConfigManager.IsInteractiveSessionConfigured())
-                {
-                    Trace.Verbose("Interactive session was not configured on the agent. Returning.");
-                    return;
-                }                
-                var listenerProcessId = GetAgentListenerProcessId();                
-                iConfigManager.UnConfigure(listenerProcessId);
-            }
-            catch(Exception ex)
-            {
-                Trace.Error(ex);
-                _term.WriteLine(StringUtil.Loc("AutoLogonUnConfigurationFailureMessage"));
-            }
+                Trace.Verbose("Interactive session was not configured on the agent. Returning.");
+                return;
+            }                
+            var listenerProcessId = GetAgentListenerProcessId();                
+            iConfigManager.UnConfigure(listenerProcessId);
         }
 
         private int GetAgentListenerProcessId()
@@ -551,7 +547,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             foreach(var process in processes)
             {                
                 if(process.Id != currentProcessId 
-                    && process.MainModule.FileName.Equals(executionPath, StringComparison.CurrentCultureIgnoreCase))
+                    && Path.GetDirectoryName(process.MainModule.FileName).Equals(executionPath, StringComparison.CurrentCultureIgnoreCase))
                 {
                     return process.Id;
                 }
@@ -576,17 +572,25 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             provider.EnsureCredential(HostContext, command, serverUrl);
             return provider;
         }
-        private void AssertAdminAccess()
+
+        private void AssertAdminAccess(bool unConfigure = false)
         {
             if (new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
             {
                 return;
             }
-            
-            _term.WriteError(StringUtil.Loc("NeedAdminForAutologonCapability"));
-            Trace.Error("Needs Administrator privileges for configure agent as interactive process with autologon capability.");
-            Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");            
-            throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
+
+            if(unConfigure)
+            {
+                Trace.Error("Needs Administrator privileges to unconfigure an agent running with autologon capability.");          
+                throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonRemoval"));                
+            }
+            else
+            {
+                Trace.Error("Needs Administrator privileges for configure agent as interactive process with autologon capability.");
+                Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");            
+                throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
+            }
         }        
         private async Task TestConnectAsync(string url, VssCredentials creds)
         {
