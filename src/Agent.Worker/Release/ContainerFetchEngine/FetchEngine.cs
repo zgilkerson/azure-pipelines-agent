@@ -57,7 +57,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
                 {
                     string localPath = ConvertToLocalPath(item);
 
-                    ExecutionLogger.Info(StringUtil.Loc("RMCopyingFile", item.Path, localPath));
+                    ExecutionLogger.Debug(StringUtil.Format("[File] {0} => {1}", item.Path, localPath));
 
                     _totalFiles++;
 
@@ -135,7 +135,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
 
             if (_downloadedFiles > 0)
             {
-                string message = StringUtil.Loc("RMDownloadProgressDetails", Math.Ceiling(_bytesDownloaded/(1024.0*1024.0)), Math.Floor(_bytesDownloaded/(1024.0*_elapsedDownloadTime.TotalSeconds)), _elapsedDownloadTime, ContainerFetchEngineOptions.ParallelDownloadLimit);
+                string message = StringUtil.Loc("RMDownloadProgressDetails", Math.Ceiling(_bytesDownloaded/(1024.0*1024.0)), Math.Floor(_bytesDownloaded/(1024.0*_elapsedDownloadTime.TotalSeconds)), _elapsedDownloadTime);
                 ExecutionLogger.Output(message);
             }
         }
@@ -242,7 +242,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
             {
                 lock (_lock)
                 {
-                    ExecutionLogger.Warning(StringUtil.Loc("RMDownloadAcquireSemaphore", downloadPath));
+                    ExecutionLogger.Debug(StringUtil.Format("Acquiring semaphore to download file {0}", downloadPath));
                 }
 
                 await downloadThrottle.WaitAsync().ConfigureAwait(false);
@@ -261,7 +261,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
 
                 lock (_lock)
                 {
-                    ExecutionLogger.Warning(StringUtil.Loc("RMDownloadStartDownloadOfFile", downloadPath));
+                    ExecutionLogger.Output(StringUtil.Loc("RMDownloadStartDownloadOfFile", downloadPath));
                 }
 
                 await GetFileAsync(ticketedItem, tmpDownloadPath, cancellationToken).ConfigureAwait(false);
@@ -301,7 +301,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
 
                     lock (_lock)
                     {
-                        ExecutionLogger.Info(StringUtil.Loc("RMDownloadFetchFileContents", tmpDownloadPath));
+                        ExecutionLogger.Debug(StringUtil.Format("Fetching contents of file {0}", tmpDownloadPath));
                     }
 
                     // Wait for GetFileAsync or the timeout to elapse.
@@ -314,13 +314,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
 
                     if (!getFileTask.IsCompleted)
                     {
-                        throw new TimeoutException(
-                            StringUtil.Loc("RMGetFileAsyncTimedOut", GetFileAsyncTimeoutMinutes));
+                        throw new TimeoutException(StringUtil.Loc("RMGetFileAsyncTimedOut", GetFileAsyncTimeoutMinutes));
                     }
 
                     lock (_lock)
                     {
-                        ExecutionLogger.Info(StringUtil.Loc("RMDownloadWriteFileToDisk", tmpDownloadPath));
+                        ExecutionLogger.Debug(StringUtil.Format("Writing contents of file {0} to disk", tmpDownloadPath));
                     }
 
                     using (Stream stream = await getFileTask.ConfigureAwait(false))
@@ -330,13 +329,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
 
                     lock (_lock)
                     {
-                        ExecutionLogger.Info(StringUtil.Loc("RMDownloadFinishWritingFileToDisk", tmpDownloadPath));
+                        ExecutionLogger.Debug(StringUtil.Format("Finished writing contents of file {0} to disk", tmpDownloadPath));
                     }
 
                     break;
                 }
                 catch (Exception exception)
                 {
+                    if (exception is AggregateException)
+                    {
+                        exception = ((AggregateException)exception).Flatten().InnerException;
+                    }
+
                     if (lastAttempt)
                     {
                         throw new Exception(StringUtil.Loc("RMErrorDownloadingContainerItem", tmpDownloadPath, exception));
@@ -344,11 +348,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerFetchEng
 
                     lock (_lock)
                     {
-                        ExecutionLogger.Warning(StringUtil.Loc("RMReAttemptingDownloadOfContainerItem", tmpDownloadPath, exception.Message));
+                        ExecutionLogger.Warning(StringUtil.Loc("RMReAttemptingDownloadOfContainerItem", tmpDownloadPath, exception));
                     }
                 }
 
-                // "Sleep" inbetween attempts. (Can't await inside a catch clause.)
+                // "Sleep" in between attempts. (Can't await inside a catch clause.)
                 await Task.Delay(timeBetweenRetries);
             }
         }

@@ -83,7 +83,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
                         path = path.Substring(normalizedRelativePath.Length);
                     }
 
-                    int? bufferSize = executionContext.Variables.Release_Download_BufferSize;
+                    int bufferSize = executionContext.Variables.Release_Download_BufferSize ?? DefaultBufferSize;
                     await fileSystemManager.WriteStreamToFile(stream.ZipStream, Path.Combine(localFolderPath, path), bufferSize, executionContext.CancellationToken);
 
                     streamsDownloaded++;
@@ -109,6 +109,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
                     .Where(entry => !entry.FullName.EndsWith("/", StringComparison.OrdinalIgnoreCase))
                     .Select(entry => new ZipEntryStream { FullName = entry.FullName, ZipStream = entry.Open() });
         }
+
+        private const int DefaultBufferSize = 8192;
     }
 
     internal class ZipEntryStream
