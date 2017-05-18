@@ -36,7 +36,6 @@ namespace AgentService
 
                 if(args[0].Equals("stopagentlistener", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    Debugger.Launch();
                     if(args.Length > 1 && !string.IsNullOrEmpty(args[1]))
                     {
                         int pId = -1;

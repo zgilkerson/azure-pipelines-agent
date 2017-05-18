@@ -1,5 +1,6 @@
 ﻿using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Util;
+using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -15,7 +16,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
     [ServiceLocator(Default = typeof(SelfUpdater))]
     public interface ISelfUpdater : IAgentService
     {
-        Task<bool> SelfUpdate(AgentRefreshMessage updateMessage, IJobDispatcher jobDispatcher, bool restartInteractiveAgent, bool isInteractiveSessionConfigured, CancellationToken token);
+        Task<bool> SelfUpdate(AgentRefreshMessage updateMessage, IJobDispatcher jobDispatcher, bool restartInteractiveAgent, CancellationToken token);
     }
 
     public class SelfUpdater : AgentService, ISelfUpdater
@@ -41,7 +42,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             _agentId = settings.AgentId;
         }
 
-        public async Task<bool> SelfUpdate(AgentRefreshMessage updateMessage, IJobDispatcher jobDispatcher, bool restartInteractiveAgent, bool isInteractiveSessionConfigured, CancellationToken token)
+        public async Task<bool> SelfUpdate(AgentRefreshMessage updateMessage, IJobDispatcher jobDispatcher, bool restartInteractiveAgent, CancellationToken token)
         {
             if (!await UpdateNeeded(updateMessage.TargetVersion, token))
             {
@@ -71,7 +72,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             // generate update script from template
             await UpdateAgentUpdateStateAsync(StringUtil.Loc("GenerateAndRunUpdateScript"));
 
-            string updateScript = GenerateUpdateScript(restartInteractiveAgent, isInteractiveSessionConfigured);
+            string updateScript = GenerateUpdateScript(restartInteractiveAgent);
             Trace.Info($"Generate update script into: {updateScript}");
 
             // kick off update script
@@ -360,19 +361,25 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             }
         }
 
-        private string GenerateUpdateScript(bool restartInteractiveAgent, bool isInteractiveSessionConfigured)
+        private string GenerateUpdateScript(bool restartInteractiveAgent)
         {
             int processId = Process.GetCurrentProcess().Id;
             string processName = $"Agent.Listener{IOUtil.ExeExtension}";
 
             string updateLog = Path.Combine(IOUtil.GetDiagPath(), $"SelfUpdate-{DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")}.log");
-            string agentRoot = IOUtil.GetRootPath();
-
+            string agentRoot = IOUtil.GetRootPath();            
+            
+            bool isInteractiveSessionConfigured = false;
 #if OS_WINDOWS
             string templateName = "update.cmd.template";
+            
+            var interactiveSessionMgr = HostContext.GetService<IInteractiveSessionConfigurationManager>();
+            isInteractiveSessionConfigured = interactiveSessionMgr.IsInteractiveSessionConfigured();
             if(isInteractiveSessionConfigured)
             {
-                processName = "AgentService.exe";
+                Trace.Info($"Interactive session is configured.");             
+                processName = $"AgentService{IOUtil.ExeExtension}";
+                processId = GetProcessIdOfAgentServiceProcess();
             }
 #else
             string templateName = "update.sh.template";
@@ -388,6 +395,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             template = template.Replace("_DOWNLOAD_AGENT_VERSION_", _targetPackage.Version);
             template = template.Replace("_UPDATE_LOG_", updateLog);
             template = template.Replace("_RESTART_INTERACTIVE_AGENT_", restartInteractiveAgent ? "1" : "0");
+            template = template.Replace("_IS_INTERACTIVE_SESSION_CONFIGURED_", isInteractiveSessionConfigured ? "1" : "0");
 
 #if OS_WINDOWS
             string scriptName = "_update.cmd";
@@ -404,9 +412,37 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             File.WriteAllText(updateScript, template);
             return updateScript;
         }
+        
+#if OS_WINDOWS
+        private int GetProcessIdOfAgentServiceProcess()
+        {
+            var expectedAgentServicePath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "AgentService.exe");
+            try
+            {                
+                var agentServiceProcesses = Process.GetProcessesByName("AgentService.exe");
+                foreach(var agentService in agentServiceProcesses)
+                {
+                    if(agentService.MainModule.FileName.Equals(expectedAgentServicePath, StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        Trace.Info($"Found AgentService.exe with path '{expectedAgentServicePath}'. Process Id - {agentService.Id}");
+                        return agentService.Id;
+                    }
+                }
+                Trace.Error($"Unable to find AgentService.exe with the path '{expectedAgentServicePath}'. Erroring out.");
+                throw new Exception(StringUtil.Loc("ProcessNotFound", "AgentService.exe"));
+            }
+            catch(Exception ex)
+            {
+                Trace.Error($"Exception thrown while looking for AgentService.exe with the path '{expectedAgentServicePath}'");
+                Trace.Error(ex);
+                throw;
+            }
+        }
+#endif
 
         private async Task UpdateAgentUpdateStateAsync(string currentState)
         {
+            
             _terminal.WriteLine(currentState);
 
             try

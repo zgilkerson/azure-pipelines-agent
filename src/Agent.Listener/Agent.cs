@@ -269,16 +269,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                                     var agentUpdateMessage = JsonUtility.FromString<AgentRefreshMessage>(message.Body);
                                     var selfUpdater = HostContext.GetService<ISelfUpdater>();
 
-                                    bool isInteractiveSessionConfigured = false;
-                                #if OS_WINDOWS
-                                    //if Interactivesession is configured (i.e., auto-logon), we need to start AgentService.exe instead of Agent.Listener.exe
-                                    var interactiveSessionMgr = HostContext.GetService<IInteractiveSessionConfigurationManager>();
-                                    isInteractiveSessionConfigured = interactiveSessionMgr.IsInteractiveSessionConfigured();
-                                    Trace.Info($"IsInteractiveSessionConfigured - {isInteractiveSessionConfigured}");
-                                #endif
-
-                                    Trace.Info($"Need to start the interactive process? - {restartInteractiveProcess}");
-                                    selfUpdateTask = selfUpdater.SelfUpdate(agentUpdateMessage, jobDispatcher, restartInteractiveProcess, token);
+                                    Trace.Info($"Need to start the interactive process? - {!runAsService}");
+                                    selfUpdateTask = selfUpdater.SelfUpdate(agentUpdateMessage, jobDispatcher, !runAsService, token);
                                     Trace.Info("Refresh message received, kick-off selfupdate background process.");
                                 }
                                 else
