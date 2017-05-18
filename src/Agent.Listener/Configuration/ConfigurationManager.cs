@@ -551,7 +551,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             foreach(var process in processes)
             {                
                 if(process.Id != currentProcessId 
-                    && process.MainModule.FileName.StartsWith(executionPath, StringComparison.CurrentCultureIgnoreCase))
+                    && process.MainModule.FileName.Equals(executionPath, StringComparison.CurrentCultureIgnoreCase))
                 {
                     return process.Id;
                 }

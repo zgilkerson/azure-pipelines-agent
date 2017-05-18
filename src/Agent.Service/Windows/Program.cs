@@ -9,16 +9,11 @@ namespace AgentService
 {
     static class Program
     {
-        static string[] _originalArgs;
-
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         static int Main(String[] args)
         {
-            //keep it for restart purpose
-            _originalArgs = args;
-
             if (args != null && args.Length >= 1)
             {
                 EventLogger.WriteInfo(String.Format("Received Command - {0}", args[0]));
@@ -36,7 +31,6 @@ namespace AgentService
 
                 if(args[0].Equals("stopagentlistener", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    Debugger.Launch();
                     if(args.Length > 1 && !string.IsNullOrEmpty(args[1]))
                     {
                         int pId = -1;
@@ -77,6 +71,8 @@ namespace AgentService
                     returnCode = agentListener.Run();
                     EventLogger.WriteInfo(string.Format("Agent.Listener.exe, return code - {0}", returnCode));
                     //waiting for sometime before resuming the Agent.Listener.exe
+                    //this is just to make sure if there is any background work on the server
+                    //and to not have listener process getting created very fast in case of some issue
                     Thread.Sleep(5*1000);
                 }
                 catch(Exception ex)
