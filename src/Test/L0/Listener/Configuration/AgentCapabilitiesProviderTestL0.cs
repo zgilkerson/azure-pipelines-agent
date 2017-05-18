@@ -38,6 +38,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             }
         }
 
+#if OS_WINDOWS
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Agent")]
@@ -66,6 +67,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 
                 Assert.True(iSessionCapability.Value.Equals("true", StringComparison.OrdinalIgnoreCase));
             }
-        }        
+        }
+#endif
     }
 }
