@@ -87,12 +87,7 @@ namespace AgentService
 
                 // throw exception during OnStop() will make SCM think the service crash and trigger recovery option.
                 // in this way we can self-update the service host.
-<<<<<<< HEAD
-                if (_currentExecutionMode == ExecutionMode.Service && _restart)
-=======
-                // in case of process mode, we are catching it and agentservice.exe is getting restarted
-                if (_restart)
->>>>>>> users/dsinghal/iagentUnconfigure
+                if ( _restart && _currentExecutionMode == ExecutionMode.Service)
                 {
                     throw new Exception(Resource.CrashServiceHost);
                 }

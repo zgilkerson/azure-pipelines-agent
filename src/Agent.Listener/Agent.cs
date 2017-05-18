@@ -118,6 +118,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     PrintUsage();
                     return Constants.Agent.ReturnCode.TerminatedError;
                 }
+
                 bool isInteractiveSessionConfigured = false;
 
             #if OS_WINDOWS
@@ -126,9 +127,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             #endif
 
                 int hostProcessId = -1;
-                if(!runAsService && isInteractiveSessionConfigured)
+                if(isInteractiveSessionConfigured)
                 {
-                    hostProcessId = command.GetParentProcessId();
+                    //find the AgentService.exe 
                 }
                 // Run the agent interactively or as service
                 Trace.Verbose($"Run as service: '{runAsService}'");
@@ -268,12 +269,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                                     var agentUpdateMessage = JsonUtility.FromString<AgentRefreshMessage>(message.Body);
                                     var selfUpdater = HostContext.GetService<ISelfUpdater>();
 
-                                    var restartInteractiveProcess = !runAsService;
-
+                                    bool isInteractiveSessionConfigured = false;
                                 #if OS_WINDOWS
-                                    //if Interactivesession is configured (i.e., auto-logon), we dont need to start the interactive process by ourself.
+                                    //if Interactivesession is configured (i.e., auto-logon), we need to start AgentService.exe instead of Agent.Listener.exe
                                     var interactiveSessionMgr = HostContext.GetService<IInteractiveSessionConfigurationManager>();
-                                    restartInteractiveProcess = restartInteractiveProcess && !interactiveSessionMgr.IsInteractiveSessionConfigured();
+                                    isInteractiveSessionConfigured = interactiveSessionMgr.IsInteractiveSessionConfigured();
+                                    Trace.Info($"IsInteractiveSessionConfigured - {isInteractiveSessionConfigured}");
                                 #endif
 
                                     Trace.Info($"Need to start the interactive process? - {restartInteractiveProcess}");

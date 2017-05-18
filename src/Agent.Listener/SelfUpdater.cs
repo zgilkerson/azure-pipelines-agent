@@ -15,7 +15,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
     [ServiceLocator(Default = typeof(SelfUpdater))]
     public interface ISelfUpdater : IAgentService
     {
-        Task<bool> SelfUpdate(AgentRefreshMessage updateMessage, IJobDispatcher jobDispatcher, bool restartInteractiveAgent, CancellationToken token);
+        Task<bool> SelfUpdate(AgentRefreshMessage updateMessage, IJobDispatcher jobDispatcher, bool restartInteractiveAgent, bool isInteractiveSessionConfigured, CancellationToken token);
     }
 
     public class SelfUpdater : AgentService, ISelfUpdater
@@ -41,7 +41,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             _agentId = settings.AgentId;
         }
 
-        public async Task<bool> SelfUpdate(AgentRefreshMessage updateMessage, IJobDispatcher jobDispatcher, bool restartInteractiveAgent, CancellationToken token)
+        public async Task<bool> SelfUpdate(AgentRefreshMessage updateMessage, IJobDispatcher jobDispatcher, bool restartInteractiveAgent, bool isInteractiveSessionConfigured, CancellationToken token)
         {
             if (!await UpdateNeeded(updateMessage.TargetVersion, token))
             {
@@ -71,7 +71,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             // generate update script from template
             await UpdateAgentUpdateStateAsync(StringUtil.Loc("GenerateAndRunUpdateScript"));
 
-            string updateScript = GenerateUpdateScript(restartInteractiveAgent);
+            string updateScript = GenerateUpdateScript(restartInteractiveAgent, isInteractiveSessionConfigured);
             Trace.Info($"Generate update script into: {updateScript}");
 
             // kick off update script
@@ -360,14 +360,20 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             }
         }
 
-        private string GenerateUpdateScript(bool restartInteractiveAgent)
+        private string GenerateUpdateScript(bool restartInteractiveAgent, bool isInteractiveSessionConfigured)
         {
             int processId = Process.GetCurrentProcess().Id;
+            string processName = $"Agent.Listener{IOUtil.ExeExtension}";
+
             string updateLog = Path.Combine(IOUtil.GetDiagPath(), $"SelfUpdate-{DateTime.UtcNow.ToString("yyyyMMdd-HHmmss")}.log");
             string agentRoot = IOUtil.GetRootPath();
 
 #if OS_WINDOWS
             string templateName = "update.cmd.template";
+            if(isInteractiveSessionConfigured)
+            {
+                processName = "AgentService.exe";
+            }
 #else
             string templateName = "update.sh.template";
 #endif
@@ -376,7 +382,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             string template = File.ReadAllText(templatePath);
 
             template = template.Replace("_PROCESS_ID_", processId.ToString());
-            template = template.Replace("_AGENT_PROCESS_NAME_", $"Agent.Listener{IOUtil.ExeExtension}");
+            template = template.Replace("_AGENT_PROCESS_NAME_", processName);
             template = template.Replace("_ROOT_FOLDER_", agentRoot);
             template = template.Replace("_EXIST_AGENT_VERSION_", Constants.Agent.Version);
             template = template.Replace("_DOWNLOAD_AGENT_VERSION_", _targetPackage.Version);

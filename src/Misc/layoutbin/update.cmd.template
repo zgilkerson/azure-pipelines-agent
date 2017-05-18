@@ -1,5 +1,7 @@
 @echo off
 
+if interactive session is configured, we need to wait for the AgentService.exe to exit
+
 rem agent will replace key words in the template and generate a batch script to run.
 rem Keywords: 
 rem  PROCESSID = pid
