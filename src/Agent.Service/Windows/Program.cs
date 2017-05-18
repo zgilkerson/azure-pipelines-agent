@@ -2,6 +2,8 @@
 using System.ServiceProcess;
 using System.Diagnostics;
 using System.ComponentModel;
+using System.Threading;
+using System.Reflection;
 
 namespace AgentService
 {
@@ -12,8 +14,10 @@ namespace AgentService
         /// </summary>
         static int Main(String[] args)
         {
-            if (args != null && args.Length == 1)
+            if (args != null && args.Length >= 1)
             {
+                EventLogger.WriteInfo(String.Format("Received Command - {0}", args[0]));
+
                 if(args[0].Equals("init", StringComparison.InvariantCultureIgnoreCase))
                 {
                     return SetupEventSource();
@@ -22,8 +26,25 @@ namespace AgentService
                 if(args[0].Equals("runAsProcess", StringComparison.InvariantCultureIgnoreCase))
                 {
                     LaunchAgentListener();
-                    //togo: log
-                    return -1;
+                    return 0;
+                }
+
+                if(args[0].Equals("stopagentlistener", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    if(args.Length > 1 && !string.IsNullOrEmpty(args[1]))
+                    {
+                        int pId = -1;
+                        int.TryParse(args[1], out pId);
+                        EventLogger.WriteInfo(String.Format("Received stopagentlistener command to stop process with Id - {0}", pId));
+                        ProcessHelper.StopProcess(pId);
+                    }
+                    else
+                    {
+                        var ex = new Exception("Incorrect process id for AgentListener process");
+                        EventLogger.WriteException(ex);
+                        throw ex;
+                    }
+                    return 0;
                 }
             }
 
@@ -40,13 +61,19 @@ namespace AgentService
         public static void LaunchAgentListener()
         {
             AgentListener agentListener = null;
-            while(true)
+            int returnCode = -1;
+            while(returnCode != 0)
             {
                 try
                 {
                     agentListener = new AgentListener(ExecutionMode.Process);
-                    EventLogger.WriteInfo("Starting VSTS Agent Process");                
-                    agentListener.Run();
+                    EventLogger.WriteInfo("Starting VSTS Agent Process");
+                    returnCode = agentListener.Run();
+                    EventLogger.WriteInfo(string.Format("Agent.Listener.exe, return code - {0}", returnCode));
+                    //waiting for sometime before resuming the Agent.Listener.exe
+                    //this is just to make sure if there is any background work on the server
+                    //and to not have listener process getting created very fast in case of some issue
+                    Thread.Sleep(5*1000);
                 }
                 catch(Exception ex)
                 {
@@ -57,6 +84,7 @@ namespace AgentService
                     }
                 }
             }
+            EventLogger.WriteInfo(string.Format("Stopping the AgentService.exe"));
         }
 
         public static int SetupEventSource()

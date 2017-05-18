@@ -1,36 +1,54 @@
 #if OS_WINDOWS
 using System;
+using System.Collections.Generic;
 using System.Security.Principal;
 using Microsoft.Win32;
+using Microsoft.VisualStudio.Services.Agent.Util;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 {
     [ServiceLocator(Default = typeof(WindowsRegistryManager))]
     public interface IWindowsRegistryManager : IAgentService
     {
-        string GetKeyValue(string path, string keyName);
-        void SetKeyValue(string path, string keyName, string keyValue);
-        void DeleteKey(string path, string keyName);
-
+        string GetKeyValue(string path, string subKeyName);
+        void SetKeyValue(string path, string subKeyName, string subKeyValue);
+        void DeleteKey(RegistryScope scope, string path, string subKeyName);
         bool RegsitryExists(string securityId);
     }
 
     public class WindowsRegistryManager : AgentService, IWindowsRegistryManager
     {
-        public void DeleteKey(string path, string keyName)
+        public void DeleteKey(RegistryScope scope, string path, string subKeyName)
         {
-            throw new NotImplementedException();
+            RegistryKey key = null;
+            switch(scope)
+            {
+                case RegistryScope.CurrentUser :
+                    key = Registry.CurrentUser.OpenSubKey(path, true);                    
+                    break;
+                case RegistryScope.LocalMachine:
+                    key = Registry.LocalMachine.OpenSubKey(path, true);                    
+                    break;
+            }
+
+            if(key != null)
+            {
+                using(key)
+                {
+                    key.DeleteSubKey(subKeyName, false);
+                }
+            }
         }
 
-        public string GetKeyValue(string path, string keyName)
+        public string GetKeyValue(string path, string subKeyName)
         {
-            var regValue = Registry.GetValue(path, keyName, null);
+            var regValue = Registry.GetValue(path, subKeyName, null);
             return regValue != null ? regValue.ToString() : null;
         }
 
-        public void SetKeyValue(string path, string keyName, string keyValue)
+        public void SetKeyValue(string path, string subKeyName, string subKeyValue)
         {
-            Registry.SetValue(path, keyName, keyValue, RegistryValueKind.String);
+            Registry.SetValue(path, subKeyName, subKeyValue, RegistryValueKind.String);
         }
 
         public bool RegsitryExists(string securityId)
@@ -39,15 +57,30 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         }
     }
 
-    public class WindowsRegistryHelper
+    public class InteractiveSessionRegHelper
     {
         private IWindowsRegistryManager _registryManager;
         private string _userSecurityId;
+        List<Tuple<WellKnownRegistries, string>> _stdRegistries;
 
-        public WindowsRegistryHelper(IWindowsRegistryManager regManager, string sid = null)
+        public InteractiveSessionRegHelper(IWindowsRegistryManager regManager, string sid = null)
         {
             _registryManager = regManager;
             _userSecurityId = sid;
+            InitializeStandardRegistrySettings();
+        }
+
+        private void InitializeStandardRegistrySettings()
+        {
+            _stdRegistries = new List<Tuple<WellKnownRegistries, string>>()
+            {
+                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.ScreenSaver, "0"),
+                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.ScreenSaverDomainPolicy, "0"),
+                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.ShutdownReason, "0"),
+                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.ShutdownReasonUI, "0"),
+                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.LegalNoticeCaption, ""),
+                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.LegalNoticeText, "")
+            };
         }
 
         public bool ValidateIfRegistryExistsForTheUser(string sid)
@@ -55,96 +88,243 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             return _registryManager.RegsitryExists(sid);
         }
 
-        public void SetRegistry(WellKnownRegistries targetRegistry, string keyValue)
+        public void UpdateStandardRegistrySettings()
         {
-            switch(targetRegistry)
+            foreach(var regSetting in _stdRegistries)
             {
-                //user specific registry settings
-                case WellKnownRegistries.ScreenSaver :
-                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(_userSecurityId));
-                    _registryManager.SetKeyValue(regPath, RegistryConstants.KeyNames.ScreenSaver, keyValue);
-                    break;
-                case WellKnownRegistries.ScreenSaverDomainPolicy:
-                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(_userSecurityId));
-                    _registryManager.SetKeyValue(regPath, RegistryConstants.KeyNames.ScreenSaver, keyValue);
-                    break;
-                case WellKnownRegistries.StartupProcess:
-                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(_userSecurityId));
-                    _registryManager.SetKeyValue(regPath, RegistryConstants.KeyNames.StartupProcess, keyValue);
-                    break;
-                //machine specific registry settings
-                case WellKnownRegistries.AutoLogon :
-                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogon, keyValue);
-                    break;
-                case WellKnownRegistries.AutoLogonUserName:
-                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogonUser, keyValue);
-                    break;
-                case WellKnownRegistries.AutoLogonDomainName :
-                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogonDomain, keyValue);
-                    break;
-                case WellKnownRegistries.ShutdownReason :
-                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, RegistryConstants.KeyNames.ShutdownReason, keyValue);
-                    break;
-                case WellKnownRegistries.ShutdownReasonUI :
-                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, RegistryConstants.KeyNames.ShutdownReasonUI, keyValue);
-                    break;
-                case WellKnownRegistries.LegalNoticeCaption :
-                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.LegalNotice, RegistryConstants.KeyNames.LegalNoticeCaption, keyValue);
-                    break;
-                case WellKnownRegistries.LegalNoticeText :
-                    _registryManager.SetKeyValue(RegistryConstants.RegPaths.LegalNotice, RegistryConstants.KeyNames.LegalNoticeText, keyValue);
-                    break;
+                SetRegistryKeyValue(regSetting.Item1, regSetting.Item2);
             }
         }
 
-        public string GetRegistry(WellKnownRegistries targetRegistry)
+        public void RevertBackOriginalRegistrySettings()
         {
+            foreach(var regSetting in _stdRegistries)
+            {
+                RevertBackOriginalRegistry(regSetting.Item1);
+            }
+
+            //auto-logon
+            RevertBackOriginalRegistry(WellKnownRegistries.AutoLogonUserName);
+            RevertBackOriginalRegistry(WellKnownRegistries.AutoLogonDomainName);
+            RevertBackOriginalRegistry(WellKnownRegistries.AutoLogonPassword);
+            RevertBackOriginalRegistry(WellKnownRegistries.AutoLogonCount);
+            RevertBackOriginalRegistry(WellKnownRegistries.AutoLogon);
+
+            //startup process
+            RevertBackOriginalRegistry(WellKnownRegistries.StartupProcess);
+        }
+
+        public void UpdateAutoLogonSettings(string userName, string domainName)
+        {
+            SetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName, userName);
+            SetRegistryKeyValue(WellKnownRegistries.AutoLogonDomainName, domainName);
+
+            //this call is to take the backup of the password key if already exists as we delete the key in the next step
+            SetRegistryKeyValue(WellKnownRegistries.AutoLogonPassword, "");
+            DeleteRegistry(WellKnownRegistries.AutoLogonPassword);
+
+            //this call is to take the backup of the password key if already exists as we delete the key in the next step
+            SetRegistryKeyValue(WellKnownRegistries.AutoLogonCount, "");
+            DeleteRegistry(WellKnownRegistries.AutoLogonCount);
+
+            SetRegistryKeyValue(WellKnownRegistries.AutoLogon, "1");
+        }
+
+        public string GetAutoLogonUserName()
+        {
+            var regValue = GetRegistryKeyValue(WellKnownRegistries.AutoLogon);
+            int.TryParse(regValue, out int autoLogonEnabled);
+
+            return autoLogonEnabled == 1
+                    ? GetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName)
+                    : null;
+        }
+
+        public void SetStartupProcessCommand(string startupCommand)
+        {            
+            SetRegistryKeyValue(WellKnownRegistries.StartupProcess, startupCommand);
+        }
+
+        public string GetStartupProcessCommand()
+        {            
+            return GetRegistryKeyValue(WellKnownRegistries.StartupProcess);
+        }
+
+        public List<string> GetInteractiveSessionRelatedWarningsIfAny()
+        {
+            var warningReasons = new List<string>();
+
+            //screen saver
+            var screenSaverValue = GetRegistryKeyValue(WellKnownRegistries.ScreenSaverDomainPolicy);
+            int.TryParse(screenSaverValue, out int isScreenSaverDomainPolicySet);
+            if(isScreenSaverDomainPolicySet == 1)
+            {
+                warningReasons.Add(StringUtil.Loc("UITestingWarning_ScreenSaver"));
+            }
+
+            //shutdown reason
+            var shutdownReasonValue = GetRegistryKeyValue(WellKnownRegistries.ShutdownReason);
+            int.TryParse(shutdownReasonValue, out int shutdownReasonOn);
+            if(shutdownReasonOn == 1)
+            {
+                warningReasons.Add(StringUtil.Loc("UITestingWarning_ShutdownReason"));
+            }
+
+            //legal caption/text
+            var legalNoticeCaption = GetRegistryKeyValue(WellKnownRegistries.LegalNoticeCaption);
+            var legalNoticeText =  GetRegistryKeyValue(WellKnownRegistries.LegalNoticeText);
+            if(!string.IsNullOrEmpty(legalNoticeCaption) || !string.IsNullOrEmpty(legalNoticeText))
+            {
+                warningReasons.Add(StringUtil.Loc("UITestingWarning_LegalNotice"));
+            }
+
+            //auto-logon
+            var autoLogonCountValue = GetRegistryKeyValue(WellKnownRegistries.AutoLogonCount);            
+            if(!string.IsNullOrEmpty(autoLogonCountValue))
+            {
+                warningReasons.Add(StringUtil.Loc("UITestingWarning_AutoLogonCount"));
+            }
+            
+            return warningReasons;
+        }
+
+        public void FetchAutoLogonUserDetails(out string userName, out string domainName)
+        {
+            userName = null;
+            domainName = null;
+
+            var regValue = GetRegistryKeyValue(WellKnownRegistries.AutoLogon);
+            int.TryParse(regValue, out int autoLogonEnabled);
+            if(autoLogonEnabled == 1)
+            {
+                userName = GetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName);
+                domainName = GetRegistryKeyValue(WellKnownRegistries.AutoLogonDomainName);
+            }
+        }
+
+        private void SetRegistryKeyValue(WellKnownRegistries targetRegistry, string keyValue)
+        {
+            TakeBackupIfNeeded(targetRegistry);
+            SetRegistryKeyInternal(targetRegistry, keyValue);
+        }
+
+        private string GetRegistryKeyValue(WellKnownRegistries targetRegistry)
+        {
+            var regPath = GetRegistryKeyPath(targetRegistry, _userSecurityId);
+            if(string.IsNullOrEmpty(regPath))
+            {
+                return null;
+            }
+            
+            var regKey = RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
+            return _registryManager.GetKeyValue(regPath, regKey);
+        }
+
+        private void DeleteRegistry(WellKnownRegistries targetRegistry, bool deleteBackupKey = false)
+        {
+            var regKeyName = deleteBackupKey 
+                                ? RegistryConstants.GetBackupKeyName(targetRegistry) 
+                                : RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
+
             switch(targetRegistry)
             {
                 //user specific registry settings
                 case WellKnownRegistries.ScreenSaver :
-                    var regPath = string.Format(RegistryConstants.RegPaths.ScreenSaver, GetUserRegistryRootPath(_userSecurityId));
-                    return _registryManager.GetKeyValue(regPath, RegistryConstants.KeyNames.ScreenSaver);
+                    _registryManager.DeleteKey(RegistryScope.CurrentUser, RegistryConstants.RegPaths.ScreenSaver, regKeyName);
+                    break;
                 case WellKnownRegistries.ScreenSaverDomainPolicy:
-                    regPath = string.Format(RegistryConstants.RegPaths.ScreenSaverDomainPolicy, GetUserRegistryRootPath(_userSecurityId));
-                    return _registryManager.GetKeyValue(regPath, RegistryConstants.KeyNames.ScreenSaver);
+                    _registryManager.DeleteKey(RegistryScope.CurrentUser, RegistryConstants.RegPaths.ScreenSaverDomainPolicy, regKeyName);
+                    break;
                 case WellKnownRegistries.StartupProcess:
-                    regPath = string.Format(RegistryConstants.RegPaths.StartupProcess, GetUserRegistryRootPath(_userSecurityId));
-                    return _registryManager.GetKeyValue(regPath, RegistryConstants.KeyNames.StartupProcess);
-                //machine specific registry settings
+                    _registryManager.DeleteKey(RegistryScope.CurrentUser, RegistryConstants.RegPaths.StartupProcess, regKeyName);
+                    break;
+
+                //machine specific registry settings         
                 case WellKnownRegistries.AutoLogon :
-                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogon);
                 case WellKnownRegistries.AutoLogonUserName:
-                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogonUser);
                 case WellKnownRegistries.AutoLogonDomainName :
-                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogonDomain);
+                case WellKnownRegistries.AutoLogonPassword:
+                case WellKnownRegistries.AutoLogonCount:
+                    _registryManager.DeleteKey(RegistryScope.LocalMachine, RegistryConstants.RegPaths.AutoLogon, regKeyName);
+                    break;
+
                 case WellKnownRegistries.ShutdownReason :
-                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, RegistryConstants.KeyNames.ShutdownReason);
                 case WellKnownRegistries.ShutdownReasonUI :
-                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, RegistryConstants.KeyNames.ShutdownReasonUI);
+                    _registryManager.DeleteKey(RegistryScope.LocalMachine, RegistryConstants.RegPaths.ShutdownReasonDomainPolicy, regKeyName);
+                    break;
                 case WellKnownRegistries.LegalNoticeCaption :
-                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.LegalNotice, RegistryConstants.KeyNames.LegalNoticeCaption);
                 case WellKnownRegistries.LegalNoticeText :
-                    return _registryManager.GetKeyValue(RegistryConstants.RegPaths.LegalNotice, RegistryConstants.KeyNames.LegalNoticeText);
+                    _registryManager.DeleteKey(RegistryScope.LocalMachine, RegistryConstants.RegPaths.LegalNotice, regKeyName);
+                    break;
+                default:
+                   throw new InvalidOperationException("Invalid registry key to delete");
+            }
+        }
+
+        private void RevertBackOriginalRegistry(WellKnownRegistries targetRegistry)
+        {
+            var regPath = GetRegistryKeyPath(targetRegistry, _userSecurityId);
+            RevertBackOriginalRegistryInternal(regPath, targetRegistry);
+        }
+
+        private string GetRegistryKeyPath(WellKnownRegistries targetRegistry, string userSid = null)
+        {
+            var userHivePath = GetUserRegistryRootPath(userSid);
+            switch(targetRegistry)
+            {
+                //user specific registry settings
+                case WellKnownRegistries.ScreenSaver :
+                    return string.Format($@"{userHivePath}\{RegistryConstants.RegPaths.ScreenSaver}");
+
+                case WellKnownRegistries.ScreenSaverDomainPolicy:
+                    return string.Format($@"{userHivePath}\{RegistryConstants.RegPaths.ScreenSaverDomainPolicy}");
+
+                case WellKnownRegistries.StartupProcess:
+                    return string.Format($@"{userHivePath}\{RegistryConstants.RegPaths.StartupProcess}");
+
+                //machine specific registry settings         
+                case WellKnownRegistries.AutoLogon :
+                case WellKnownRegistries.AutoLogonUserName:
+                case WellKnownRegistries.AutoLogonDomainName :
+                case WellKnownRegistries.AutoLogonPassword:
+                case WellKnownRegistries.AutoLogonCount:
+                    return string.Format($@"{RegistryConstants.LocalMachineRootPath}\{RegistryConstants.RegPaths.AutoLogon}");
+
+                case WellKnownRegistries.ShutdownReason :
+                case WellKnownRegistries.ShutdownReasonUI :
+                    return string.Format($@"{RegistryConstants.LocalMachineRootPath}\{RegistryConstants.RegPaths.ShutdownReasonDomainPolicy}");
+
+                case WellKnownRegistries.LegalNoticeCaption :
+                case WellKnownRegistries.LegalNoticeText :
+                    return string.Format($@"{RegistryConstants.LocalMachineRootPath}\{RegistryConstants.RegPaths.LegalNotice}");
                 default:
                    return null;
             }
         }
 
-        public void DeleteRegistry(WellKnownRegistries targetRegistry)
+        private void RevertBackOriginalRegistryInternal(string regPath, WellKnownRegistries targetRegistry)
         {
-            switch(targetRegistry)
-            {                
-                //machine specific registry settings
-                case WellKnownRegistries.AutoLogonCount :
-                     _registryManager.DeleteKey(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogonCount);
-                     break;
-                case WellKnownRegistries.AutoLogonPassword :
-                     _registryManager.DeleteKey(RegistryConstants.RegPaths.AutoLogon, RegistryConstants.KeyNames.AutoLogonPassword);
-                     break;                
-                default:
-                   throw new InvalidOperationException("Delete registry is called for a undocumented registry");
+            var originalKeyName = RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
+            var backupKeyName = RegistryConstants.GetBackupKeyName(targetRegistry);
+
+            var originalValue = _registryManager.GetKeyValue(regPath, backupKeyName);            
+            if(string.IsNullOrEmpty(originalValue))
+            {
+                DeleteRegistry(targetRegistry);
+                return;
             }
+
+            //revert back the original value
+            _registryManager.SetKeyValue(regPath, originalKeyName, originalValue);
+            //delete the backup key
+            DeleteRegistry(targetRegistry, true);
+        }
+        
+        private void SetRegistryKeyInternal(WellKnownRegistries targetRegistry, string keyValue)
+        {
+            var regPath = GetRegistryKeyPath(targetRegistry, _userSecurityId);
+            var regKeyName = RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
+            _registryManager.SetKeyValue(regPath, regKeyName, keyValue);
         }
 
         private string GetUserRegistryRootPath(string sid)
@@ -153,6 +333,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 RegistryConstants.CurrentUserRootPath :
                 String.Format(RegistryConstants.DifferentUserRootPath, sid);
         }
+
+        private void TakeBackupIfNeeded(WellKnownRegistries registry)
+        {
+            string origValue = GetRegistryKeyValue(registry);
+            if(!string.IsNullOrEmpty(origValue))
+            {
+                var regPath = GetRegistryKeyPath(registry, _userSecurityId);
+                var backupKeyName = RegistryConstants.GetBackupKeyName(registry);
+                _registryManager.SetKeyValue(regPath, backupKeyName, origValue);
+            }
+        }        
     }
     
     public enum WellKnownRegistries
@@ -171,35 +362,79 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         LegalNoticeText
     }
 
-    public struct RegistryConstants
+    public enum RegistryScope
+    {
+        CurrentUser,
+        LocalMachine
+    }
+
+    public class RegistryConstants
     {
         public const string CurrentUserRootPath = @"HKEY_CURRENT_USER";
+        public const string LocalMachineRootPath = @"HKEY_LOCAL_MACHINE";
         public const string DifferentUserRootPath = @"HKEY_USERS\{0}";
+        public const string BackupKeyPrefix = "VSTSAgentBackup_";
 
         public struct RegPaths
         {
-            public const string ScreenSaver = @"{0}\Control Panel\Desktop";
-            public const string ScreenSaverDomainPolicy = @"{0}\Software\Policies\Microsoft\Windows\Control Panel\Desktop";
-            public const string StartupProcess = @"{0}\SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-            public const string AutoLogon = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
-            public const string ShutdownReasonDomainPolicy = @"HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability";
-            public const string LegalNotice = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
+            public const string ScreenSaver = @"Control Panel\Desktop";
+            public const string ScreenSaverDomainPolicy = @"Software\Policies\Microsoft\Windows\Control Panel\Desktop";
+            public const string StartupProcess = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+            public const string AutoLogon = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
+            public const string ShutdownReasonDomainPolicy = @"SOFTWARE\Policies\Microsoft\Windows NT\Reliability";
+            public const string LegalNotice = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
         }
 
         public struct KeyNames
         {
+            public const string ScreenSaver = "ScreenSaveActive";
             public const string AutoLogon = "AutoAdminLogon";
-            public const string AutoLogonUser = "DefaultUserName";
-            public const string AutoLogonDomain = "DefaultDomainName";
+            public const string AutoLogonUserName = "DefaultUserName";
+            public const string AutoLogonDomainName = "DefaultDomainName";
             public const string AutoLogonCount = "AutoLogonCount";
             public const string AutoLogonPassword = "DefaultPassword";
-            //todo: refine the name
             public const string StartupProcess = "VSTSAgent";
-            public const string ScreenSaver = "ScreenSaveActive";
             public const string ShutdownReason = "ShutdownReasonOn";
             public const string ShutdownReasonUI = "ShutdownReasonUI";
             public const string LegalNoticeCaption = "legalnoticecaption";
             public const string LegalNoticeText = "legalnoticetext";
+        }
+
+        public static string GetActualKeyNameForWellKnownRegistry(WellKnownRegistries registry)
+        {
+            switch(registry)
+            {
+                case WellKnownRegistries.ScreenSaverDomainPolicy:
+                case WellKnownRegistries.ScreenSaver:
+                    return KeyNames.ScreenSaver;
+                case WellKnownRegistries.AutoLogon:
+                    return KeyNames.AutoLogon;
+                case WellKnownRegistries.AutoLogonUserName :
+                    return KeyNames.AutoLogonUserName;
+                case WellKnownRegistries.AutoLogonDomainName:
+                    return KeyNames.AutoLogonDomainName;
+                case WellKnownRegistries.AutoLogonCount:
+                    return KeyNames.AutoLogonCount;
+                case WellKnownRegistries.AutoLogonPassword:
+                    return KeyNames.AutoLogonPassword;
+                case WellKnownRegistries.StartupProcess:
+                    return KeyNames.StartupProcess;
+                case WellKnownRegistries.ShutdownReason:
+                    return KeyNames.ShutdownReason;
+                case WellKnownRegistries.ShutdownReasonUI:
+                    return KeyNames.ShutdownReasonUI;
+                case WellKnownRegistries.LegalNoticeCaption:
+                    return KeyNames.LegalNoticeCaption;
+                case WellKnownRegistries.LegalNoticeText:
+                    return KeyNames.LegalNoticeText;
+                default:
+                    return null;
+            }                
+        }
+
+        public static string GetBackupKeyName(WellKnownRegistries registry)
+        {
+            return string.Concat(RegistryConstants.BackupKeyPrefix, GetActualKeyNameForWellKnownRegistry(registry));
         }
     }
 }

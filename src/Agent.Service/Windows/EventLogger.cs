@@ -21,6 +21,5 @@ namespace AgentService
         {
             EventLog.WriteEntry(EventSourceName, eventText, entryType, 100);
         }
-
     }
 }

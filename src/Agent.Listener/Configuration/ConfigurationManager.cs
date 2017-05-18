@@ -381,11 +381,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 #endif
                 }
 
-                //delete agent from the server
-                currentAction = StringUtil.Loc("UnregisteringAgent");
-                _term.WriteLine(currentAction);
                 bool isConfigured = _store.IsConfigured();
                 bool hasCredentials = _store.HasCredentials();
+
+                if(isConfigured && !_store.IsServiceConfigured())
+                {
+                    UnConfigureAutoLogonIfNeeded();
+                }
+
+                //delete agent from the server
+                currentAction = StringUtil.Loc("UnregisteringAgent");
+                _term.WriteLine(currentAction);                
                 if (isConfigured && hasCredentials)
                 {
                     AgentSettings settings = _store.GetSettings();
@@ -424,7 +430,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 else
                 {
                     _term.WriteLine(StringUtil.Loc("MissingConfig"));
-                }
+                }               
 
                 //delete credential config files               
                 currentAction = StringUtil.Loc("DeletingCredentials");
@@ -439,7 +445,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 else
                 {
                     _term.WriteLine(StringUtil.Loc("Skipping") + currentAction);
-                }
+                }                
 
                 //delete settings config file                
                 currentAction = StringUtil.Loc("DeletingSettings");
@@ -474,7 +480,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
             try
             {
-                AssertAdminAccess(command);
+                AssertAdminAccess();
                 
                 var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
                 iConfigManager.Configure(command);
@@ -486,24 +492,71 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     var shallRestart = command.GetRestartPermission();
                     if(shallRestart)
                     {
-                        Trace.Info("Restarting the machine now");
+                        Trace.Info("Restarting the machine in 5 seconds");
                         _term.WriteLine(StringUtil.Loc("RestartIn5SecMessage"));
                         Process.Start("shutdown.exe", "-r -t 5");
                     }
+                    else
+                    {
+                        Trace.Info("No restart happened. As the interactive session is configured for a different user agent will not be launched");
+                    }
+                    return;
                 }
-                else
-                {
-                    var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");                    
-                    Trace.Info("Launching the agent process.");
-                    _term.WriteLine(StringUtil.Loc("AgentLaunch"));
-                    Process.Start(startupProcessPath, "runasprocess");
-                }
+
+                var startupProcessPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "agentservice.exe");
+                Trace.Info("Launching the agent process.");
+                _term.WriteLine(StringUtil.Loc("AgentLaunch"));
+                
+                var processInfo = new ProcessStartInfo();
+                processInfo.UseShellExecute = false;
+                processInfo.CreateNoWindow = true;
+                processInfo.FileName = startupProcessPath;
+                processInfo.Arguments = "runasprocess";                
+
+                var agentServiceProcess = Process.Start(processInfo);
+                Trace.Verbose($"Started the agentservice process. Id - {agentServiceProcess.Id}");
             }
             catch(Exception ex)
             {
                 Trace.Error(ex);
                 _term.WriteLine(StringUtil.Loc("AutoLogonConfigurationFailureMessage"));
             }
+        }
+
+        private void UnConfigureAutoLogonIfNeeded()
+        {
+            try
+            {
+                var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
+                if(iConfigManager.IsInteractiveSessionConfigured())
+                {
+                    Trace.Verbose("Interactive session was not configured on the agent. Returning.");
+                    return;
+                }                
+                var listenerProcessId = GetAgentListenerProcessId();                
+                iConfigManager.UnConfigure(listenerProcessId);
+            }
+            catch(Exception ex)
+            {
+                Trace.Error(ex);
+                _term.WriteLine(StringUtil.Loc("AutoLogonUnConfigurationFailureMessage"));
+            }
+        }
+
+        private int GetAgentListenerProcessId()
+        {
+            var processes = Process.GetProcessesByName("agent.listener");
+            var currentProcessId = Process.GetCurrentProcess().Id;
+            var executionPath = HostContext.GetDirectory(WellKnownDirectory.Bin);
+            foreach(var process in processes)
+            {                
+                if(process.Id != currentProcessId 
+                    && process.MainModule.FileName.Equals(executionPath, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    return process.Id;
+                }
+            }
+            return -1;
         }
         
         private ICredentialProvider GetCredentialProvider(CommandSettings command, string serverUrl)
@@ -523,19 +576,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             provider.EnsureCredential(HostContext, command, serverUrl);
             return provider;
         }
-
-        private void AssertAdminAccess(CommandSettings command)
+        private void AssertAdminAccess()
         {
             if (new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
             {
                 return;
             }
-
+            
+            _term.WriteError(StringUtil.Loc("NeedAdminForAutologonCapability"));
             Trace.Error("Needs Administrator privileges for configure agent as interactive process with autologon capability.");
             Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");            
             throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
-        }
-
+        }        
         private async Task TestConnectAsync(string url, VssCredentials creds)
         {
             _term.WriteLine(StringUtil.Loc("ConnectingToServer"));
