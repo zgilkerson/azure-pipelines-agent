@@ -119,21 +119,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     return Constants.Agent.ReturnCode.TerminatedError;
                 }
 
-                bool isInteractiveSessionConfigured = false;
-
-            #if OS_WINDOWS
-                var interactiveSessionManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
-                isInteractiveSessionConfigured = interactiveSessionManager.IsInteractiveSessionConfigured();
-            #endif
-
-                int hostProcessId = -1;
-                if(isInteractiveSessionConfigured)
-                {
-                    //find the AgentService.exe 
-                }
                 // Run the agent interactively or as service
                 Trace.Verbose($"Run as service: '{runAsService}'");
-                return await RunAsync(TokenSource.Token, settings, runAsService, hostProcessId);
+                return await RunAsync(TokenSource.Token, settings, runAsService);
 
                 //}
 
@@ -185,7 +173,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         }
 
         //create worker manager, create message listener and start listening to the queue
-        private async Task<int> RunAsync(CancellationToken token, AgentSettings settings, bool runAsService, int hostProcessId = -1)
+        private async Task<int> RunAsync(CancellationToken token, AgentSettings settings, bool runAsService)
         {
             Trace.Info(nameof(RunAsync));
             _listener = HostContext.GetService<IMessageListener>();
