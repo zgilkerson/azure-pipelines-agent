@@ -340,11 +340,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 var serviceControlManager = HostContext.GetService<IWindowsServiceControlManager>();
                 serviceControlManager.ConfigureService(agentSettings, command);
             }
-            else
-            {
-                Trace.Info("Agent is going to run as process so 'InteractiveSession' capability will be set for the agent.");
-                ConfigureAutoLogonIfNeeded(command);
-            }
+
+            //This will be enabled with AutoLogon code changes are tested
+            // else
+            // {
+            //     Trace.Info("Agent is going to run as process so 'InteractiveSession' capability will be set for the agent.");
+            //     ConfigureAutoLogonIfNeeded(command);
+            // }
 
 #elif OS_LINUX || OS_OSX
             // generate service config script for OSX and Linux, GenerateScripts() will no-opt on windows.
@@ -384,10 +386,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 bool isConfigured = _store.IsConfigured();
                 bool hasCredentials = _store.HasCredentials();
 
-                if(isConfigured && !_store.IsServiceConfigured())
-                {
-                    UnConfigureAutoLogonIfNeeded();
-                }
+                //This will be enabled with AutoLogon code changes are tested
+                // if(isConfigured && !_store.IsServiceConfigured())
+                // {
+                //     UnConfigureAutoLogonIfNeeded();
+                // }
 
                 //delete agent from the server
                 currentAction = StringUtil.Loc("UnregisteringAgent");
