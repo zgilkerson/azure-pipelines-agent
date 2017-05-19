@@ -34,7 +34,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
         {
             ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
             ArgUtil.NotNull(executionContext, nameof(executionContext));
-            ArgUtil.NotNullOrEmpty(downloadFolderPath, nameof(downloadFolderPath));
+            ArgUtil.NotNullOrEmpty(localFolderPath, nameof(localFolderPath));
 
             int buildId = Convert.ToInt32(artifactDefinition.Version, CultureInfo.InvariantCulture);
             if (buildId <= 0)
