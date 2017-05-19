@@ -32,6 +32,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
         public async Task DownloadAsync(IExecutionContext executionContext, ArtifactDefinition artifactDefinition, string localFolderPath)
         {
+            ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
+            ArgUtil.NotNull(executionContext, nameof(executionContext));
+            ArgUtil.NotNullOrEmpty(downloadFolderPath, nameof(downloadFolderPath));
+
             int buildId = Convert.ToInt32(artifactDefinition.Version, CultureInfo.InvariantCulture);
             if (buildId <= 0)
             {
