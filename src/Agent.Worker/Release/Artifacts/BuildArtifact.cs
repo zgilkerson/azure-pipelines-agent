@@ -16,7 +16,6 @@ using Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerProvider.Hel
 using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.ReleaseManagement.WebApi.Contracts;
-using Microsoft.VisualStudio.Services.Agent.Worker.Handlers;
 
 using Newtonsoft.Json;
 
@@ -162,9 +161,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 || string.Equals(buildArtifact.Resource.Type, WellKnownArtifactResourceTypes.FilePath, StringComparison.OrdinalIgnoreCase))
             {
                 executionContext.Output("Artifact Type: FileShare");
-                //#if !OS_WINDOWS
+#if !OS_WINDOWS
                 throw new NotSupportedException(StringUtil.Loc("RMFileShareArtifactErrorOnNonWindowsAgent"));
-                //#else
+#else
                 string fileShare;
                 if (buildArtifact.Id == 0)
                 {
@@ -202,7 +201,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 {
                     await fileShareArtifact.DownloadArtifactAsync(executionContext, HostContext, artifactDefinition, fileShare, downloadFolderPath);
                 }
-                //#endif
+#endif
             }
             else if (buildArtifactDetails != null
                      && string.Equals(buildArtifact.Resource.Type, WellKnownArtifactResourceTypes.Container, StringComparison.OrdinalIgnoreCase))
@@ -252,7 +251,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             ArgUtil.NotNullOrEmpty(downloadFolderPath, nameof(downloadFolderPath));
 
             object _outputLock = new object();
-            List<string> workerOutput = new List<string>();
 
             int? RobocopyMT = executionContext.Variables.GetInt(Constants.Variables.Release.RobocopyMT);
             bool verbose = executionContext.Variables.GetBoolean(Constants.Variables.System.Debug) ?? false;
