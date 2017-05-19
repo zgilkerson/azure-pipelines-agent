@@ -36,10 +36,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
         public async Task DownloadAsync(IExecutionContext executionContext, ArtifactDefinition artifactDefinition, string localFolderPath)
         {
-            ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
-            ArgUtil.NotNull(executionContext, nameof(executionContext));
-            ArgUtil.NotNullOrEmpty(localFolderPath, nameof(localFolderPath));
-
             int buildId = Convert.ToInt32(artifactDefinition.Version, CultureInfo.InvariantCulture);
             if (buildId <= 0)
             {
@@ -104,7 +100,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             var tfsUrl = context.Variables.Get(WellKnownDistributedTaskVariables.TFCollectionUrl);
 
             Guid projectId = context.Variables.System_TeamProjectId ?? Guid.Empty;
-            if(artifactDetails.ContainsKey("Project"))
+            if (artifactDetails.ContainsKey("Project"))
             {
                 Guid.TryParse(artifactDetails["Project"], out projectId);
             }
@@ -166,9 +162,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 || string.Equals(buildArtifact.Resource.Type, WellKnownArtifactResourceTypes.FilePath, StringComparison.OrdinalIgnoreCase))
             {
                 executionContext.Output("Artifact Type: FileShare");
-//#if !OS_WINDOWS
+                //#if !OS_WINDOWS
                 throw new NotSupportedException(StringUtil.Loc("RMFileShareArtifactErrorOnNonWindowsAgent"));
-//#else
+                //#else
                 string fileShare;
                 if (buildArtifact.Id == 0)
                 {
@@ -200,92 +196,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
                 if (DisableRobocopy == false)
                 {
-                    object _outputLock = new object();
-                    List<string> workerOutput = new List<string>();
-
-                    int? RobocopyMT = executionContext.Variables.GetInt(Constants.Variables.Release.RobocopyMT);
-                    bool verbose = executionContext.Variables.GetBoolean(Constants.Variables.System.Debug) ?? false;
-
-                    if (RobocopyMT != null)
-                    {
-                        if (RobocopyMT < 1)
-                        {
-                            RobocopyMT = 1;
-                        }
-                        else if (RobocopyMT > 128)
-                        {
-                            RobocopyMT = 128;
-                        }
-                    }
-
-                    executionContext.Output(StringUtil.Loc("RMDownloadingArtifactUsingRobocopy", fileShare, localFolderPath));
-                    using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
-                    {
-                        // Save STDOUT from worker, worker will use STDOUT report unhandle exception.
-                        processInvoker.OutputDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stdout)
-                        {
-                            if (!string.IsNullOrEmpty(stdout.Data))
-                            {
-                                lock (_outputLock)
-                                {
-                                    executionContext.Output(stdout.Data);
-                                }
-                            }
-                        };
-
-                            // Save STDERR from worker, worker will use STDERR on crash.
-                        processInvoker.ErrorDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stderr)
-                        {
-                            if (!string.IsNullOrEmpty(stderr.Data))
-                            {
-                                lock (_outputLock)
-                                {
-                                    executionContext.Error(stderr.Data);
-                                }
-                            }
-                        };
-
-                        var trimChars = new[] { '\\', '/' };
-                        var relativePath = artifactDefinition.Details.RelativePath;
- 
-                        fileShare = Path.Combine(fileShare.TrimEnd(trimChars), relativePath.Trim(trimChars));
-
-                        String robocopyArguments;
-                        if (verbose == true )
-                        {
-                            robocopyArguments = fileShare + " " + downloadFolderPath + " /E /Z";
-                        }
-                        else
-                        {
-                            robocopyArguments = fileShare + " " + downloadFolderPath + " /E /Z /NDL /NFL /NP";
-                        }
-
-                        if (RobocopyMT != null)
-                        {
-                            robocopyArguments = robocopyArguments + " /MT:" + RobocopyMT;
-                        }
-
-                        int exitCode = await processInvoker.ExecuteAsync(
-                                workingDirectory: "",
-                                fileName: "robocopy",
-                                arguments: robocopyArguments,
-                                environment: null,
-                                requireExitCodeZero: false,
-                                outputEncoding: null,
-                                killProcessOnCancel: true,
-                                cancellationToken: executionContext.CancellationToken);
-
-                        if (exitCode >= 8)
-                        {
-                            throw new ArtifactDownloadException(StringUtil.Loc("RMRobocopyBasedArtifactDownloadFailed", exitCode));
-                        }
-                    }
+                    await DownloadArtifactUsingRobocopy(executionContext, HostContext, artifactDefinition, fileShare, downloadFolderPath);
                 }
                 else
                 {
                     await fileShareArtifact.DownloadArtifactAsync(executionContext, HostContext, artifactDefinition, fileShare, downloadFolderPath);
                 }
-//#endif
+                //#endif
             }
             else if (buildArtifactDetails != null
                      && string.Equals(buildArtifact.Resource.Type, WellKnownArtifactResourceTypes.Container, StringComparison.OrdinalIgnoreCase))
@@ -326,6 +243,89 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             else
             {
                 executionContext.Warning(StringUtil.Loc("RMArtifactTypeNotSupported", buildArtifact.Resource.Type));
+            }
+        }
+        public async Task DownloadArtifactUsingRobocopy(IExecutionContext executionContext, IHostContext hostContext, ArtifactDefinition artifactDefinition, string dropLocation, string downloadFolderPath)
+        {
+            ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
+            ArgUtil.NotNull(executionContext, nameof(executionContext));
+            ArgUtil.NotNullOrEmpty(downloadFolderPath, nameof(downloadFolderPath));
+
+            object _outputLock = new object();
+            List<string> workerOutput = new List<string>();
+
+            int? RobocopyMT = executionContext.Variables.GetInt(Constants.Variables.Release.RobocopyMT);
+            bool verbose = executionContext.Variables.GetBoolean(Constants.Variables.System.Debug) ?? false;
+
+            if (RobocopyMT != null)
+            {
+                if (RobocopyMT < 1)
+                {
+                    RobocopyMT = 1;
+                }
+                else if (RobocopyMT > 128)
+                {
+                    RobocopyMT = 128;
+                }
+            }
+
+            executionContext.Output(StringUtil.Loc("RMDownloadingArtifactUsingRobocopy", dropLocation, downloadFolderPath));
+            using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+            {
+                // Save STDOUT from worker, worker will use STDOUT report unhandle exception.
+                processInvoker.OutputDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stdout)
+                {
+                    if (!string.IsNullOrEmpty(stdout.Data))
+                    {
+                        lock (_outputLock)
+                        {
+                            executionContext.Output(stdout.Data);
+                        }
+                    }
+                };
+
+                // Save STDERR from worker, worker will use STDERR on crash.
+                processInvoker.ErrorDataReceived += delegate (object sender, ProcessDataReceivedEventArgs stderr)
+                {
+                    if (!string.IsNullOrEmpty(stderr.Data))
+                    {
+                        lock (_outputLock)
+                        {
+                            executionContext.Error(stderr.Data);
+                        }
+                    }
+                };
+
+                var trimChars = new[] { '\\', '/' };
+                var relativePath = artifactDefinition.Details.RelativePath;
+
+                dropLocation = Path.Combine(dropLocation.TrimEnd(trimChars), relativePath.Trim(trimChars));
+
+                String robocopyArguments = dropLocation + " " + downloadFolderPath + " /E /Z";
+                if (verbose != true)
+                {
+                    robocopyArguments = robocopyArguments + " /NDL /NFL /NP";
+                }
+
+                if (RobocopyMT != null)
+                {
+                    robocopyArguments = robocopyArguments + " /MT:" + RobocopyMT;
+                }
+
+                int exitCode = await processInvoker.ExecuteAsync(
+                        workingDirectory: "",
+                        fileName: "robocopy",
+                        arguments: robocopyArguments,
+                        environment: null,
+                        requireExitCodeZero: false,
+                        outputEncoding: null,
+                        killProcessOnCancel: true,
+                        cancellationToken: executionContext.CancellationToken);
+
+                if (exitCode >= 8)
+                {
+                    throw new ArtifactDownloadException(StringUtil.Loc("RMRobocopyBasedArtifactDownloadFailed", exitCode));
+                }
             }
         }
     }
