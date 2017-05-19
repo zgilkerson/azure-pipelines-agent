@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -30,8 +29,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
         public AgentArtifactType ArtifactType => AgentArtifactType.Build;
 
         private const string AllArtifacts = "*";
-
-
 
         public async Task DownloadAsync(IExecutionContext executionContext, ArtifactDefinition artifactDefinition, string localFolderPath)
         {
@@ -99,7 +96,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             var tfsUrl = context.Variables.Get(WellKnownDistributedTaskVariables.TFCollectionUrl);
 
             Guid projectId = context.Variables.System_TeamProjectId ?? Guid.Empty;
-            if (artifactDetails.ContainsKey("Project"))
+            if(artifactDetails.ContainsKey("Project"))
             {
                 Guid.TryParse(artifactDetails["Project"], out projectId);
             }
@@ -149,10 +146,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             ArtifactDefinition artifactDefinition,
             string localFolderPath)
         {
-            ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
-            ArgUtil.NotNull(executionContext, nameof(executionContext));
-            ArgUtil.NotNullOrEmpty(localFolderPath, nameof(localFolderPath));
-
             var downloadFolderPath = Path.Combine(localFolderPath, buildArtifact.Name);
             bool DisableRobocopy;
             var buildArtifactDetails = artifactDefinition.Details as BuildArtifactDetails;
@@ -251,7 +244,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             ArgUtil.NotNullOrEmpty(downloadFolderPath, nameof(downloadFolderPath));
 
             object _outputLock = new object();
-
             int? RobocopyMT = executionContext.Variables.GetInt(Constants.Variables.Release.RobocopyMT);
             bool verbose = executionContext.Variables.GetBoolean(Constants.Variables.System.Debug) ?? false;
 
