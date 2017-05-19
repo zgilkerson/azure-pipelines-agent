@@ -310,11 +310,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return GetArg(Constants.Agent.CommandLine.Args.NotificationSocketAddress);
         }
 
-        public string GetParentProcessId()
-        {
-            return GetArg(Constants.Agent.CommandLine.Args.ParentProcessId);
-        }
-
         //
         // Private helpers.
         //
