@@ -416,7 +416,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 #if OS_WINDOWS
         private int GetProcessIdOfAgentServiceProcess()
         {
-            var expectedAgentServicePath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "AgentService.exe");
+            var expectedAgentServicePath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Bin), "AgentService");
             try
             {                
                 var agentServiceProcesses = Process.GetProcessesByName("AgentService.exe");
