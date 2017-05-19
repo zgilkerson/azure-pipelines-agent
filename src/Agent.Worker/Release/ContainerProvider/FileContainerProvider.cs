@@ -95,7 +95,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.ContainerProvider
                 cancellationToken,
                 scopeIdentifier: ticketedItem.ScopeIdentifier);
 
-            this._executionContext.Debug(StringUtil.Format("Finished fetch file stream from filecontainer service", ticketedItem.Path));
+            this._executionContext.Debug(StringUtil.Format("Finished fetch file stream from filecontainer service for file {0}", ticketedItem.Path));
 
             return stream;
         }

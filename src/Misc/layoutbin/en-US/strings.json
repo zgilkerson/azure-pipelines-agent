@@ -346,8 +346,6 @@
   "RMDownloadArtifactUnexpectedError": "Unexpected error occurred while downloading artifacts",
   "RMDownloadBufferSize": "Download buffer size: {0}",
   "RMDownloadComplete": "Download complete.",
-  "RMDownloadFetchFileStreamFromContainerService": "Start fetch file stream from filecontainer service",
-  "RMDownloadFinishFetchFileStreamFromContainerService": "Finished fetch file stream from filecontainer service",  
   "RMDownloadingArtifactFromFileShare": "Downloading artifact from file share: {0} to target: {1}",
   "RMDownloadingArtifactFromFileContainer": "Downloading artifact from file container: {0} to target: {1}",
   "RMDownloadingJenkinsArtifacts": "Downloading the artifacts from Jenkins server",
