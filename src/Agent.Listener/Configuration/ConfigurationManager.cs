@@ -596,23 +596,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 Trace.Error("You will need to unconfigure the agent and then re-configure with Administrative rights");            
                 throw new SecurityException(StringUtil.Loc("NeedAdminForAutologonCapability"));
             }
-        }        
-        private async Task TestConnectAsync(string url, VssCredentials creds)
-        {
-            _term.WriteLine(StringUtil.Loc("ConnectingToServer"));
-            VssConnection connection = ApiUtil.CreateConnection(new Uri(url), creds);
-
-            _agentServer = HostContext.CreateService<IAgentServer>();
-            await _agentServer.ConnectAsync(connection);
-        }
-
-        private async Task<TaskAgent> GetAgent(string name, int poolId)
-        {
-            List<TaskAgent> agents = await _agentServer.GetAgentsAsync(poolId, name);
-            Trace.Verbose("Returns {0} agents", agents.Count);
-            TaskAgent agent = agents.FirstOrDefault();
-
-            return agent;
         }
 
         private TaskAgent UpdateExistingAgent(TaskAgent agent, RSAParameters publicKey, Dictionary<string, string> systemCapabilities)
