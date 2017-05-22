@@ -7,63 +7,13 @@ using Microsoft.VisualStudio.Services.Agent.Util;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 {
-    [ServiceLocator(Default = typeof(WindowsRegistryManager))]
-    public interface IWindowsRegistryManager : IAgentService
-    {
-        string GetKeyValue(string path, string subKeyName);
-        void SetKeyValue(string path, string subKeyName, string subKeyValue);
-        void DeleteKey(RegistryScope scope, string path, string subKeyName);
-        bool RegsitryExists(string securityId);
-    }
-
-    public class WindowsRegistryManager : AgentService, IWindowsRegistryManager
-    {
-        public void DeleteKey(RegistryScope scope, string path, string subKeyName)
-        {
-            RegistryKey key = null;
-            switch(scope)
-            {
-                case RegistryScope.CurrentUser :
-                    key = Registry.CurrentUser.OpenSubKey(path, true);                    
-                    break;
-                case RegistryScope.LocalMachine:
-                    key = Registry.LocalMachine.OpenSubKey(path, true);                    
-                    break;
-            }
-
-            if(key != null)
-            {
-                using(key)
-                {
-                    key.DeleteSubKey(subKeyName, false);
-                }
-            }
-        }
-
-        public string GetKeyValue(string path, string subKeyName)
-        {
-            var regValue = Registry.GetValue(path, subKeyName, null);
-            return regValue != null ? regValue.ToString() : null;
-        }
-
-        public void SetKeyValue(string path, string subKeyName, string subKeyValue)
-        {
-            Registry.SetValue(path, subKeyName, subKeyValue, RegistryValueKind.String);
-        }
-
-        public bool RegsitryExists(string securityId)
-        {
-            return Registry.Users.OpenSubKey(securityId) != null;
-        }
-    }
-
-    public class InteractiveSessionRegHelper
+    public class InteractiveSessionRegistryManager
     {
         private IWindowsRegistryManager _registryManager;
         private string _userSecurityId;
-        List<Tuple<WellKnownRegistries, string>> _stdRegistries;
+        List<KeyValuePair<WellKnownRegistries, string>> _standardRegistries;
 
-        public InteractiveSessionRegHelper(IWindowsRegistryManager regManager, string sid = null)
+        public InteractiveSessionRegistryManager(IWindowsRegistryManager regManager, string sid = null)
         {
             _registryManager = regManager;
             _userSecurityId = sid;
@@ -72,14 +22,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private void InitializeStandardRegistrySettings()
         {
-            _stdRegistries = new List<Tuple<WellKnownRegistries, string>>()
+            _standardRegistries = new List<KeyValuePair<WellKnownRegistries, string>>()
             {
-                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.ScreenSaver, "0"),
-                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.ScreenSaverDomainPolicy, "0"),
-                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.ShutdownReason, "0"),
-                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.ShutdownReasonUI, "0"),
-                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.LegalNoticeCaption, ""),
-                new Tuple<WellKnownRegistries, string>(WellKnownRegistries.LegalNoticeText, "")
+                new KeyValuePair<WellKnownRegistries, string>(WellKnownRegistries.ScreenSaver, "0"),
+                new KeyValuePair<WellKnownRegistries, string>(WellKnownRegistries.ScreenSaverDomainPolicy, "0"),
+                new KeyValuePair<WellKnownRegistries, string>(WellKnownRegistries.ShutdownReason, "0"),
+                new KeyValuePair<WellKnownRegistries, string>(WellKnownRegistries.ShutdownReasonUI, "0"),
+                new KeyValuePair<WellKnownRegistries, string>(WellKnownRegistries.LegalNoticeCaption, ""),
+                new KeyValuePair<WellKnownRegistries, string>(WellKnownRegistries.LegalNoticeText, "")
             };
         }
 
@@ -90,17 +40,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         public void UpdateStandardRegistrySettings()
         {
-            foreach(var regSetting in _stdRegistries)
+            foreach(var regSetting in _standardRegistries)
             {
-                SetRegistryKeyValue(regSetting.Item1, regSetting.Item2);
+                SetRegistryKeyValue(regSetting.Key, regSetting.Value);
             }
         }
 
         public void RevertBackOriginalRegistrySettings()
         {
-            foreach(var regSetting in _stdRegistries)
+            foreach(var regSetting in _standardRegistries)
             {
-                RevertBackOriginalRegistry(regSetting.Item1);
+                RevertBackOriginalRegistry(regSetting.Key);
             }
 
             //auto-logon
@@ -157,7 +107,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             //screen saver
             var screenSaverValue = GetRegistryKeyValue(WellKnownRegistries.ScreenSaverDomainPolicy);
             int.TryParse(screenSaverValue, out int isScreenSaverDomainPolicySet);
-            if(isScreenSaverDomainPolicySet == 1)
+            if (isScreenSaverDomainPolicySet == 1)
             {
                 warningReasons.Add(StringUtil.Loc("UITestingWarning_ScreenSaver"));
             }
@@ -165,7 +115,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             //shutdown reason
             var shutdownReasonValue = GetRegistryKeyValue(WellKnownRegistries.ShutdownReason);
             int.TryParse(shutdownReasonValue, out int shutdownReasonOn);
-            if(shutdownReasonOn == 1)
+            if (shutdownReasonOn == 1)
             {
                 warningReasons.Add(StringUtil.Loc("UITestingWarning_ShutdownReason"));
             }
@@ -173,14 +123,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             //legal caption/text
             var legalNoticeCaption = GetRegistryKeyValue(WellKnownRegistries.LegalNoticeCaption);
             var legalNoticeText =  GetRegistryKeyValue(WellKnownRegistries.LegalNoticeText);
-            if(!string.IsNullOrEmpty(legalNoticeCaption) || !string.IsNullOrEmpty(legalNoticeText))
+            if (!string.IsNullOrEmpty(legalNoticeCaption) || !string.IsNullOrEmpty(legalNoticeText))
             {
                 warningReasons.Add(StringUtil.Loc("UITestingWarning_LegalNotice"));
             }
 
             //auto-logon
             var autoLogonCountValue = GetRegistryKeyValue(WellKnownRegistries.AutoLogonCount);            
-            if(!string.IsNullOrEmpty(autoLogonCountValue))
+            if (!string.IsNullOrEmpty(autoLogonCountValue))
             {
                 warningReasons.Add(StringUtil.Loc("UITestingWarning_AutoLogonCount"));
             }
@@ -195,7 +145,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
             var regValue = GetRegistryKeyValue(WellKnownRegistries.AutoLogon);
             int.TryParse(regValue, out int autoLogonEnabled);
-            if(autoLogonEnabled == 1)
+            if (autoLogonEnabled == 1)
             {
                 userName = GetRegistryKeyValue(WellKnownRegistries.AutoLogonUserName);
                 domainName = GetRegistryKeyValue(WellKnownRegistries.AutoLogonDomainName);
@@ -211,7 +161,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         private string GetRegistryKeyValue(WellKnownRegistries targetRegistry)
         {
             var regPath = GetRegistryKeyPath(targetRegistry, _userSecurityId);
-            if(string.IsNullOrEmpty(regPath))
+            if (string.IsNullOrEmpty(regPath))
             {
                 return null;
             }
@@ -226,7 +176,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                                 ? RegistryConstants.GetBackupKeyName(targetRegistry) 
                                 : RegistryConstants.GetActualKeyNameForWellKnownRegistry(targetRegistry);
 
-            switch(targetRegistry)
+            switch (targetRegistry)
             {
                 //user specific registry settings
                 case WellKnownRegistries.ScreenSaver :
@@ -270,7 +220,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         private string GetRegistryKeyPath(WellKnownRegistries targetRegistry, string userSid = null)
         {
             var userHivePath = GetUserRegistryRootPath(userSid);
-            switch(targetRegistry)
+            switch (targetRegistry)
             {
                 //user specific registry settings
                 case WellKnownRegistries.ScreenSaver :
@@ -308,7 +258,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             var backupKeyName = RegistryConstants.GetBackupKeyName(targetRegistry);
 
             var originalValue = _registryManager.GetKeyValue(regPath, backupKeyName);            
-            if(string.IsNullOrEmpty(originalValue))
+            if (string.IsNullOrEmpty(originalValue))
             {
                 DeleteRegistry(targetRegistry);
                 return;
@@ -337,7 +287,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         private void TakeBackupIfNeeded(WellKnownRegistries registry)
         {
             string origValue = GetRegistryKeyValue(registry);
-            if(!string.IsNullOrEmpty(origValue))
+            if (!string.IsNullOrEmpty(origValue))
             {
                 var regPath = GetRegistryKeyPath(registry, _userSecurityId);
                 var backupKeyName = RegistryConstants.GetBackupKeyName(registry);

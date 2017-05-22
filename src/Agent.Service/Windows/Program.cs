@@ -2,23 +2,18 @@
 using System.ServiceProcess;
 using System.Diagnostics;
 using System.ComponentModel;
-using System.Threading;
 using System.Reflection;
+using System.Threading;
 
 namespace AgentService
 {
     static class Program
     {
-        static string[] _originalArgs;
-
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         static int Main(String[] args)
         {
-            //keep it for restart purpose
-            _originalArgs = args;
-
             if (args != null && args.Length >= 1)
             {
                 EventLogger.WriteInfo(String.Format("Received Command - {0}", args[0]));
@@ -76,7 +71,9 @@ namespace AgentService
                     returnCode = agentListener.Run();
                     EventLogger.WriteInfo(string.Format("Agent.Listener.exe, return code - {0}", returnCode));
                     //waiting for sometime before resuming the Agent.Listener.exe
-                    Thread.Sleep(5*1000);
+                    //this is just to make sure if there is any background work on the server
+                    //and to not have listener process getting created very fast in case of some issue
+                    Thread.Sleep(TimeSpan.FromSeconds(5));
                 }
                 catch(Exception ex)
                 {

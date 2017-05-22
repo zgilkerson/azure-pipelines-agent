@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualStudio.Services.Agent.Util;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -71,16 +72,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             {
                 processInvoker.OutputDataReceived += OnDataReceived;
                 processInvoker.ErrorDataReceived += OnDataReceived;
+                bool useNode5 = ExecutionContext.Variables.Agent_UseNode5 ?? false;
                 string node = Path.Combine(
                     IOUtil.GetExternalsPath(),
-                    "node",
+                    useNode5 ? "node-5.10.1" : "node",
                     "bin",
                     $"node{IOUtil.ExeExtension}");
 
-                // Format the arguments passed to node.
-                // 1) Wrap the script file path in double quotes.
-                // 2) Escape double quotes within the script file path. Double-quote is a valid
-                // file name character on Linux.
                 string arguments = StringUtil.Format(@"""{0}""", target.Replace(@"""", @"\"""));
 
 #if OS_WINDOWS
@@ -97,7 +95,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 await processInvoker.ExecuteAsync(
                     workingDirectory: workingDirectory,
                     fileName: node,
-                    arguments: arguments,
+                    arguments: string.Join(" ", arguments),
                     environment: Environment,
                     requireExitCodeZero: true,
                     outputEncoding: outputEncoding,

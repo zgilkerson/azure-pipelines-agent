@@ -43,7 +43,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             executionContext.Output(StringUtil.Loc("RMJenkinsBuildId", jenkinsDetails.BuildId));
 
             Stream downloadedStream = null;
-            using (HttpClientHandler handler = new HttpClientHandler())
+            using (HttpClientHandler handler = HostContext.CreateHttpClientHandler())
             {
                 handler.ServerCertificateCustomValidationCallback = (message, certificate, chain, sslPolicyErrors) =>
                 {
@@ -53,6 +53,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 using (HttpClient client = new HttpClient(handler))
                 {
                     SetupHttpClient(client, jenkinsDetails.AccountName, jenkinsDetails.AccountPassword);
+
+                    if (!IsValidBuild(client, jenkinsDetails))
+                    {
+                        throw new ArtifactDownloadException(StringUtil.Loc("RMJenkinsInvalidBuild", jenkinsDetails.BuildId));
+                    }
+
                     var downloadArtifactsUrl =
                         new Uri(
                             string.Format(
@@ -72,7 +78,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                     }
                     else if (response.StatusCode == HttpStatusCode.NotFound)
                     {
-                        throw new ArtifactDownloadException(StringUtil.Loc("RMNoArtifactsFound", jenkinsDetails.RelativePath));
+                        executionContext.Warning(StringUtil.Loc("RMJenkinsNoArtifactsFound", jenkinsDetails.BuildId));
+                        return;
                     }
                     else
                     {
@@ -83,7 +90,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
             var parentFolder = GetParentFolderName(jenkinsDetails.RelativePath);
             Trace.Info($"Found parentFolder {parentFolder} for relative path {jenkinsDetails.RelativePath}");
-            
+
             executionContext.Output(StringUtil.Loc("RMDownloadingJenkinsArtifacts"));
             var zipStreamDownloader = HostContext.GetService<IZipStreamDownloader>();
             await zipStreamDownloader.DownloadFromStream(
@@ -113,7 +120,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             var allFieldsPresents = artifactDetails.TryGetValue("RelativePath", out relativePath)
                                     && artifactDetails.TryGetValue("JobName", out jobName);
 
-            bool acceptUntrusted = jenkinsEndpoint.Data != null && 
+            bool acceptUntrusted = jenkinsEndpoint.Data != null &&
                                    jenkinsEndpoint.Data.ContainsKey("acceptUntrustedCerts") &&
                                    StringUtil.ConvertToBoolean(jenkinsEndpoint.Data["acceptUntrustedCerts"]);
 
@@ -134,6 +141,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             {
                 throw new InvalidOperationException(StringUtil.Loc("RMArtifactDetailsIncomplete"));
             }
+        }
+
+        private bool IsValidBuild(HttpClient client, JenkinsArtifactDetails jenkinsDetails)
+        {
+            var buildUrl =
+                new Uri(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0}/job/{1}/{2}",
+                        jenkinsDetails.Url,
+                        jenkinsDetails.JobName,
+                        jenkinsDetails.BuildId));
+
+            HttpResponseMessage response = client.GetAsync(buildUrl).Result;
+            return response.IsSuccessStatusCode;
         }
 
         private static void SetupHttpClient(HttpClient httpClient, string userName, string password)

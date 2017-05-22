@@ -94,15 +94,15 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string AddDeploymentGroupTags = "adddeploymentgrouptags";
                     public static readonly string AddMachineGroupTags = "addmachinegrouptags";
                     public static readonly string Commit = "commit";
+                    public static readonly string DeploymentGroup = "deploymentgroup";
+                    public static readonly string EnableAutoLogon = "enableautologon";
                     public static readonly string Help = "help";
+                    public static readonly string MachineGroup = "machinegroup";
                     public static readonly string Replace = "replace";
+                    public static readonly string RestartNow = "restartnow";
                     public static readonly string RunAsService = "runasservice";
                     public static readonly string Unattended = "unattended";
                     public static readonly string Version = "version";
-                    public static readonly string MachineGroup = "machinegroup";
-                    public static readonly string DeploymentGroup = "deploymentgroup";
-                    public static readonly string EnableAutoLogon = "enableautologon";
-                    public static readonly string RestartIfNeeded = "restartifneeded";
                 }
             }
 
@@ -227,6 +227,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string TempDirectory = "agent.TempDirectory";
                 public static readonly string ToolsDirectory = "agent.ToolsDirectory";
                 public static readonly string Version = "agent.version";
+                public static readonly string UseNode5 = "agent.usenode5";
                 public static readonly string WorkFolder = "agent.workfolder";
                 public static readonly string WorkingDirectory = "agent.WorkingDirectory";
             }
@@ -291,6 +292,8 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string ReleaseName = "release.releaseName";
                 public static readonly string ReleaseRequestedForId = "release.requestedForId";
                 public static readonly string ReleaseUri = "release.releaseUri";
+                public static readonly string ReleaseDownloadBufferSize = "release.artifact.download.buffersize";
+                public static readonly string ReleaseParallelDownloadLimit = "release.artifact.download.parallellimit";
                 public static readonly string ReleaseWebUrl = "release.releaseWebUrl";
                 public static readonly string RequestorId = "release.requestedFor";
                 public static readonly string SkipArtifactsDownload = "release.skipartifactsDownload";
