@@ -63,13 +63,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 _terminal.WriteLine(StringUtil.Loc("InvalidWindowsCredential"));
             }
 
-            bool isCurrentUserSameAsAutoLogonUser = windowsServiceHelper.IsTheSameUserLoggedIn(domainName, userName);                
-            var securityIdForTheUser = windowsServiceHelper.GetSecurityIdForTheUser(userName);
+            bool isCurrentUserSameAsAutoLogonUser = windowsServiceHelper.HasActiveSession(domainName, userName);                
+            var securityIdForTheUser = windowsServiceHelper.GetSecurityId(domainName, userName);
             var regManager = HostContext.GetService<IWindowsRegistryManager>();
             
-            InteractiveSessionRegHelper regHelper = isCurrentUserSameAsAutoLogonUser 
-                                                ? new InteractiveSessionRegHelper(regManager)
-                                                : new InteractiveSessionRegHelper(regManager, securityIdForTheUser);
+            InteractiveSessionRegistryManager regHelper = isCurrentUserSameAsAutoLogonUser 
+                                                ? new InteractiveSessionRegistryManager(regManager)
+                                                : new InteractiveSessionRegistryManager(regManager, securityIdForTheUser);
             
             if(!isCurrentUserSameAsAutoLogonUser && !regHelper.ValidateIfRegistryExistsForTheUser(securityIdForTheUser))
             {
@@ -121,7 +121,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
 
             Trace.Info("Reverting the registry settings now.");
-            InteractiveSessionRegHelper regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>());
+            InteractiveSessionRegistryManager regHelper = new InteractiveSessionRegistryManager(HostContext.GetService<IWindowsRegistryManager>());
             regHelper.RevertBackOriginalRegistrySettings();
         }
 
@@ -130,7 +130,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             //ToDo: Different user scenario
             
             //find out the path for startup process if it is same as current agent location, yes it was configured
-            var regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>(), null);
+            var regHelper = new InteractiveSessionRegistryManager(HostContext.GetService<IWindowsRegistryManager>(), null);
             var startupCommand = regHelper.GetStartupProcessCommand();
 
             if(string.IsNullOrEmpty(startupCommand))
@@ -142,7 +142,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             return Path.GetDirectoryName(startupCommand).Equals(expectedStartupProcessDir, StringComparison.CurrentCultureIgnoreCase);
         }
 
-        private void UpdateRegistriesForInteractiveSession(InteractiveSessionRegHelper regHelper, string userName, string domainName, string logonPassword)
+        private void UpdateRegistriesForInteractiveSession(InteractiveSessionRegistryManager regHelper, string userName, string domainName, string logonPassword)
         {
             regHelper.UpdateStandardRegistrySettings();
 
@@ -157,7 +157,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             regHelper.SetStartupProcessCommand(startupCommand);
         }
 
-        private void ConfigureAutoLogon(InteractiveSessionRegHelper regHelper, string userName, string domainName, string logonPassword)
+        private void ConfigureAutoLogon(InteractiveSessionRegistryManager regHelper, string userName, string domainName, string logonPassword)
         {
             //find out if the autologon was already enabled, show warning in that case
             ShowAutoLogonWarningIfAlreadyEnabled(regHelper, userName);
@@ -168,7 +168,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             regHelper.UpdateAutoLogonSettings(userName, domainName);
         }
 
-        private void ShowAutoLogonWarningIfAlreadyEnabled(InteractiveSessionRegHelper regHelper, string userName)
+        private void ShowAutoLogonWarningIfAlreadyEnabled(InteractiveSessionRegistryManager regHelper, string userName)
         {
             regHelper.FetchAutoLogonUserDetails(out string autoLogonUserName, out string domainName);
             if(autoLogonUserName != null && !userName.Equals(autoLogonUserName, StringComparison.CurrentCultureIgnoreCase))
@@ -179,7 +179,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private bool IsCurrentUserSameAsAutoLogonUser()
         {
-            var regHelper = new InteractiveSessionRegHelper(HostContext.GetService<IWindowsRegistryManager>());            
+            var regHelper = new InteractiveSessionRegistryManager(HostContext.GetService<IWindowsRegistryManager>());            
             regHelper.FetchAutoLogonUserDetails(out string userName, out string domainName);
             if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(domainName))
             {
@@ -187,10 +187,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
 
             var nativeWindowsHelper = HostContext.GetService<INativeWindowsServiceHelper>();
-            return nativeWindowsHelper.IsTheSameUserLoggedIn(domainName, userName);
+            return nativeWindowsHelper.HasActiveSession(domainName, userName);
         }
 
-        private void DisplayWarningsIfAny(InteractiveSessionRegHelper regHelper)
+        private void DisplayWarningsIfAny(InteractiveSessionRegistryManager regHelper)
         {
             var warningReasons = regHelper.GetInteractiveSessionRelatedWarningsIfAny();
             if(warningReasons.Count > 0)
@@ -205,24 +205,41 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private void ConfigurePowerOptions()
         {
-            using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+            var whichUtil = HostContext.GetService<IWhichUtil>();
+            var filePath = whichUtil.Which("powercfg.exe");
+            string[] commands = new string[] {"/Change monitor-timeout-ac 0", "/Change monitor-timeout-dc 0"};
+
+            foreach (var command in commands)
             {
-                processInvoker.ExecuteAsync(
+                try
+                {
+                    Trace.Info($"Running powercfg.exe with {command}");
+                    using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
+                    {
+                        processInvoker.OutputDataReceived += delegate (object sender, ProcessDataReceivedEventArgs message)
+                        {
+                            Trace.Verbose(message.Data);
+                        };
+
+                        processInvoker.ErrorDataReceived += delegate (object sender, ProcessDataReceivedEventArgs message)
+                        {
+                            Trace.Error(message.Data);
+                        };
+
+                        processInvoker.ExecuteAsync(
                                 workingDirectory: string.Empty,
-                                fileName: "powercfg.exe",
-                                arguments: "/Change monitor-timeout-ac 0",
+                                fileName: filePath,
+                                arguments: command,
                                 environment: null,
                                 cancellationToken: CancellationToken.None);
-            }
-
-            using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
-            {
-                processInvoker.ExecuteAsync(
-                            workingDirectory: string.Empty,
-                            fileName: "powercfg.exe",
-                            arguments: "/Change monitor-timeout-dc 0",
-                            environment: null,
-                            cancellationToken: CancellationToken.None);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    //we will not stop the configuration. just show the warning and continue
+                    _terminal.WriteLine(StringUtil.Loc("PowerOptionsConfigError"));
+                    Trace.Error(ex);
+                }
             }
         }
 

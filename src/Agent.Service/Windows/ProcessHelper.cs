@@ -13,12 +13,12 @@ namespace AgentService
             try
             {
                 Process targetProcess = Process.GetProcessById(processId);
-                if(targetProcess == null)
+                if (targetProcess == null)
                 {
                     throw new ArgumentException(String.Format("No process found with the given id - {0}", processId));
                 }
 
-                if(targetProcess.HasExited)
+                if (targetProcess.HasExited)
                 {
                     EventLogger.WriteInfo(String.Format("The target process (Id - {0}) is not running at present", processId));
                     return;

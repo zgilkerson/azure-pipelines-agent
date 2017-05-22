@@ -35,7 +35,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             Constants.Agent.CommandLine.Flags.Replace,
             Constants.Agent.CommandLine.Flags.RunAsService,
             Constants.Agent.CommandLine.Flags.Unattended,
-            Constants.Agent.CommandLine.Flags.Version
+            Constants.Agent.CommandLine.Flags.Version,
+            Constants.Agent.CommandLine.Flags.EnableAutoLogon
         };
 
         private readonly string[] validArgs =
@@ -168,13 +169,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return TestFlagOrPrompt(
                 name: Constants.Agent.CommandLine.Flags.EnableAutoLogon,
                 description: StringUtil.Loc("EnableAutoLogon"),
-                defaultValue: true);
+                defaultValue: false);
         }
 
-        public bool GetRestartPermission()
+        public bool GetRestartNow()
         {
             return TestFlagOrPrompt(
-                name: Constants.Agent.CommandLine.Flags.RestartIfNeeded,
+                name: Constants.Agent.CommandLine.Flags.RestartNow,
                 description: StringUtil.Loc("RestartNow"),
                 defaultValue: true);
         }

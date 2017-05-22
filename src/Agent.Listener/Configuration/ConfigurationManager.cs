@@ -2,17 +2,17 @@ using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Listener.Capabilities;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.Common;
+using Microsoft.VisualStudio.Services.OAuth;
+using Microsoft.VisualStudio.Services.WebApi;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Security.Cryptography;
-using Microsoft.VisualStudio.Services.WebApi;
-using Microsoft.VisualStudio.Services.OAuth;
-using System.Security.Principal;
-using System.Diagnostics;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 {
@@ -433,7 +433,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 else
                 {
                     _term.WriteLine(StringUtil.Loc("MissingConfig"));
-                }               
+                }
 
                 //delete credential config files               
                 currentAction = StringUtil.Loc("DeletingCredentials");
@@ -448,7 +448,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 else
                 {
                     _term.WriteLine(StringUtil.Loc("Skipping") + currentAction);
-                }                
+                }
 
                 //delete settings config file                
                 currentAction = StringUtil.Loc("DeletingSettings");
@@ -478,7 +478,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             bool enableAutoLogon = command.GetEnableAutoLogon();
             if(!enableAutoLogon)
             {
-                Trace.Info("AutoLogon will not be enabled as per user's input.");
                 return;
             }
 
@@ -493,12 +492,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 {
                     Trace.Info("AutoLogon is configured for a different user than the current user. Machine needs a restart.");
                     _term.WriteLine(StringUtil.Loc("RestartMessage"));
-                    var shallRestart = command.GetRestartPermission();
+                    var shallRestart = command.GetRestartNow();
                     if(shallRestart)
                     {
+                        var whichUtil = HostContext.GetService<IWhichUtil>();
+                        var shutdownExePath = whichUtil.Which("shutdown.exe");
+
                         Trace.Info("Restarting the machine in 5 seconds");
                         _term.WriteLine(StringUtil.Loc("RestartIn5SecMessage"));
-                        Process.Start("shutdown.exe", "-r -t 5");
+                        string msg = StringUtil.Loc("ShutdownMessage");                        
+                        Process.Start(shutdownExePath, $"-r -t 5 -c {msg}");
                     }
                     else
                     {
@@ -528,14 +531,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         }
 
         private void UnConfigureAutoLogonIfNeeded()
-        {
-            AssertAdminAccess(true);
+        {            
             var iConfigManager = HostContext.GetService<IInteractiveSessionConfigurationManager>();
-            if(!iConfigManager.IsInteractiveSessionConfigured())
+            if (!iConfigManager.IsInteractiveSessionConfigured())
             {
                 Trace.Verbose("Interactive session was not configured on the agent. Returning.");
                 return;
-            }                
+            }
+            AssertAdminAccess(true);      
             var listenerProcessId = GetAgentListenerProcessId();                
             iConfigManager.UnConfigure(listenerProcessId);
         }
@@ -543,12 +546,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private int GetAgentListenerProcessId()
         {
-            var processes = Process.GetProcessesByName("agent.listener");
+            Process[] processes = Process.GetProcessesByName("agent.listener");
             var currentProcessId = Process.GetCurrentProcess().Id;
             var executionPath = HostContext.GetDirectory(WellKnownDirectory.Bin);
-            foreach(var process in processes)
-            {                
-                if(process.Id != currentProcessId 
+            foreach (var process in processes)
+            {
+                if (process.Id != currentProcessId 
                     && Path.GetDirectoryName(process.MainModule.FileName).Equals(executionPath, StringComparison.CurrentCultureIgnoreCase))
                 {
                     return process.Id;

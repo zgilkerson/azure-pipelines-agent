@@ -1,13 +1,14 @@
 #if OS_WINDOWS
+using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
+using Microsoft.VisualStudio.Services.Agent.Listener;
+using Microsoft.VisualStudio.Services.Agent.Util;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Moq;
 using Xunit;
-using Microsoft.VisualStudio.Services.Agent.Listener.Configuration;
-using Microsoft.VisualStudio.Services.Agent.Listener;
 
 namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
 {
@@ -55,7 +56,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 SetupTestEnv(hc);
 
                 //override behavior
-                _windowsServiceHelper.Setup(x => x.IsTheSameUserLoggedIn(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
+                _windowsServiceHelper.Setup(x => x.HasActiveSession(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
 
                 var iConfigManager = new InteractiveSessionConfigurationManager();
                 iConfigManager.Initialize(hc);
@@ -170,6 +171,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
             _promptManager = new Mock<IPromptManager>();
             hc.SetSingleton<IPromptManager>(_promptManager.Object);
 
+            hc.SetSingleton<IWhichUtil>(new WhichUtil());
+
             _promptManager
                 .Setup(x => x.ReadValue(
                     Constants.Agent.CommandLine.Args.WindowsLogonAccount, // argName
@@ -182,8 +185,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
 
             _windowsServiceHelper.Setup(x => x.IsValidCredential(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(true);
             _windowsServiceHelper.Setup(x => x.SetAutoLogonPassword(It.IsAny<string>()));
-            _windowsServiceHelper.Setup(x => x.IsTheSameUserLoggedIn(It.IsAny<string>(), It.IsAny<string>())).Returns(true);             
-            _windowsServiceHelper.Setup(x => x.GetSecurityIdForTheUser(It.IsAny<string>())).Returns(_sid);
+            _windowsServiceHelper.Setup(x => x.HasActiveSession(It.IsAny<string>(), It.IsAny<string>())).Returns(true);             
+            _windowsServiceHelper.Setup(x => x.GetSecurityId(It.IsAny<string>(), It.IsAny<string>())).Returns(_sid);
 
             _processInvoker = new Mock<IProcessInvoker>();
             hc.EnqueueInstance<IProcessInvoker>(_processInvoker.Object);
