@@ -151,7 +151,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
             string localFolderPath)
         {
             var downloadFolderPath = Path.Combine(localFolderPath, buildArtifact.Name);
-            bool DisableRobocopy;
             var buildArtifactDetails = artifactDefinition.Details as BuildArtifactDetails;
 
             if ((buildArtifact.Resource.Type == null && buildArtifact.Id == 0) // bug on build API Bug 378900
@@ -188,9 +187,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
 
                 var fileShareArtifact = new FileShareArtifact();
 
-                DisableRobocopy = executionContext.Variables.GetBoolean(Constants.Variables.Release.DisableRobocopy) ?? false;
+                bool disableRobocopy = executionContext.Variables.GetBoolean(Constants.Variables.Release.DisableRobocopy) ?? false;
 
-                if (DisableRobocopy == false)
+                if (disableRobocopy == false)
                 {
                     await DownloadArtifactUsingRobocopy(executionContext, HostContext, artifactDefinition, fileShare, downloadFolderPath);
                 }
@@ -241,25 +240,22 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 executionContext.Warning(StringUtil.Loc("RMArtifactTypeNotSupported", buildArtifact.Resource.Type));
             }
         }
-        public async Task DownloadArtifactUsingRobocopy(IExecutionContext executionContext, IHostContext hostContext, ArtifactDefinition artifactDefinition, string dropLocation, string downloadFolderPath)
-        {
-            ArgUtil.NotNull(artifactDefinition, nameof(artifactDefinition));
-            ArgUtil.NotNull(executionContext, nameof(executionContext));
-            ArgUtil.NotNullOrEmpty(downloadFolderPath, nameof(downloadFolderPath));
 
-            object _outputLock = new object();
-            int? RobocopyMT = executionContext.Variables.GetInt(Constants.Variables.Release.RobocopyMT);
+        private async Task DownloadArtifactUsingRobocopy(IExecutionContext executionContext, IHostContext hostContext, ArtifactDefinition artifactDefinition, string dropLocation, string downloadFolderPath)
+        {
+            object outputLock = new object();
+            int? robocopyMT = executionContext.Variables.GetInt(Constants.Variables.Release.RobocopyMT);
             bool verbose = executionContext.Variables.GetBoolean(Constants.Variables.System.Debug) ?? false;
 
-            if (RobocopyMT != null)
+            if (robocopyMT != null)
             {
-                if (RobocopyMT < 1)
+                if (robocopyMT < 1)
                 {
-                    RobocopyMT = 1;
+                    robocopyMT = 1;
                 }
-                else if (RobocopyMT > 128)
+                else if (robocopyMT > 128)
                 {
-                    RobocopyMT = 128;
+                    robocopyMT = 128;
                 }
             }
 
@@ -271,7 +267,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 {
                     if (!string.IsNullOrEmpty(stdout.Data))
                     {
-                        lock (_outputLock)
+                        lock (outputLock)
                         {
                             executionContext.Output(stdout.Data);
                         }
@@ -283,7 +279,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 {
                     if (!string.IsNullOrEmpty(stderr.Data))
                     {
-                        lock (_outputLock)
+                        lock (outputLock)
                         {
                             executionContext.Error(stderr.Data);
                         }
@@ -301,9 +297,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                     robocopyArguments = robocopyArguments + " /NDL /NFL /NP";
                 }
 
-                if (RobocopyMT != null)
+                if (robocopyMT != null)
                 {
-                    robocopyArguments = robocopyArguments + " /MT:" + RobocopyMT;
+                    robocopyArguments = robocopyArguments + " /MT:" + robocopyMT;
                 }
 
                 int exitCode = await processInvoker.ExecuteAsync(
@@ -315,6 +311,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                         outputEncoding: null,
                         killProcessOnCancel: true,
                         cancellationToken: executionContext.CancellationToken);
+
+                executionContext.Output(StringUtil.Loc("RMRobocopyBasedArtifactDownloadExitCode", exitCode));
 
                 if (exitCode >= 8)
                 {
