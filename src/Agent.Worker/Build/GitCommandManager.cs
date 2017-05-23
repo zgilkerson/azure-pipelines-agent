@@ -69,8 +69,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
         // git config gc.auto 0
         Task<int> GitDisableAutoGC(IExecutionContext context, string repositoryPath);
 
-        // git lfs install
+        // git lfs version
+        Task<int> GitLFSVersion(IExecutionContext context, string repositoryPath);
+
+        // git lfs install --local
         Task<int> GitLFSInstall(IExecutionContext context, string repositoryPath);
+
+        // git lfs logs last
+        Task<int> GitLFSLogs(IExecutionContext context, string repositoryPath);
 
         // git version
         Task<Version> GitVersion(IExecutionContext context);
@@ -139,7 +145,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             Version recommendGitVersion = new Version(2, 9);
             if (!EnsureGitVersion(recommendGitVersion, throwOnNotMatch: false))
             {
-                context.Warning(StringUtil.Loc("UpgradeToLatestGit", recommendGitVersion, _version));
+                context.Output(StringUtil.Loc("UpgradeToLatestGit", recommendGitVersion, _version));
             }
 
             // Set the user agent.
@@ -349,11 +355,25 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             return await ExecuteGitCommandAsync(context, repositoryPath, "config", "gc.auto 0");
         }
 
-        // git lfs install
+        // git lfs version
+        public async Task<int> GitLFSVersion(IExecutionContext context, string repositoryPath)
+        {
+            context.Debug("Get git-lfs version.");
+            return await ExecuteGitCommandAsync(context, repositoryPath, "lfs", "version");
+        }
+
+        // git lfs install --local
         public async Task<int> GitLFSInstall(IExecutionContext context, string repositoryPath)
         {
             context.Debug("Ensure git-lfs installed.");
-            return await ExecuteGitCommandAsync(context, repositoryPath, "lfs", "install");
+            return await ExecuteGitCommandAsync(context, repositoryPath, "lfs", "install --local");
+        }
+
+        // git lfs logs last
+        public async Task<int> GitLFSLogs(IExecutionContext context, string repositoryPath)
+        {
+            context.Debug("Get git-lfs logs.");
+            return await ExecuteGitCommandAsync(context, repositoryPath, "lfs", "logs last");
         }
 
         // git version
@@ -363,7 +383,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             Version version = null;
             List<string> outputStrings = new List<string>();
             int exitCode = await ExecuteGitCommandAsync(context, IOUtil.GetWorkPath(HostContext), "version", null, outputStrings);
-            context.Debug($"git version output: {string.Join(Environment.NewLine, outputStrings)}");
+            context.Output($"{string.Join(Environment.NewLine, outputStrings)}");
             if (exitCode == 0)
             {
                 // remove any empty line.
@@ -403,21 +423,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 context.Output(message.Data);
             };
 
-            Dictionary<string, string> _gitEnv = new Dictionary<string, string>()
-            {
-                { "GIT_TERMINAL_PROMPT", "0" },
-            };
-
-            if (!string.IsNullOrEmpty(_gitHttpUserAgentEnv))
-            {
-                _gitEnv["GIT_HTTP_USER_AGENT"] = _gitHttpUserAgentEnv;
-            }
-
             return await processInvoker.ExecuteAsync(
                 workingDirectory: repoRoot,
                 fileName: _gitPath,
                 arguments: arg,
-                environment: _gitEnv,
+                environment: GetGitEnvironmentVariables(context),
                 requireExitCodeZero: false,
                 outputEncoding: s_encoding,
                 cancellationToken: cancellationToken);
@@ -451,21 +461,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 }
             };
 
-            Dictionary<string, string> _gitEnv = new Dictionary<string, string>()
-            {
-                { "GIT_TERMINAL_PROMPT", "0" },
-            };
-
-            if (!string.IsNullOrEmpty(_gitHttpUserAgentEnv))
-            {
-                _gitEnv["GIT_HTTP_USER_AGENT"] = _gitHttpUserAgentEnv;
-            }
-
             return await processInvoker.ExecuteAsync(
                 workingDirectory: repoRoot,
                 fileName: _gitPath,
                 arguments: arg,
-                environment: _gitEnv,
+                environment: GetGitEnvironmentVariables(context),
                 requireExitCodeZero: false,
                 outputEncoding: s_encoding,
                 cancellationToken: default(CancellationToken));
@@ -487,24 +487,37 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 context.Output(message.Data);
             };
 
-            Dictionary<string, string> _gitEnv = new Dictionary<string, string>()
+            return await processInvoker.ExecuteAsync(
+                workingDirectory: repoRoot,
+                fileName: _gitPath,
+                arguments: arg,
+                environment: GetGitEnvironmentVariables(context),
+                requireExitCodeZero: false,
+                outputEncoding: s_encoding,
+                cancellationToken: cancellationToken);
+        }
+
+        private IDictionary<string, string> GetGitEnvironmentVariables(IExecutionContext context)
+        {
+            Dictionary<string, string> gitEnv = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "GIT_TERMINAL_PROMPT", "0" },
             };
 
             if (!string.IsNullOrEmpty(_gitHttpUserAgentEnv))
             {
-                _gitEnv["GIT_HTTP_USER_AGENT"] = _gitHttpUserAgentEnv;
+                gitEnv["GIT_HTTP_USER_AGENT"] = _gitHttpUserAgentEnv;
             }
 
-            return await processInvoker.ExecuteAsync(
-                workingDirectory: repoRoot,
-                fileName: _gitPath,
-                arguments: arg,
-                environment: _gitEnv,
-                requireExitCodeZero: false,
-                outputEncoding: s_encoding,
-                cancellationToken: cancellationToken);
+            // Add the public variables.
+            foreach (KeyValuePair<string, string> pair in context.Variables.Public)
+            {
+                // Add the variable using the formatted name.
+                string formattedKey = (pair.Key ?? string.Empty).Replace('.', '_').Replace(' ', '_').ToUpperInvariant();
+                gitEnv[formattedKey] = pair.Value ?? string.Empty;
+            }
+
+            return gitEnv;
         }
     }
 }

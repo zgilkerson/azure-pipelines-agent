@@ -38,7 +38,7 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         public static class Agent
         {
-            public static readonly string Version = "2.116.0";
+            public static readonly string Version = "2.116.1";
 
 #if OS_LINUX
             public static readonly OSPlatform Platform = OSPlatform.Linux;
@@ -225,6 +225,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string TempDirectory = "agent.TempDirectory";
                 public static readonly string ToolsDirectory = "agent.ToolsDirectory";
                 public static readonly string Version = "agent.version";
+                public static readonly string UseNode5 = "agent.usenode5";
                 public static readonly string WorkFolder = "agent.workfolder";
                 public static readonly string WorkingDirectory = "agent.WorkingDirectory";
             }
@@ -290,6 +291,8 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string ReleaseName = "release.releaseName";
                 public static readonly string ReleaseRequestedForId = "release.requestedForId";
                 public static readonly string ReleaseUri = "release.releaseUri";
+                public static readonly string ReleaseDownloadBufferSize = "release.artifact.download.buffersize";
+                public static readonly string ReleaseParallelDownloadLimit = "release.artifact.download.parallellimit";
                 public static readonly string ReleaseWebUrl = "release.releaseWebUrl";
                 public static readonly string RequestorId = "release.requestedFor";
                 public static readonly string RobocopyMT = "release.robocopyMT";

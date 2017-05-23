@@ -62,6 +62,39 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
         }
     }
 
+    public sealed class BitbucketSourceProvider : GitSourceProvider
+    {
+        // TODO: Replace this with correct type lookup WellKnownRepositoryTypes.Bitbucket
+        public override string RepositoryType => "Bitbucket";
+
+        public override bool UseAuthHeaderCmdlineArg
+        {
+            get
+            {
+                // v2.9 git exist use auth header for Bitbucket repository.
+                ArgUtil.NotNull(_gitCommandManager, nameof(_gitCommandManager));
+                return _gitCommandManager.EnsureGitVersion(_minGitVersionSupportAuthHeader, throwOnNotMatch: false);
+            }
+        }
+
+        public override void RequirementCheck(IExecutionContext executionContext, ServiceEndpoint endpoint)
+        {
+            // no-opt for Bitbucket repo, there is no additional requirements.
+        }
+
+        public override string GenerateAuthHeader(string username, string password)
+        {
+            // Bitbucket use basic auth header with username:password in base64encoding. 
+            string authHeader = $"{username ?? string.Empty}:{password ?? string.Empty}";
+            string base64encodedAuthHeader = Convert.ToBase64String(Encoding.UTF8.GetBytes(authHeader));
+
+            // add base64 encoding auth header into secretMasker.
+            var secretMasker = HostContext.GetService<ISecretMasker>();
+            secretMasker.AddValue(base64encodedAuthHeader);
+            return $"basic {base64encodedAuthHeader}";
+        }
+    }
+
     public sealed class TfsGitSourceProvider : GitSourceProvider
     {
         public override string RepositoryType => WellKnownRepositoryTypes.TfsGit;
@@ -432,6 +465,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             }
 
             List<string> additionalFetchArgs = new List<string>();
+            List<string> additionalLfsFetchArgs = new List<string>();
             if (!_selfManageGitCreds)
             {
                 // v2.9 git support provide auth header as cmdline arg. 
@@ -470,13 +504,22 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                     executionContext.Debug($"Config proxy server '{executionContext.Variables.Agent_ProxyUrl}' for git fetch.");
                     ArgUtil.NotNullOrEmpty(_proxyUrlWithCredString, nameof(_proxyUrlWithCredString));
                     additionalFetchArgs.Add($"-c http.proxy=\"{_proxyUrlWithCredString}\"");
+                    additionalLfsFetchArgs.Add($"-c http.proxy=\"{_proxyUrlWithCredString}\"");
                 }
 
                 // Prepare gitlfs url for fetch and checkout
                 if (gitLfsSupport)
                 {
                     // Initialize git lfs by execute 'git lfs install'
-                    executionContext.Debug("Setup the global Git hooks for Git LFS.");
+                    executionContext.Debug("Detect git-lfs version");
+                    int exitCode_lfsVersion = await _gitCommandManager.GitLFSVersion(executionContext, targetPath);
+                    if (exitCode_lfsVersion != 0)
+                    {
+                        throw new InvalidOperationException($"Can't detect Git-lfs version, 'git lfs version' failed with exit code: {exitCode_lfsVersion}");
+                    }
+
+                    // Initialize git lfs by execute 'git lfs install'
+                    executionContext.Debug("Setup the local Git hooks for Git LFS.");
                     int exitCode_lfsInstall = await _gitCommandManager.GitLFSInstall(executionContext, targetPath);
                     if (exitCode_lfsInstall != 0)
                     {
@@ -543,10 +586,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             // since checkout will fetch lfs object 1 at a time, while git lfs fetch will fetch lfs object in parallel.
             if (gitLfsSupport)
             {
-                int exitCode_lfsFetch = await _gitCommandManager.GitLFSFetch(executionContext, targetPath, "origin", sourcesToBuild, string.Join(" ", additionalFetchArgs), cancellationToken);
+                int exitCode_lfsFetch = await _gitCommandManager.GitLFSFetch(executionContext, targetPath, "origin", sourcesToBuild, string.Join(" ", additionalLfsFetchArgs), cancellationToken);
                 if (exitCode_lfsFetch != 0)
                 {
-                    throw new InvalidOperationException($"Git fetch failed with exit code: {exitCode_lfsFetch}");
+                    // git lfs fetch failed, get lfs log, the log is critical for debug.
+                    int exitCode_lfsLogs = await _gitCommandManager.GitLFSLogs(executionContext, targetPath);
+                    throw new InvalidOperationException($"Git lfs fetch failed with exit code: {exitCode_lfsFetch}. Git lfs logs returned with exit code: {exitCode_lfsLogs}.");
                 }
             }
 
