@@ -105,6 +105,7 @@
   "FailedToReadFile": "Failed to read {0}. Error : {1}.",
   "FailedToReplaceAgent": "Failed to replace the agent.  Try again or ctrl-c to quit",
   "FailToRemoveGitConfig": "Unable to remove \"{0}\" from the git config. To remove the credential, execute \"git config --unset-all {0}\" from the repository root \"{1}\".",
+  "AssociateArtifactCommandNotSupported": "Associating server artifact is not supported in {0}."
   "FileContainerUploadFailed": "Unable to copy file to server StatusCode={0}: {1}. Source file path: {2}. Target server path: {3}",
   "FileDoesNotExist": "File '{0}' does not exist or is not accessible.",
   "FileNotFound": "File not found: '{0}'",
@@ -459,6 +460,7 @@
   "UpdateInProgress": "Agent update in progress, do not shutdown agent.",
   "UpgradeToLatestGit": "In order to get better Git experience, upgrade your Git to at least version '{0}', your current git version is '{1}'.",
   "UploadArtifact": "Upload Artifact",
+  "UploadArtifactCommandNotSupported": "Uploading artifact is not supported in {0}.",
   "UploadToFileContainer": "Upload '{0}' to file container: '{1}'",
   "UserName": "user name",
   "Variable0ContainsCyclicalReference": "Unable to expand variable '{0}'. A cyclical reference was detected.",
