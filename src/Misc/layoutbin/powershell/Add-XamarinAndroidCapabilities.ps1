@@ -4,7 +4,7 @@ $xamarinAndroidVersion = [Version]'0.0.0.0'
 
 # check VS2017 setup packages for latest Xamarin Android version
 $vs2017Instances = Get-VSSetupInstance -All | Select-VSSetupInstance -Require 'Xamarin.Android.Sdk'
-foreach ($vs2017Instance in vs2017Instances) {
+foreach ($vs2017Instance in $vs2017Instances) {
     $xa = $vs2017Instance.packages | Where { $_.id -match 'Xamarin.Android.Sdk' }
     if ($xa -and $xa.version) {
         $version = [Version]$xa.version
@@ -13,8 +13,8 @@ foreach ($vs2017Instance in vs2017Instances) {
         }
     }
 }
-if ($latestVersion -gt [Version]'0.0.0.0') {
-        Write-Capability -Name 'Xamarin.Android' -Value $latestVersion
+if ($xamarinAndroidVersion -gt [Version]'0.0.0.0') {
+        Write-Capability -Name 'Xamarin.Android' -Value $xamarinAndroidVersion
 }
 else {
     # check legacy registry key for Xamarin Android (VS 2015 and previous versions)
