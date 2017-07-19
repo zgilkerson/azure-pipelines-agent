@@ -384,8 +384,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return Constants.Agent.ReturnCode.Success;
         }
 
-        private void PrintUsage()
+        private void PrintUsage(CommandSettings command)
         {
+            //if (command.)
             _term.WriteLine(StringUtil.Loc("ListenerHelp"));
         }
     }
