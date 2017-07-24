@@ -391,9 +391,44 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
         private void PrintUsage(CommandSettings command)
         {
-            if (command.ExportTask)
+            string separator;
+            string ext;
+#if OS_WINDOWS
+            separator = "\\";
+            ext = "cmd";
+#else
+            separator = "/";
+            ext = "sh";
+#endif
+
+            string commonHelp = StringUtil.Loc("CommandLineHelp_Common");
+            if (command.Configure)
             {
-                _term.WriteLine(StringUtil.Loc("ListenerHelp_ExportTask", StringUtil.Loc("ListenerHelp_Common")));
+                _term.WriteLine(StringUtil.Loc("CommandLineHelp_Configure", separator, ext, commonHelp));
+            }
+            else if (command.CacheTask)
+            {
+                _term.WriteLine(StringUtil.Loc("CommandLineHelp_CacheTask", separator, ext, commonHelp));
+            }
+            else if (command.ExportTask)
+            {
+                _term.WriteLine(StringUtil.Loc("CommandLineHelp_ExportTask", separator, ext, commonHelp));
+            }
+            else if (command.ListTask)
+            {
+                _term.WriteLine(StringUtil.Loc("CommandLineHelp_ListTask", separator, ext, commonHelp));
+            }
+            else if (command.LocalRun)
+            {
+                _term.WriteLine(StringUtil.Loc("CommandLineHelp_LocalRun", separator, ext, commonHelp));
+            }
+            else if (command.Remove)
+            {
+                _term.WriteLine(StringUtil.Loc("CommandLineHelp_Remove", separator, ext, commonHelp));
+            }
+            else
+            {
+                _term.WriteLine(StringUtil.Loc("CommandLineHelp"));
             }
         }
     }

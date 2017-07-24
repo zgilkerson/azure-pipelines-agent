@@ -74,6 +74,23 @@
     " --commit   Prints the agent commit",
     " --help     Prints the help for each command"
   ],
+  "CommandLineHelp_CacheTask": [
+    "CLI-WIDTH-TOTAL-(105-CHARS)------------------------------------------------------------------------------",
+    ".{0}config.{1} cacheTask [options]",
+    "",
+    "This command is currently in preview. The interface and behavior will change in a future version.",
+    "",
+    "Downloads tasks to the agent cache. Updates the cache if a newer version is available.",
+    "",
+    "{2}",
+    "",
+    "CLI-WIDTH-OPTIONS-(35-CHARS)-------CLI-WIDTH-DESCRIPTION-(70-CHARS)--------------------------------------",
+    "Task options:",
+    " --name <name>                     Task name or GUID. Name may contain the wildcard *. When empty, all",
+    "                                   tasks will be downloaded.",
+    " --version <version>               Must be either the major version component only, or empty. When empty,",
+    "                                   the maximum of each major version will be downloaded."
+  ],
   "CommandLineHelp_Common": [
     "CLI-WIDTH-TOTAL-(105-CHARS)------------------------------------------------------------------------------",
     "Exit code 0 indicates success. Otherwise failure.",
@@ -182,23 +199,6 @@
     "Deployment group agent with tags",
     ".{0}config.{1} --unattended --deploymentGroup --url https://myaccount.visualstudio.com --auth pat --token myToken --projectName myProject --deploymentGroupName myDeploymentGroup --agent myAgent --addDeploymentGroupTags --deploymentGroupTags \"tag1,tag2\" --runAsService --windowsLogonAccount \"NT AUTHORITY\\SYSTEM\" --acceptTeeEula"
   ],
-  "CommandLineHelp_CacheTask": [
-    "CLI-WIDTH-TOTAL-(105-CHARS)------------------------------------------------------------------------------",
-    ".{0}config.{1} cacheTask [options]",
-    "",
-    "This command is currently in preview. The interface and behavior will change in a future version.",
-    "",
-    "Downloads tasks to the agent cache. Updates the cache if a newer version is available.",
-    "",
-    "{2}",
-    "",
-    "CLI-WIDTH-OPTIONS-(35-CHARS)-------CLI-WIDTH-DESCRIPTION-(70-CHARS)--------------------------------------",
-    "Task options:",
-    " --name <name>                     Task name or GUID. Name may contain the wildcard *. When empty, all",
-    "                                   tasks will be downloaded.",
-    " --version <version>               Must be either the major version component only, or empty. When empty,",
-    "                                   the maximum of each major version will be downloaded."
-  ],
   "CommandLineHelp_ExportTask": [
     "CLI-WIDTH-TOTAL-(105-CHARS)------------------------------------------------------------------------------",
     ".{0}config.{1} exportTask [options]",
@@ -253,7 +253,7 @@
   "CommandLineHelp_Remove": [
     ".{0}config.{1} remove [options]",
     "",
-    "{1}",
+    "{2}",
     "",
     "CLI-WIDTH-UNLIMITED-FOR-EXAMPLES-----",
     "Unattended remove examples:",
