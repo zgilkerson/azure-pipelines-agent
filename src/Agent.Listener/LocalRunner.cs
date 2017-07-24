@@ -780,9 +780,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                         throw new Exception($"Unable to resolve a task for the name '{name}'. The name is ambiguous.");
                     }
 
-                    // Filter by version.
                     if (!string.IsNullOrEmpty(version))
                     {
+                        // Filter by version.
                         int versionInt = default(int);
                         if (!int.TryParse(version, NumberStyles.None, CultureInfo.InvariantCulture, out versionInt))
                         {
@@ -790,6 +790,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                         }
 
                         tasks = tasks.Where(x => x.Version.Major == versionInt).ToList();
+                    }
+                    else
+                    {
+                        // Filter to the latest version.
+                        tasks = tasks.OrderByDescending(x => x.Version).Take(1).ToList();
                     }
 
                     // Validate a task was found.
