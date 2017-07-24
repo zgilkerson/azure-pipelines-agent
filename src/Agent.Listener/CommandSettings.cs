@@ -19,8 +19,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         private readonly string[] validCommands =
         {
             Constants.Agent.CommandLine.Commands.Configure,
+            Constants.Agent.CommandLine.Commands.CacheTask,
+            Constants.Agent.CommandLine.Commands.ExportTask,
+            Constants.Agent.CommandLine.Commands.ListTask,
+            Constants.Agent.CommandLine.Commands.LocalRun,
+            Constants.Agent.CommandLine.Commands.Remove,
             Constants.Agent.CommandLine.Commands.Run,
-            Constants.Agent.CommandLine.Commands.Unconfigure
         };
 
         private readonly string[] validFlags =
@@ -51,14 +55,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             Constants.Agent.CommandLine.Args.DeploymentGroupTags,
             Constants.Agent.CommandLine.Args.MachineGroupName,
             Constants.Agent.CommandLine.Args.MachineGroupTags,
+            Constants.Agent.CommandLine.Args.Name,
             Constants.Agent.CommandLine.Args.NotificationPipeName,
             Constants.Agent.CommandLine.Args.Password,
             Constants.Agent.CommandLine.Args.Pool,
             Constants.Agent.CommandLine.Args.ProjectName,
+            Constants.Agent.CommandLine.Args.Search,
             Constants.Agent.CommandLine.Args.StartupType,
             Constants.Agent.CommandLine.Args.Token,
             Constants.Agent.CommandLine.Args.Url,
             Constants.Agent.CommandLine.Args.UserName,
+            Constants.Agent.CommandLine.Args.Version,
             Constants.Agent.CommandLine.Args.WindowsLogonAccount,
             Constants.Agent.CommandLine.Args.WindowsLogonPassword,
             Constants.Agent.CommandLine.Args.Work,
@@ -67,8 +74,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
         // Commands.
         public bool Configure => TestCommand(Constants.Agent.CommandLine.Commands.Configure);
+        public bool CacheTask => TestCommand(Constants.Agent.CommandLine.Commands.CacheTask);
+        public bool ExportTask => TestCommand(Constants.Agent.CommandLine.Commands.ExportTask);
+        public bool ListTask => TestCommand(Constants.Agent.CommandLine.Commands.ListTask);
+        public bool LocalRun => TestCommand(Constants.Agent.CommandLine.Commands.LocalRun);
+        public bool Remove => TestCommand(Constants.Agent.CommandLine.Commands.Remove);
         public bool Run => TestCommand(Constants.Agent.CommandLine.Commands.Run);
-        public bool Unconfigure => TestCommand(Constants.Agent.CommandLine.Commands.Unconfigure);
 
         // Flags.
         public bool Commit => TestFlag(Constants.Agent.CommandLine.Flags.Commit);
@@ -224,6 +235,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 validator: Validators.AuthSchemeValidator);
         }
 
+        public string GetName()
+        {
+            return GetArg(Constants.Agent.CommandLine.Args.Name);
+        }
+
         public string GetPassword()
         {
             return GetArgOrPrompt(
@@ -242,6 +258,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 validator: Validators.NonEmptyValidator);
         }
 
+        public string GetSearch()
+        {
+            return GetArg("search");
+        }
+
         public string GetToken()
         {
             return GetArgOrPrompt(
@@ -251,14 +272,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 validator: Validators.NonEmptyValidator);
         }
 
-        // TODO: REMOVE defaultValue parameter after fix in master and rebase on master
-        public string GetUrl(string defaultValue = null)
+        public string GetVersion()
+        {
+            return GetArg(Constants.Agent.CommandLine.Args.Version);
+        }
+
+        public string GetUrl(bool optional = false)
         {
             return GetArgOrPrompt(
                 name: Constants.Agent.CommandLine.Args.Url,
                 description: StringUtil.Loc("ServerUrl"),
-                defaultValue: defaultValue ?? string.Empty,
-                validator: Validators.ServerUrlValidator);
+                defaultValue: string.Empty,
+                validator: optional ? (Func<string, bool>)Validators.OptionalServerUrlValidator : Validators.ServerUrlValidator);
         }
 
         public string GetDeploymentGroupName()
@@ -353,7 +378,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return GetArg(Constants.Agent.CommandLine.Args.NotificationSocketAddress);
         }
 
-        ///This is used to find out the source from where the agent.listener.exe was launched at the time of run
+        // This is used to find out the source from where the agent.listener.exe was launched at the time of run
         public string GetStartupType()
         {
             return GetArg(Constants.Agent.CommandLine.Args.StartupType);

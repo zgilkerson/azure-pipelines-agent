@@ -45,13 +45,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 Trace.Info(nameof(ExecuteCommand));
                 var configManager = HostContext.GetService<IConfigurationManager>();
 
-                // command is not required, if no command it just starts and/or configures if not configured
+                // command is not required, if no command it just starts if configured
 
                 // TODO: Invalid config prints usage
 
                 if (command.Help)
                 {
-                    PrintUsage();
+                    PrintUsage(command);
                     return Constants.Agent.ReturnCode.Success;
                 }
 
@@ -84,8 +84,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     }
                 }
 
-                // Unconfigure, remove config files, service and exit
-                if (command.Unconfigure)
+                // remove config files, remove service, and exit
+                if (command.Remove)
                 {
                     try
                     {
@@ -102,21 +102,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
                 _inConfigStage = false;
 
-                // YAML
-                string yamlFile = command.GetYaml();
-                if (!string.IsNullOrEmpty(yamlFile))
+                // Local commands
+                if (command.CacheTask)
                 {
-                    _term.WriteLine("Local run mode is currently experimental. The interface and behavior will change in a future version.");
-                    if (!command.Unattended)
-                    {
-                        _term.WriteLine("Press Enter to continue.");
-                        _term.ReadLine();
-                    }
-
-                    HostContext.RunMode = RunMode.Local;
-                    command.SetUnattended();
-                    var localRunner = HostContext.GetService<ILocalRunner>();
-                    return await localRunner.RunAsync(command, HostContext.AgentShutdownToken);
+                    var localManager = HostContext.GetService<ILocalRunner>();
+                    return await localManager.CacheTaskAsync(command, HostContext.AgentShutdownToken);
+                }
+                else if (command.ExportTask)
+                {
+                    var localManager = HostContext.GetService<ILocalRunner>();
+                    return await localManager.ExportTaskAsync(command, HostContext.AgentShutdownToken);
+                }
+                else if (command.ListTask)
+                {
+                    var localManager = HostContext.GetService<ILocalRunner>();
+                    return await localManager.ListTaskAsync(command, HostContext.AgentShutdownToken);
+                }
+                else if (command.LocalRun)
+                {
+                    var localManager = HostContext.GetService<ILocalRunner>();
+                    return await localManager.LocalRunAsync(command, HostContext.AgentShutdownToken);
                 }
 
                 AgentSettings settings = configManager.LoadSettings();
@@ -132,7 +137,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 if (!configManager.IsConfigured())
                 {
                     _term.WriteError(StringUtil.Loc("AgentIsNotConfigured"));
-                    PrintUsage();
+                    PrintUsage(command);
                     return Constants.Agent.ReturnCode.TerminatedError;
                 }
 
@@ -386,8 +391,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
         private void PrintUsage(CommandSettings command)
         {
-            //if (command.)
-            _term.WriteLine(StringUtil.Loc("ListenerHelp"));
+            if (command.ExportTask)
+            {
+                _term.WriteLine(StringUtil.Loc("ListenerHelp_ExportTask", StringUtil.Loc("ListenerHelp_Common")));
+            }
         }
     }
 }

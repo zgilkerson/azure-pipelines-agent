@@ -57,7 +57,11 @@ namespace Microsoft.VisualStudio.Services.Agent
                 HasArgs = HasArgs || arg.StartsWith("--");
                 _trace.Info("HasArgs: {0}", HasArgs);
 
-                if (!HasArgs)
+                if (string.Equals(arg, "/?", StringComparison.Ordinal))
+                {
+                    Flags.Add("help");
+                }
+                else if (!HasArgs)
                 {
                     _trace.Info("Adding Command: {0}", arg);
                     Commands.Add(arg.Trim());
