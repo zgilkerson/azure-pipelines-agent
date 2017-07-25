@@ -58,15 +58,97 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return Constants.Agent.ReturnCode.Success;
         }
 
-        public Task<int> ExportTaskAsync(CommandSettings command, CancellationToken token)
+        public async Task<int> ExportTaskAsync(CommandSettings command, CancellationToken token)
         {
             Trace.Info(nameof(ExportTaskAsync));
-            InitializeCommand(command, isUrlOptional: true);
             // todo: validate --directory is a directory or can be created.
+            InitializeCommand(command, isUrlOptional: true);
+
+            List<TaskDefinition> tasks = await _taskStore.GetTasksAsync(name: command.GetName(), version: command.GetVersion(), token: token);
+            foreach (TaskDefinition task in tasks)
+            {
+                // Group each input and determine each group order.
+                var inputsByGroup = new Dictionary<string, List<TaskInputDefinition>>(StringComparer.OrdinalIgnoreCase);
+                var groupOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < task.Inputs.Count ; i++)
+                {
+                    TaskInputDefinition input = task.Inputs[i];
+                    string groupName = input.GroupName ?? string.Empty;
+                    if (!inputsByGroup.ContainsKey(groupName))
+                    {
+                        inputsByGroup.Add(groupName, new List<TaskInputDefinition>());
+                        groupOrder.Add(groupName, i);
+                    }
+
+                    inputsByGroup[groupName].Add(input);
+                }
+
+                // Sort the groups.
+                List<string> sortedGroupNames =
+                    groupOrder.Keys
+                    .OrderBy(x => groupOrder[x])
+                    .ToList();
+
+                var content = new StringBuilder();
+                content.AppendLine($"---");
+                content.AppendLine($"# Generated from task: {JsonConvert.ToString(task.Name)}, version {JsonConvert.ToString(task.Version)}");
+                content.AppendLine($"# Friendly name: {JsonConvert.ToString(task.FriendlyName)}");
+                content.AppendLine($"# ID: {JsonConvert.ToString(task.Id)}");
+                content.AppendLine($"# Description: {JsonConvert.ToString(task.Description)}");
+                foreach (string groupName in sortedGroupNames)
+                {
+                    content.AppendLine();
+                    content.AppendLine($"################################################################################");
+                    if (string.IsNullOrEmpty(groupName))
+                    {
+                        content.AppendLine($"# Input group: (default)");
+                    }
+                    else
+                    {
+                        content.AppendLine($"# Input group: {JsonConvert.ToString(groupName)}");
+                    }
+
+                    content.AppendLine($"################################################################################");
+                    foreach (TaskInputDefinition input in inputsByGroup[groupName])
+                    {
+                        content.AppendLine();
+                        content.AppendLine($"{JsonConvert.ToString(input.Name)}: {JsonConvert.ToString(input.DefaultValue)}");
+                        content.AppendLine($"# Label: {JsonConvert.ToString(input.Label)}");
+                        if (!string.IsNullOrEmpty(input.VisibleRule))
+                        {
+                            content.AppendLine($"# Visible rule: {JsonConvert.ToString(input.VisibleRule)}");
+                        }
+
+                        content.AppendLine($"# Required: {JsonConvert.ToString(input.Required)}");
+                        content.AppendLine($"# Type: {JsonConvert.ToString(input.InputType)}");
+                        if (input.Options != null && input.Options.Count > 0)
+                        {
+                            foreach (KeyValuePair<string, string> option in input.Options)
+                            {
+                                content.AppendLine($"# Option value: {JsonConvert.ToString(option.Key)}; option label: {JsonConvert.ToString(option.Value)}");
+                            }
+                        }
+
+                        if (input.Properties != null && input.Properties.Count > 0)
+                        {
+                            foreach (KeyValuePair<string, string> property in input.Properties)
+                            {
+                                content.AppendLine($"# Property key: {JsonConvert.ToString(property.Key)}; property value: {JsonConvert.ToString(property.Value)}");
+                            }
+                        }
+
+                        content.AppendLine($"# Help markdown: {JsonConvert.ToString(input.HelpMarkDown)}");
+                    }
+                }
+
+                content.AppendLine($"---");
+                content.AppendLine($"");
+                _term.WriteLine();
+                _term.WriteLine(content.ToString());
+            }
 
             // todo: get server or local tasks matching name/version. export .yml files. clobber.
-
-            throw new System.NotImplementedException();
+            return Constants.Agent.ReturnCode.Success;
         }
 
         public async Task<int> ListTaskAsync(CommandSettings command, CancellationToken token)
@@ -690,7 +772,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                         }
                     }
 
-                    _localTasks = tasks;
+                    _localTasks = FilterWithinMajorVersion(tasks);
                 }
 
                 return FilterByReference(_localTasks, name, version);
