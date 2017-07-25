@@ -46,7 +46,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             InitializeCommand(command, isUrlOptional: false);
 
             List<TaskDefinition> tasks =
-                (await _taskStore.GetTasksAsync(name: command.GetName(), version: command.GetVersion(), token: token))
+                (await _taskStore.GetTasksAsync(taskReference: command.GetTask(), token: token))
                 .OrderBy(x => x.Name.ToUpperInvariant())
                 .ThenByDescending(x => x.Version.Major)
                 .ToList();
@@ -64,7 +64,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             // todo: validate --directory is a directory or can be created.
             InitializeCommand(command, isUrlOptional: true);
 
-            List<TaskDefinition> tasks = await _taskStore.GetTasksAsync(name: command.GetName(), version: command.GetVersion(), token: token);
+            List<TaskDefinition> tasks = await _taskStore.GetTasksAsync(taskReference: command.GetTask(), token: token);
             foreach (TaskDefinition task in tasks)
             {
                 // Group each input and determine each group order.
@@ -201,7 +201,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             InitializeCommand(command, isUrlOptional: true);
 
             // Get all tasks (filtered within major version).
-            List<TaskDefinition> tasks = await _taskStore.GetTasksAsync(name: null, version: null, token: token);
+            List<TaskDefinition> tasks = await _taskStore.GetTasksAsync(taskReference: null, token: token);
 
             // Filter by search value.
             string searchValue = command.GetSearch();
@@ -395,8 +395,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
                         TaskDefinition definition =
                             (await _taskStore.GetTasksAsync(
-                                name: task.Reference.Name,
-                                version: task.Reference.Version,
+                                taskReference: $"{task.Reference.Name}@{task.Reference.Version}",
                                 token: token)).Single();
                         await _taskStore.EnsureCachedAsync(definition, token);
                         if (!firstStep)
@@ -679,7 +678,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             TaskAgentHttpClient HttpClient { get; set; }
 
             Task EnsureCachedAsync(TaskDefinition task, CancellationToken token);
-            Task<List<TaskDefinition>> GetTasksAsync(string name, string version, CancellationToken token);
+            Task<List<TaskDefinition>> GetTasksAsync(string taskReference, CancellationToken token);
         }
 
         private sealed class TaskStore : AgentService, ITaskStore
@@ -767,17 +766,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 }
             }
 
-            public async Task<List<TaskDefinition>> GetTasksAsync(string name, string version, CancellationToken token)
+            public async Task<List<TaskDefinition>> GetTasksAsync(string taskReference, CancellationToken token)
             {
                 if (HttpClient != null)
                 {
-                    return (await GetServerTasksAsync(name, version, token));
+                    return (await GetServerTasksAsync(taskReference, token));
                 }
 
-                return GetLocalTasks(name, version, token);
+                return GetLocalTasks(taskReference, token);
             }
 
-            private List<TaskDefinition> GetLocalTasks(string name, string version, CancellationToken token)
+            private List<TaskDefinition> GetLocalTasks(string taskReference, CancellationToken token)
             {
                 if (_localTasks == null)
                 {
@@ -819,10 +818,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     _localTasks = FilterWithinMajorVersion(tasks);
                 }
 
-                return FilterByReference(_localTasks, name, version);
+                return FilterByReference(_localTasks, taskReference);
             }
 
-            private async Task<List<TaskDefinition>> GetServerTasksAsync(string name, string version, CancellationToken token)
+            private async Task<List<TaskDefinition>> GetServerTasksAsync(string taskReference, CancellationToken token)
             {
                 ArgUtil.NotNull(HttpClient, nameof(HttpClient));
                 if (_serverTasks == null)
@@ -833,14 +832,35 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     _serverTasks = FilterWithinMajorVersion(tasks);
                 }
 
-                return FilterByReference(_serverTasks, name, version);
+                return FilterByReference(_serverTasks, taskReference);
             }
 
-            private List<TaskDefinition> FilterByReference(List<TaskDefinition> tasks, string name, string version)
+            private List<TaskDefinition> FilterByReference(List<TaskDefinition> tasks, string taskReference)
             {
                 // Filter by name.
-                if (!string.IsNullOrEmpty(name))
+                if (!string.IsNullOrEmpty(taskReference))
                 {
+                    string[] refComponents = (taskReference).Split('@');
+                    string name;
+                    int version;
+                    if (refComponents.Length == 1 &&
+                        !string.IsNullOrEmpty(refComponents[0]))
+                    {
+                        name = refComponents[0];
+                        version = 0;
+                    }
+                    else if (refComponents.Length == 2 &&
+                        !string.IsNullOrEmpty(refComponents[0]) &&
+                        !string.IsNullOrEmpty(refComponents[1]) &&
+                        Int32.TryParse(refComponents[1], NumberStyles.None, CultureInfo.InvariantCulture, out version))
+                    {
+                        name = refComponents[0];
+                    }
+                    else
+                    {
+                        throw new Exception($"Task reference must be in the format: name[@version]. Name must either be the task name or the task ID. If specified, version must be the major version component only. Example: MyTask@2. The following task reference format is invalid: '{taskReference}'");
+                    }
+
                     Guid id = default(Guid);
                     if (Guid.TryParseExact(name, format: "D", result: out id)) // D = 32 digits separated by hyphens
                     {
@@ -859,16 +879,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                         throw new Exception($"Unable to resolve a task for the name '{name}'. The name is ambiguous.");
                     }
 
-                    if (!string.IsNullOrEmpty(version))
+                    if (refComponents.Length == 2)
                     {
                         // Filter by version.
-                        int versionInt = default(int);
-                        if (!int.TryParse(version, NumberStyles.None, CultureInfo.InvariantCulture, out versionInt))
-                        {
-                            throw new Exception($"Version must be be a whole number. For example '2'. The following task version is invalid: '{version}'");
-                        }
-
-                        tasks = tasks.Where(x => x.Version.Major == versionInt).ToList();
+                        tasks = tasks.Where(x => x.Version.Major == version).ToList();
                     }
                     else
                     {
@@ -879,7 +893,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     // Validate a task was found.
                     if (tasks.Count == 0)
                     {
-                        throw new Exception($"Unable to resolve task by name or ID '{name}'.");
+                        throw new Exception($"No tasks found matching: '{taskReference}'");
                     }
 
                     ArgUtil.Equal(1, tasks.Count, nameof(tasks.Count));

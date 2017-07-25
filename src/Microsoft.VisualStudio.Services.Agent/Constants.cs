@@ -63,14 +63,13 @@ namespace Microsoft.VisualStudio.Services.Agent
                 {
                     public static readonly string Agent = "agent";
                     public static readonly string Auth = "auth";
-                    public static readonly string Name = "name";
                     public static readonly string NotificationPipeName = "notificationpipename";
                     public static readonly string NotificationSocketAddress = "notificationsocketaddress";
                     public static readonly string Pool = "pool";
                     public static readonly string Search = "search";
+                    public static readonly string Task = "task";
                     public static readonly string Url = "url";
                     public static readonly string UserName = "username";
-                    public static readonly string Version = "version";
                     public static readonly string WindowsLogonAccount = "windowslogonaccount";
                     public static readonly string Work = "work";
                     public static readonly string MachineGroupName = "machinegroupname";

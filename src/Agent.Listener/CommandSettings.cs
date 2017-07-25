@@ -55,17 +55,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             Constants.Agent.CommandLine.Args.DeploymentGroupTags,
             Constants.Agent.CommandLine.Args.MachineGroupName,
             Constants.Agent.CommandLine.Args.MachineGroupTags,
-            Constants.Agent.CommandLine.Args.Name,
             Constants.Agent.CommandLine.Args.NotificationPipeName,
             Constants.Agent.CommandLine.Args.Password,
             Constants.Agent.CommandLine.Args.Pool,
             Constants.Agent.CommandLine.Args.ProjectName,
             Constants.Agent.CommandLine.Args.Search,
             Constants.Agent.CommandLine.Args.StartupType,
+            Constants.Agent.CommandLine.Args.Task,
             Constants.Agent.CommandLine.Args.Token,
             Constants.Agent.CommandLine.Args.Url,
             Constants.Agent.CommandLine.Args.UserName,
-            Constants.Agent.CommandLine.Args.Version,
             Constants.Agent.CommandLine.Args.WindowsLogonAccount,
             Constants.Agent.CommandLine.Args.WindowsLogonPassword,
             Constants.Agent.CommandLine.Args.Work,
@@ -235,11 +234,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 validator: Validators.AuthSchemeValidator);
         }
 
-        public string GetName()
-        {
-            return GetArg(Constants.Agent.CommandLine.Args.Name);
-        }
-
         public string GetPassword()
         {
             return GetArgOrPrompt(
@@ -263,6 +257,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return GetArg(Constants.Agent.CommandLine.Args.Search);
         }
 
+        public string GetTask()
+        {
+            return GetArg(Constants.Agent.CommandLine.Args.Task);
+        }
+
         public string GetToken()
         {
             return GetArgOrPrompt(
@@ -270,11 +269,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 description: StringUtil.Loc("PersonalAccessToken"),
                 defaultValue: string.Empty,
                 validator: Validators.NonEmptyValidator);
-        }
-
-        public string GetVersion()
-        {
-            return GetArg(Constants.Agent.CommandLine.Args.Version);
         }
 
         public string GetUrl(bool optional = false)
