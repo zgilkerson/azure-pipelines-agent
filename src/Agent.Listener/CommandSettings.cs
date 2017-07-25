@@ -68,7 +68,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             Constants.Agent.CommandLine.Args.WindowsLogonAccount,
             Constants.Agent.CommandLine.Args.WindowsLogonPassword,
             Constants.Agent.CommandLine.Args.Work,
-            Constants.Agent.CommandLine.Args.Yaml
+            Constants.Agent.CommandLine.Args.Yaml,
+            Constants.Agent.CommandLine.Args.Yml
         };
 
         // Commands.
@@ -385,9 +386,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return GetArg(Constants.Agent.CommandLine.Args.StartupType);
         }
 
-        public string GetYaml()
+        public string GetYml()
         {
-            return GetArg(Constants.Agent.CommandLine.Args.Yaml);
+            string result = GetArg(Constants.Agent.CommandLine.Args.Yml);
+            if (string.IsNullOrEmpty(result))
+            {
+                result = GetArg(Constants.Agent.CommandLine.Args.Yaml);
+            }
+
+            return result;
         }
 
         public void SetUnattended()

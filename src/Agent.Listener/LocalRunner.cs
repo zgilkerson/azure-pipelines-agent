@@ -61,10 +61,47 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         public async Task<int> ExportTaskAsync(CommandSettings command, CancellationToken token)
         {
             Trace.Info(nameof(ExportTaskAsync));
-            // todo: validate --directory is a directory or can be created.
             InitializeCommand(command, isUrlOptional: true);
 
-            List<TaskDefinition> tasks = await _taskStore.GetTasksAsync(taskReference: command.GetTask(), token: token);
+            // Determine the directory path and optional file name.
+            string directoryPath = null;
+            string fileName = null;
+            string taskReference = command.GetTask();
+            string yml = command.GetYml();
+            if (string.IsNullOrEmpty(yml))
+            {
+                throw new Exception($"Argument '{Constants.Agent.CommandLine.Args.Yml}' is required.");
+            }
+            else
+            {
+                // Ensure yml is rooted.
+                string path = Path.Combine(Directory.GetCurrentDirectory(), yml);
+
+                if (Directory.Exists(path))
+                {
+                    // --yml <directory> is always OK
+                    directoryPath = path;
+                }
+                else if (string.IsNullOrEmpty(taskReference))
+                {
+                    // When a task reference is specified, --yml must specify a directory.
+                    throw new Exception($"Argument '{Constants.Agent.CommandLine.Args.Yml}' must specify the path to a directory when argument '{Constants.Agent.CommandLine.Args.Task}' is not specified.");
+                }
+                else
+                {
+                    directoryPath = Path.GetDirectoryName(path);
+                    if (string.IsNullOrEmpty(directoryPath) || !Directory.Exists(directoryPath))
+                    {
+                        throw new Exception($"Argument '{Constants.Agent.CommandLine.Args.Yml}' is invalid. Directory does not exist: '{directoryPath}'");
+                    }
+                    fileName = Path.GetFileName(path);
+                    if (string.IsNullOrEmpty(fileName))
+                    {
+                    }
+                }
+            }
+
+            List<TaskDefinition> tasks = await _taskStore.GetTasksAsync(taskReference, token);
             foreach (TaskDefinition task in tasks)
             {
                 // Group each input and determine each group order.
@@ -257,8 +294,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             AgentSettings settings = configStore.GetSettings();
 
             // Load the YAML file.
-            string yamlFile = command.GetYaml();
-            ArgUtil.File(yamlFile, nameof(yamlFile));
+            string ymlFile = command.GetYml();
+            ArgUtil.File(ymlFile, nameof(ymlFile));
             var parseOptions = new ParseOptions
             {
                 MaxFiles = 10,
@@ -269,7 +306,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             var pipelineParser = new PipelineParser(new PipelineTraceWriter(), new PipelineFileProvider(), parseOptions);
             Pipelines.Process process = pipelineParser.Load(
                 defaultRoot: Directory.GetCurrentDirectory(),
-                path: yamlFile,
+                path: ymlFile,
                 mustacheContext: null,
                 cancellationToken: HostContext.AgentShutdownToken);
             ArgUtil.NotNull(process, nameof(process));

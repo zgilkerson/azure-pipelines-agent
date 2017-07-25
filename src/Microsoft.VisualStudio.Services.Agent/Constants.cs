@@ -79,6 +79,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string MachineGroupTags = "machinegrouptags";
                     public static readonly string DeploymentGroupTags = "deploymentgrouptags";
                     public static readonly string Yaml = "yaml";
+                    public static readonly string Yml = "yml";
 
                     // Secret args. Must be added to the "Secrets" getter as well.
                     public static readonly string Password = "password";
