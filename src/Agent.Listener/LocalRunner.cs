@@ -123,17 +123,19 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                         content.AppendLine($"# Type: {JsonConvert.ToString(input.InputType)}");
                         if (input.Options != null && input.Options.Count > 0)
                         {
+                            content.AppendLine($"# Options: {JsonConvert.ToString(input.InputType)}");
                             foreach (KeyValuePair<string, string> option in input.Options)
                             {
-                                content.AppendLine($"# Option value: {JsonConvert.ToString(option.Key)}; option label: {JsonConvert.ToString(option.Value)}");
+                                content.AppendLine($"#   Value: {JsonConvert.ToString(option.Key)}; Label: {JsonConvert.ToString(option.Value)}");
                             }
                         }
 
                         if (input.Properties != null && input.Properties.Count > 0)
                         {
+                            content.AppendLine($"# Properties:");
                             foreach (KeyValuePair<string, string> property in input.Properties)
                             {
-                                content.AppendLine($"# Property key: {JsonConvert.ToString(property.Key)}; property value: {JsonConvert.ToString(property.Value)}");
+                                content.AppendLine($"#   {JsonConvert.ToString(property.Key)}: {JsonConvert.ToString(property.Value)}");
                             }
                         }
 
@@ -141,7 +143,49 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     }
                 }
 
+                content.AppendLine();
+                content.AppendLine($"################################################################################");
+                content.AppendLine($"# Built-in inputs");
+                content.AppendLine($"################################################################################");
+                content.AppendLine();
+                content.AppendLine($"_name: {JsonConvert.ToString(task.InstanceNameFormat)}");
+                content.AppendLine($"_condition: \"\"");
+                content.AppendLine($"_continueOnError: false");
+                content.AppendLine($"_enabled: true");
+                content.AppendLine($"_timeoutInMinutes: 0");
+                content.AppendLine($"_env: {{}}");
+                content.AppendLine($"");
                 content.AppendLine($"---");
+                content.AppendLine($"steps:");
+                content.AppendLine($"  - task: {task.Name}@{task.Version.Major}");
+                content.AppendLine($"    name: \"{{{{_name}}}}\"");
+                content.AppendLine($"    condition: \"{{{{_condition}}}}\"");
+                content.AppendLine($"    continueOnError: {{{{_continueOnError}}}}");
+                content.AppendLine($"    enabled: {{{{_enabled}}}}");
+                content.AppendLine($"    timeoutInMinutes: \"{{{{_timeoutInMinutes}}}}\"");
+                content.AppendLine($"    inputs:");
+                foreach (string groupName in sortedGroupNames)
+                {
+                    if (string.IsNullOrEmpty(groupName))
+                    {
+                        content.AppendLine($"      # Input group: (default)");
+                    }
+                    else
+                    {
+                        content.AppendLine($"      # Input group: {JsonConvert.ToString(groupName)}");
+                    }
+
+                    foreach (TaskInputDefinition input in inputsByGroup[groupName])
+                    {
+                        content.AppendLine($"      {JsonConvert.ToString(input.Name)}: {{{{{input.Name}}}}}");
+                    }
+                }
+
+                content.AppendLine($"    env: {{");
+                content.AppendLine($"      {{{{#each _env}}}}");
+                content.AppendLine($"      \"{{{{@key}}}}\": \"{{{{this}}}}\",");
+                content.AppendLine($"      {{{{/each}}}}");
+                content.AppendLine($"    }}");
                 content.AppendLine($"");
                 _term.WriteLine();
                 _term.WriteLine(content.ToString());
@@ -805,32 +849,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     }
                     else
                     {
-                        // Filter by name. Convert the name to a regex. * is the only supported wildcard.
-                        var patternSegments = new List<string>();
-                        patternSegments.Append("^");
-                        string[] nameSegments = name.Split('*');
-                        foreach (string nameSegment in nameSegments)
-                        {
-                            if (string.IsNullOrEmpty(nameSegment))
-                            {
-                                // Empty indicates the segment was the wildcard "*".
-                                if (patternSegments.Count > 0
-                                    && !string.Equals(patternSegments[patternSegments.Count - 1], ".*", StringComparison.Ordinal))
-                                {
-                                    patternSegments.Append(".*");
-                                }
-                            }
-                            else
-                            {
-                                // Otherwise not a wildcard. Append the escaped segment.
-                                patternSegments.Append(Regex.Escape(nameSegment));
-                            }
-                        }
-
-                        patternSegments.Append("$");
-                        string pattern = string.Join(string.Empty, patternSegments);
-                        var regex = new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-                        tasks = tasks.Where(x => regex.IsMatch(x.Name)).ToList();
+                        // Filter by name.
+                        tasks = tasks.Where(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)).ToList();
                     }
 
                     // Validate name is not ambiguous.
