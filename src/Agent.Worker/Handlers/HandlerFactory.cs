@@ -49,6 +49,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 handler = HostContext.CreateService<INodeHandler>();
                 (handler as INodeHandler).Data = data as NodeHandlerData;
             }
+            else if (data is DotnetHandlerData)
+            {
+                // Node.
+                handler = HostContext.CreateService<IDotnetHandler>();
+                (handler as IDotnetHandler).Data = data as DotnetHandlerData;
+            }
             else if (data is PowerShell3HandlerData)
             {
                 // PowerShell3.
