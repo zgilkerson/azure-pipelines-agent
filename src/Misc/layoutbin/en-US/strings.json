@@ -228,10 +228,8 @@
     "",
     "CLI-WIDTH-OPTIONS-(35-CHARS)-------CLI-WIDTH-DESCRIPTION-(70-CHARS)--------------------------------------",
     "Task options:",
-    " --name <name>                     Task name or GUID. Name may contain the wildcard *. When empty, all",
-    "                                   tasks will be listed.",
-    " --version <version>               Must be either the major version component only, or empty. When empty,",
-    "                                   the max of each major version will be listed."
+    " --search <value>                  Searches tasks by name, ID, friendly name, and description. Value may",
+    "                                   contain the wildcard *. When empty, all tasks will be listed."
   ],
   "CommandLineHelp_LocalRun": [
     "CLI-WIDTH-TOTAL-(105-CHARS)------------------------------------------------------------------------------",
