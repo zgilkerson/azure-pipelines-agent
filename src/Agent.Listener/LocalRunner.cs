@@ -43,11 +43,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         public async Task<int> CacheTaskAsync(CommandSettings command, CancellationToken token)
         {
             Trace.Info(nameof(CacheTaskAsync));
-            InitializeCommand(command);
-            command.GetUrl(); // Validate the URL was supplied.
+            InitializeCommand(command, isUrlOptional: false);
 
             List<TaskDefinition> tasks =
-                (await _taskStore.GetServerTasksAsync(name: command.GetAgentName(), version: command.GetVersion(), token: token))
+                (await _taskStore.GetTasksAsync(name: command.GetName(), version: command.GetVersion(), token: token))
                 .OrderBy(x => x.Name.ToUpperInvariant())
                 .ThenByDescending(x => x.Version.Major)
                 .ToList();
@@ -62,7 +61,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         public Task<int> ExportTaskAsync(CommandSettings command, CancellationToken token)
         {
             Trace.Info(nameof(ExportTaskAsync));
-            InitializeCommand(command);
+            InitializeCommand(command, isUrlOptional: true);
             // todo: validate --directory is a directory or can be created.
 
             // todo: get server or local tasks matching name/version. export .yml files. clobber.
@@ -73,48 +72,30 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         public async Task<int> ListTaskAsync(CommandSettings command, CancellationToken token)
         {
             Trace.Info(nameof(ListTaskAsync));
-            InitializeCommand(command);
+            InitializeCommand(command, isUrlOptional: true);
 
-            List<TaskDefinition> tasks;
-            if (!string.IsNullOrEmpty(command.GetUrl(optional: true)))
-            {
-                // Get all server tasks (filtered within major version).
-                tasks = await _taskStore.GetServerTasksAsync(name: null, version: null, token: token);
-            }
-            else
-            {
-                // Get all cached tasks (filtered within major version).
-                tasks = _taskStore.GetLocalTasks(name: null, version: null, token: token);
-            }
+            // Get all tasks (filtered within major version).
+            List<TaskDefinition> tasks = await _taskStore.GetTasksAsync(name: null, version: null, token: token);
 
             // Filter by search value.
             string searchValue = command.GetSearch();
-            if (string.IsNullOrEmpty(searchValue))
+            if (!string.IsNullOrEmpty(searchValue))
             {
                 // Convert the search value to a regex. * is the only supported wildcard.
                 var patternSegments = new List<string>();
-                patternSegments.Append("^");
-                string[] nameSegments = searchValue.Split('*');
-                foreach (string nameSegment in nameSegments)
+                string[] searchSegments = searchValue.Split(new[] { '*' }, StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0 ; i < searchSegments.Length ; i++)
                 {
-                    if (string.IsNullOrEmpty(nameSegment))
+                    if (i > 0)
                     {
-                        // Empty indicates the segment was the wildcard "*".
-                        if (patternSegments.Count > 0
-                            && !string.Equals(patternSegments[patternSegments.Count - 1], ".*", StringComparison.Ordinal))
-                        {
-                            patternSegments.Append(".*");
-                        }
+                        patternSegments.Add(".*");
                     }
-                    else
-                    {
-                        // Otherwise not a wildcard. Append the escaped segment.
-                        patternSegments.Append(Regex.Escape(nameSegment));
-                    }
+
+                    patternSegments.Add(Regex.Escape(searchSegments[i]));
                 }
 
-                patternSegments.Append("$");
                 string pattern = string.Join(string.Empty, patternSegments);
+                Trace.Info($"Pattern is: '{pattern}'");
                 var regex = new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
                 // Filter by search value.
@@ -145,7 +126,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         public async Task<int> LocalRunAsync(CommandSettings command, CancellationToken token)
         {
             Trace.Info(nameof(LocalRunAsync));
-            InitializeCommand(command);
+            InitializeCommand(command, isUrlOptional: true);
             var configStore = HostContext.GetService<IConfigurationStore>();
             AgentSettings settings = configStore.GetSettings();
 
@@ -203,7 +184,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             return Constants.Agent.ReturnCode.Success;
         }
 
-        private void InitializeCommand(CommandSettings command)
+        private void InitializeCommand(CommandSettings command, bool isUrlOptional)
         {
             _term.WriteLine("This command is currently in preview. The interface and behavior will change in a future version.");
             if (!command.Unattended)
@@ -213,11 +194,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             }
 
             HostContext.RunMode = RunMode.Local;
-            command.SetUnattended();
 
             // Initialize the task store.
             _taskStore = HostContext.GetService<ITaskStore>();
-            string url = command.GetUrl(optional: true);
+            string url = command.GetUrl(optional: isUrlOptional);
             if (!string.IsNullOrEmpty(url))
             {
                 // Store the HTTP client.
@@ -287,10 +267,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                             continue;
                         }
 
-                        TaskDefinition definition = await _taskStore.GetTaskAsync(
-                            name: task.Reference.Name,
-                            version: task.Reference.Version,
-                            token: token);
+                        TaskDefinition definition =
+                            (await _taskStore.GetTasksAsync(
+                                name: task.Reference.Name,
+                                version: task.Reference.Version,
+                                token: token)).Single();
                         await _taskStore.EnsureCachedAsync(definition, token);
                         if (!firstStep)
                         {
@@ -572,12 +553,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
             TaskAgentHttpClient HttpClient { get; set; }
 
             Task EnsureCachedAsync(TaskDefinition task, CancellationToken token);
-            List<TaskDefinition> GetLocalTasks(string name, string version, CancellationToken token);
-            Task<List<TaskDefinition>> GetServerTasksAsync(string name, string version, CancellationToken token);
-            Task<TaskDefinition> GetTaskAsync(string name, string version, CancellationToken token);
+            Task<List<TaskDefinition>> GetTasksAsync(string name, string version, CancellationToken token);
         }
 
-        private sealed class TaskStore : AgentService
+        private sealed class TaskStore : AgentService, ITaskStore
         {
             private List<TaskDefinition> _localTasks;
             private List<TaskDefinition> _serverTasks;
@@ -598,7 +577,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 ArgUtil.NotNullOrEmpty(task.Version, nameof(task.Version));
 
                 // first check to see if we already have the task
-                string destDirectory = GetDirectory(task);
+                string destDirectory = GetTaskDirectory(task);
                 Trace.Info($"Ensuring task exists: ID '{task.Id}', version '{task.Version}', name '{task.Name}', directory '{destDirectory}'.");
                 if (File.Exists(destDirectory + ".completed"))
                 {
@@ -662,7 +641,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 }
             }
 
-            public List<TaskDefinition> GetLocalTasks(string name, string version, CancellationToken token)
+            public async Task<List<TaskDefinition>> GetTasksAsync(string name, string version, CancellationToken token)
+            {
+                if (HttpClient != null)
+                {
+                    return (await GetServerTasksAsync(name, version, token));
+                }
+
+                return GetLocalTasks(name, version, token);
+            }
+
+            private List<TaskDefinition> GetLocalTasks(string name, string version, CancellationToken token)
             {
                 if (_localTasks == null)
                 {
@@ -689,9 +678,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                                         _term.WriteLine($"Task definition is invalid. The name property must not be empty and the version property must not be null. Task definition: {taskJsonPath}");
                                         continue;
                                     }
-                                    else if (!string.Equals(taskSubDirectory, GetDirectory(definition), IOUtil.FilePathStringComparison))
+                                    else if (!string.Equals(taskSubDirectory, GetTaskDirectory(definition), IOUtil.FilePathStringComparison))
                                     {
-                                        _term.WriteLine($"Task definition does not match the expected folder structure. Expected: '{GetDirectory(definition)}'; actual: '{taskJsonPath}'");
+                                        _term.WriteLine($"Task definition does not match the expected folder structure. Expected: '{GetTaskDirectory(definition)}'; actual: '{taskJsonPath}'");
                                         continue;
                                     }
 
@@ -707,7 +696,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 return FilterByReference(_localTasks, name, version);
             }
 
-            public async Task<List<TaskDefinition>> GetServerTasksAsync(string name, string version, CancellationToken token)
+            private async Task<List<TaskDefinition>> GetServerTasksAsync(string name, string version, CancellationToken token)
             {
                 ArgUtil.NotNull(HttpClient, nameof(HttpClient));
                 if (_serverTasks == null)
@@ -719,18 +708,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                 }
 
                 return FilterByReference(_serverTasks, name, version);
-            }
-
-            public async Task<TaskDefinition> GetTaskAsync(string name, string version, CancellationToken token)
-            {
-                ArgUtil.NotNullOrEmpty(name, nameof(name));
-                ArgUtil.NotNullOrEmpty(version, nameof(version));
-                if (HttpClient != null)
-                {
-                    return (await GetServerTasksAsync(name, version, token)).Single();
-                }
-
-                return GetLocalTasks(name, version, token).Single();
             }
 
             private List<TaskDefinition> FilterByReference(List<TaskDefinition> tasks, string name, string version)
@@ -817,7 +794,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
                     .ToList();
             }
 
-            private string GetDirectory(TaskDefinition definition)
+            private string GetTaskDirectory(TaskDefinition definition)
             {
                 ArgUtil.NotEmpty(definition.Id, nameof(definition.Id));
                 ArgUtil.NotNull(definition.Name, nameof(definition.Name));

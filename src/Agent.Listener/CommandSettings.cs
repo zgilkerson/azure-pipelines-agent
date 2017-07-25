@@ -260,7 +260,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
         public string GetSearch()
         {
-            return GetArg("search");
+            return GetArg(Constants.Agent.CommandLine.Args.Search);
         }
 
         public string GetToken()
@@ -279,11 +279,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
 
         public string GetUrl(bool optional = false)
         {
+            // Note, GetArg does not consume the arg (like GetArgOrPrompt does).
+            if (optional &&
+                string.IsNullOrEmpty(GetArg(Constants.Agent.CommandLine.Args.Url)))
+            {
+                return string.Empty;
+            }
+
             return GetArgOrPrompt(
                 name: Constants.Agent.CommandLine.Args.Url,
                 description: StringUtil.Loc("ServerUrl"),
                 defaultValue: string.Empty,
-                validator: optional ? (Func<string, bool>)Validators.OptionalServerUrlValidator : Validators.ServerUrlValidator);
+                validator: Validators.ServerUrlValidator);
         }
 
         public string GetDeploymentGroupName()

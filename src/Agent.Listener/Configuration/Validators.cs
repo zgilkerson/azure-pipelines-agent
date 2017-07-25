@@ -32,16 +32,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             return false;
         }
 
-        public static bool OptionalServerUrlValidator(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return true;
-            }
-
-            return ServerUrlValidator(value);
-        }
-
         public static bool AuthSchemeValidator(string value)
         {
             return CredentialManager.CredentialTypes.ContainsKey(value);
