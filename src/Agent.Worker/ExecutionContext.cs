@@ -361,6 +361,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             PrependPath = new List<string>();
 
             // Docker 
+            Container = new ContainerInfo();
             string jobImage = Variables.Get("_PREVIEW_VSTS_DOCKER_IMAGE");
             if (!string.IsNullOrEmpty(jobImage))
             {

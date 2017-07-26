@@ -89,19 +89,25 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Container
 
         public string GetTargetContainerId(string targetTask)
         {
-            if (!string.IsNullOrEmpty(targetTask))
+            string image = string.Empty;
+            if (!string.IsNullOrEmpty(targetTask) && _taskImageMap.ContainsKey(targetTask))
             {
-                if (_taskImageMap.ContainsKey(targetTask))
+                image = _taskImageMap[targetTask];
+            }
+
+            if (string.IsNullOrEmpty(image))
+            {
+                if (string.IsNullOrEmpty(_jobImage))
                 {
-                    string image = _taskImageMap[targetTask];
-                    if (_imageContainerMap.ContainsKey(image))
-                    {
-                        return _imageContainerMap[image];
-                    }
+                    return string.Empty;
+                }
+                else
+                {
+                    image = _jobImage;
                 }
             }
 
-            return _imageContainerMap.ContainsKey(_jobImage) ? _imageContainerMap[_jobImage] : string.Empty;
+            return _imageContainerMap[image];
         }
     }
 
