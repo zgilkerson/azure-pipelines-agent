@@ -89,7 +89,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Container
                 }
             }
 
-            string dockerArgs = $"--name {context.Container.ContainerName} --rm -v /var/run/docker.sock:/var/run/docker.sock {dockerMountVolumesArgs} {image} sleep 999d";
+            string dockerArgs = $"--name VSTS_{Guid.NewGuid()} --rm -v /var/run/docker.sock:/var/run/docker.sock {dockerMountVolumesArgs} {image} sleep 999d";
             return (await ExecuteDockerCommandAsync(context, "create", dockerArgs)).FirstOrDefault();
         }
 

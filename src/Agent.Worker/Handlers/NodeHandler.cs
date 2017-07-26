@@ -125,7 +125,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 // file name character on Linux.
                 arguments = StringUtil.Format(@"""{0}""", target.Replace(@"""", @"\"""));
 
-                if (!string.IsNullOrEmpty(ExecutionContext.Container.ContainerId))
+                if (!string.IsNullOrEmpty(ExecutionContext.TargetContainerId))
                 {
                     var containerProvider = HostContext.GetService<IContainerOperationProvider>();
                     containerProvider.GetHandlerContainerExecutionCommandline(ExecutionContext, file, arguments, workingDirectory, Environment, out file, out arguments);

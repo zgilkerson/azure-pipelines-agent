@@ -67,7 +67,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             string argumentsEscaped = arguments.Replace(@"\", @"\\").Replace(@"""", @"\""");
             string bashCommandLine = $"bash -c \"cd {workingDirectoryEscaped}&{filePathEscaped} {argumentsEscaped}\"";
 
-            arguments = $"exec -u {executionContext.Container.CurrentUserId} {envOptions} {executionContext.Container.ContainerId} {bashCommandLine}";
+            arguments = $"exec -u {executionContext.Container.CurrentUserId} {envOptions} {executionContext.TargetContainerId} {bashCommandLine}";
 
             containerEnginePath = _dockerManger.DockerPath;
             containerExecutionArgs = arguments;
@@ -77,7 +77,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         {
             Trace.Entering();
             ArgUtil.NotNull(executionContext, nameof(executionContext));
-            ArgUtil.NotNullOrEmpty(executionContext.Container.ContainerImage, nameof(executionContext.Container.ContainerImage));
+
 
             // Check docker client/server version
             DockerVersion dockerVersion = await _dockerManger.DockerVersion(executionContext);
@@ -93,60 +93,66 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 throw new NotSupportedException(StringUtil.Loc("MinRequiredDockerClientVersion", requiredDockerVersion, _dockerManger.DockerPath, dockerVersion.ClientVersion));
             }
 
-            // Pull down docker image
-            int pullExitCode = await _dockerManger.DockerPull(executionContext, executionContext.Container.ContainerImage);
-            if (pullExitCode != 0)
+            foreach (string image in executionContext.Container.Images)
             {
-                throw new InvalidOperationException($"Docker pull fail with exit code {pullExitCode}");
-            }
+                // Pull down docker image
+                ArgUtil.NotNullOrEmpty(image, nameof(image));
 
-            // Mount folder into container
-            executionContext.Container.MountVolumes.Add(new MountVolume(Path.GetDirectoryName(executionContext.Variables.System_DefaultWorkingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))));
-            executionContext.Container.MountVolumes.Add(new MountVolume(executionContext.Variables.Agent_TempDirectory));
-            executionContext.Container.MountVolumes.Add(new MountVolume(executionContext.Variables.Agent_ToolsDirectory));
-            executionContext.Container.MountVolumes.Add(new MountVolume(HostContext.GetDirectory(WellKnownDirectory.Externals), true));
-            executionContext.Container.MountVolumes.Add(new MountVolume(HostContext.GetDirectory(WellKnownDirectory.Tasks), true));
+                int pullExitCode = await _dockerManger.DockerPull(executionContext, image);
+                if (pullExitCode != 0)
+                {
+                    throw new InvalidOperationException($"Docker pull fail with exit code {pullExitCode}");
+                }
 
-            // Ensure .taskkey file exist so we can mount it.
-            string taskKeyFile = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Work), ".taskkey");
-            if (!File.Exists(taskKeyFile))
-            {
-                File.WriteAllText(taskKeyFile, string.Empty);
-            }
-            executionContext.Container.MountVolumes.Add(new MountVolume(taskKeyFile));
+                // Mount folder into container
+                executionContext.Container.MountVolumes.Add(new MountVolume(Path.GetDirectoryName(executionContext.Variables.System_DefaultWorkingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))));
+                executionContext.Container.MountVolumes.Add(new MountVolume(executionContext.Variables.Agent_TempDirectory));
+                executionContext.Container.MountVolumes.Add(new MountVolume(executionContext.Variables.Agent_ToolsDirectory));
+                executionContext.Container.MountVolumes.Add(new MountVolume(HostContext.GetDirectory(WellKnownDirectory.Externals), true));
+                executionContext.Container.MountVolumes.Add(new MountVolume(HostContext.GetDirectory(WellKnownDirectory.Tasks), true));
 
-            executionContext.Container.ContainerId = await _dockerManger.DockerCreate(executionContext, executionContext.Container.ContainerImage, executionContext.Container.MountVolumes);
-            ArgUtil.NotNullOrEmpty(executionContext.Container.ContainerId, nameof(executionContext.Container.ContainerId));
+                // Ensure .taskkey file exist so we can mount it.
+                string taskKeyFile = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Work), ".taskkey");
+                if (!File.Exists(taskKeyFile))
+                {
+                    File.WriteAllText(taskKeyFile, string.Empty);
+                }
+                executionContext.Container.MountVolumes.Add(new MountVolume(taskKeyFile));
 
-            // Get current username
-            executionContext.Container.CurrentUserName = (await ExecuteCommandAsync(executionContext, "whoami", string.Empty)).FirstOrDefault();
-            ArgUtil.NotNullOrEmpty(executionContext.Container.CurrentUserName, nameof(executionContext.Container.CurrentUserName));
+                string containerId = await _dockerManger.DockerCreate(executionContext, image, executionContext.Container.MountVolumes);
+                ArgUtil.NotNullOrEmpty(containerId, nameof(containerId));
+                executionContext.Container.RegisterContainer(image, containerId);
 
-            // Get current userId
-            executionContext.Container.CurrentUserId = (await ExecuteCommandAsync(executionContext, "id", $"-u {executionContext.Container.CurrentUserName}")).FirstOrDefault();
-            ArgUtil.NotNullOrEmpty(executionContext.Container.CurrentUserId, nameof(executionContext.Container.CurrentUserId));
+                // Get current username
+                executionContext.Container.CurrentUserName = (await ExecuteCommandAsync(executionContext, "whoami", string.Empty)).FirstOrDefault();
+                ArgUtil.NotNullOrEmpty(executionContext.Container.CurrentUserName, nameof(executionContext.Container.CurrentUserName));
 
-            int startExitCode = await _dockerManger.DockerStart(executionContext, executionContext.Container.ContainerId);
-            if (startExitCode != 0)
-            {
-                throw new InvalidOperationException($"Docker start fail with exit code {startExitCode}");
-            }
+                // Get current userId
+                executionContext.Container.CurrentUserId = (await ExecuteCommandAsync(executionContext, "id", $"-u {executionContext.Container.CurrentUserName}")).FirstOrDefault();
+                ArgUtil.NotNullOrEmpty(executionContext.Container.CurrentUserId, nameof(executionContext.Container.CurrentUserId));
 
-            // Ensure bash exist in the image
-            int execWhichBashExitCode = await _dockerManger.DockerExec(executionContext, executionContext.Container.ContainerId, string.Empty, $"which bash");
-            if (execWhichBashExitCode != 0)
-            {
-                throw new InvalidOperationException($"Docker exec fail with exit code {execWhichBashExitCode}");
-            }
+                int startExitCode = await _dockerManger.DockerStart(executionContext, containerId);
+                if (startExitCode != 0)
+                {
+                    throw new InvalidOperationException($"Docker start fail with exit code {startExitCode}");
+                }
 
-            // Create an user with same uid as the agent run as user inside the container.
-            // All command execute in docker will run as Root by default, 
-            // this will cause the agent on the host machine doesn't have permission to any new file/folder created inside the container.
-            // So, we create a user account with same UID inside the container and let all docker exec command run as that user.
-            int execUseraddExitCode = await _dockerManger.DockerExec(executionContext, executionContext.Container.ContainerId, string.Empty, $"useradd -m -o -u {executionContext.Container.CurrentUserId} {executionContext.Container.CurrentUserName}_VSTSContainer");
-            if (execUseraddExitCode != 0)
-            {
-                throw new InvalidOperationException($"Docker exec fail with exit code {execUseraddExitCode}");
+                // Ensure bash exist in the image
+                int execWhichBashExitCode = await _dockerManger.DockerExec(executionContext, containerId, string.Empty, $"which bash");
+                if (execWhichBashExitCode != 0)
+                {
+                    throw new InvalidOperationException($"Docker exec fail with exit code {execWhichBashExitCode}");
+                }
+
+                // Create an user with same uid as the agent run as user inside the container.
+                // All command execute in docker will run as Root by default, 
+                // this will cause the agent on the host machine doesn't have permission to any new file/folder created inside the container.
+                // So, we create a user account with same UID inside the container and let all docker exec command run as that user.
+                int execUseraddExitCode = await _dockerManger.DockerExec(executionContext, containerId, string.Empty, $"useradd -m -o -u {executionContext.Container.CurrentUserId} {executionContext.Container.CurrentUserName}_VSTSContainer");
+                if (execUseraddExitCode != 0)
+                {
+                    throw new InvalidOperationException($"Docker exec fail with exit code {execUseraddExitCode}");
+                }
             }
         }
 
@@ -155,14 +161,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             Trace.Entering();
             ArgUtil.NotNull(executionContext, nameof(executionContext));
 
-            if (!string.IsNullOrEmpty(executionContext.Container.ContainerId))
+            foreach (string containerId in executionContext.Container.Containers)
             {
-                executionContext.Output($"Stop container: {executionContext.Container.ContainerName}");
-
-                int stopExitCode = await _dockerManger.DockerStop(executionContext, executionContext.Container.ContainerId);
-                if (stopExitCode != 0)
+                if (!string.IsNullOrEmpty(containerId))
                 {
-                    executionContext.Error($"Docker stop fail with exit code {stopExitCode}");
+                    executionContext.Output($"Stop container: {containerId}");
+
+                    int stopExitCode = await _dockerManger.DockerStop(executionContext, containerId);
+                    if (stopExitCode != 0)
+                    {
+                        executionContext.Error($"Docker stop fail with exit code {stopExitCode}");
+                    }
                 }
             }
         }

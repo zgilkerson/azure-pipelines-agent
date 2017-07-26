@@ -30,6 +30,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         List<IAsyncCommandContext> AsyncCommands { get; }
         List<string> PrependPath { get; }
         ContainerInfo Container { get; }
+        string TargetContainerId { get; }
 
         // Initialize
         void InitializeJob(JobRequestMessage message, CancellationToken token);
@@ -118,6 +119,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         }
 
         public PlanFeatures Features { get; private set; }
+
+        public string TargetContainerId
+        {
+            get
+            {
+                return Container.GetTargetContainerId(_record.RefName);
+            }
+        }
 
         public override void Initialize(IHostContext hostContext)
         {
@@ -352,11 +361,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             PrependPath = new List<string>();
 
             // Docker 
-            Container = new ContainerInfo()
+            string jobImage = Variables.Get("_PREVIEW_VSTS_DOCKER_IMAGE");
+            if (!string.IsNullOrEmpty(jobImage))
             {
-                ContainerImage = Variables.Get("_PREVIEW_VSTS_DOCKER_IMAGE"),
-                ContainerName = $"VSTS_{Variables.System_HostType.ToString()}_{message.JobId.ToString("D")}",
-            };
+                Trace.Info($"Tasks will run inside container using image '{jobImage}' as default.");
+                Container.RegisterJobImage(jobImage);
+            }
+
+            var taskImages = Variables.Public.Where(v => v.Key.StartsWith("_PREVIEW_VSTS_DOCKER_IMAGE.", StringComparison.OrdinalIgnoreCase));
+            if (taskImages != null)
+            {
+                foreach (var image in taskImages)
+                {
+                    string targetTask = image.Key.Replace("_PREVIEW_VSTS_DOCKER_IMAGE.", "");
+                    if (!string.IsNullOrEmpty(targetTask))
+                    {
+                        Trace.Info($"Task '{targetTask}' will run inside container using image '{image.Value}'");
+                        Container.RegisterTaskImage(image.Value, targetTask);
+                    }
+                }
+            }
 
             // Proxy variables
             var agentWebProxy = HostContext.GetService<IVstsAgentWebProxy>();
