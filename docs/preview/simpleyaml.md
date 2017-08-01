@@ -26,14 +26,16 @@ Example matrix:
 phases:
   - phase: foo
     execution:
-      nameFormat: my_job_$(arch)_$(config)
       maxConcurrency: 2 # default is 1 (sequential)
       matrix:
-        - arch: x64
+        x64_debug:
+          arch: x64
           config: debug
-        - arch: x64
+        x64_release:
+          arch: x64
           config: release
-        - arch: x86
+        x86_release:
+          arch: x86
           config: release
     steps:
       - script: echo hello
