@@ -69,7 +69,8 @@ NOTE: This is scoped to your current window. If you start again from a new cmd y
 \vsts-agent\_layout> run
 ```
 The agent is now running.
-4. You can now do things in VSTS and see the requests that come from the Agent. A good example is queueing a new build. After you do that you should see requests in Fiddler coming from a Process of agent.worker.
+
+4. You can now do things in VSTS and see the requests that come from the Agent. A good example is queueing a new build. After you do that you should see requests in Fiddler coming from the agent.worker Process.
 
 ### Potentially Helpful Hints
 1. If you don't see the Process column in Fiddler, restart and while it's loading hold Shift. This will reset the UI.
