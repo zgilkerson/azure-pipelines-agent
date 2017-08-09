@@ -57,7 +57,7 @@ Set the environment variable before you launch the agent.listener
 1. Open cmd.exe and browse to your Agent folder.
 2. Set the Agent to use Fiddler as a proxy
 ```bash
-set VSTS_HTTP_PROXY=http://127.0.0.1:8888
+\vsts-agent> set VSTS_HTTP_PROXY=http://127.0.0.1:8888
 ```
 Type set again and ensure that the variable is there.
 
@@ -65,8 +65,8 @@ NOTE: This is scoped to your current window. If you start again from a new cmd y
 
 3. Navigate to the _layout folder and type run
 ```bash
-cd _layout
-run
+\vsts-agent> cd _layout
+\vsts-agent\_layout> run
 ```
 The agent is now running.
 4. You can now do things in VSTS and see the requests that come from the Agent. A good example is queueing a new build. After you do that you should see requests in Fiddler coming from a Process of agent.worker.
