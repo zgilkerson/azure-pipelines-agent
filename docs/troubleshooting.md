@@ -46,12 +46,8 @@ Set the environment variable before you launch the agent.listener
 
 ### Prerequisites
 1. Download and install [Fiddler](http://www.telerik.com/fiddler).
-2. Turn off file capture
-File > Capture Traffic off (F12)  
----insert pic---
-3. Enable decrypting HTTPS traffic
-Tools > Fiddler Options > HTTPS tab. Decrypt HTTPS traffic
----insert pic---
+2. Turn off file capture (File > Capture Traffic)
+3. Enable decrypting HTTPS traffic (Tools > Fiddler Options > HTTPS tab. Check Decrypt HTTPS traffic)
 4. If your agent is pointing to localhost, you must reconfigure.
 a. Navigate to your _layout folder in cmd
 b. Type config remove and hit enter
@@ -72,8 +68,7 @@ cd _layout
 run
 ```
 The agent is now running.
-4. You can now do things in VSTS and see the requests that come from the Agent. A good example is queueing a new build. After you do that you should see requests in Fiddler that look something like:
----insert pic here---
+4. You can now do things in VSTS and see the requests that come from the Agent. A good example is queueing a new build. After you do that you should see requests in Fiddler coming from a Process of agent.worker.
 
 ### Potentially Helpful Hints
 1. If you don't see the Process column in Fiddler, restart and while it's loading hold Shift. This will reset the UI.
