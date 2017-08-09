@@ -50,8 +50,8 @@ Set the environment variable before you launch the agent.listener
 3. Enable decrypting HTTPS traffic (Tools > Fiddler Options > HTTPS tab. Check Decrypt HTTPS traffic)
 4. If your agent is pointing to localhost, you must reconfigure.
     1. Navigate to your _layout folder in cmd
-    b. Type config remove and hit enter
-    c. Type config to reset the agent. When you set the endpoint, you must set it as http://<your-machine-name>:8080/tfs, not http://localhost:8080/tfs.
+    2. Type config remove and hit enter
+    3. Type config to reset the agent. When you set the endpoint, you must set it as http://<your-machine-name>:8080/tfs, not http://localhost:8080/tfs.
 
 ### Steps
 1. Open cmd.exe and browse to your Agent folder.
