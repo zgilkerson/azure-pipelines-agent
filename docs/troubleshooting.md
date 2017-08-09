@@ -62,6 +62,7 @@ set VSTS_HTTP_PROXY=http://127.0.0.1:8888
 Type set again and ensure that the variable is there.
 
 NOTE: This is scoped to your current window. If you start again from a new cmd you will need to set this again. If you are running the Agent as a service you can set an environment variable with the same name and value.
+
 3. Navigate to the _layout folder and type run
 ```bash
 cd _layout
