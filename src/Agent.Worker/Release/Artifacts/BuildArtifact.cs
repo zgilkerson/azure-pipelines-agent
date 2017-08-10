@@ -236,6 +236,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                     DownloadBufferSize = executionContext.Variables.Release_Download_BufferSize ?? ContainerFetchEngineDefaultOptions.DownloadBufferSize
                 };
 
+                int fetchEngineAsyncTimeoutSeconds;
+                if (!int.TryParse(Environment.GetEnvironmentVariable("VSTS_FETCHENGINE_ASYNCTIMEOUT") ?? string.Empty, out fetchEngineAsyncTimeoutSeconds))
+                {
+                    // set the timeout max but make sure it's between [100, 1200]
+                    containerFetchEngineOptions.GetFileAsyncTimeout = TimeSpan.FromSeconds(Math.Min(Math.Max(fetchEngineAsyncTimeoutSeconds, 100), 1200));
+                } 
+                else 
+                {
+                    containerFetchEngineOptions.GetFileAsyncTimeout = ContainerFetchEngineDefaultOptions.GetFileAsyncTimeout;
+                }
+
                 executionContext.Output(StringUtil.Loc("RMParallelDownloadLimit", containerFetchEngineOptions.ParallelDownloadLimit));
                 executionContext.Output(StringUtil.Loc("RMDownloadBufferSize", containerFetchEngineOptions.DownloadBufferSize));
 
