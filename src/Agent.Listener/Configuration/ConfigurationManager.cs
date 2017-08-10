@@ -88,6 +88,54 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 saveProxySetting = true;
             }
 
+            // Populate cert setting from commandline args
+            var agentCertManager = HostContext.GetService<IAgentCertificateManager>();
+            bool saveCertSetting = false;
+            string caCert = command.GetCACertificate();
+            string clientCert = command.GetClientCertificate();
+            string clientCertKey = command.GetClientCertificatePrivateKey();
+            string clientCertArchive = command.GetClientCertificateArchrive();
+            string clientCertPassword = command.GetClientCertificatePassword();
+
+            if (!string.IsNullOrEmpty(caCert))
+            {
+                caCert = Path.Combine(Directory.GetCurrentDirectory(), caCert);
+                ArgUtil.File(caCert, nameof(caCert));
+            }
+
+            if (!string.IsNullOrEmpty(clientCert) &&
+                !string.IsNullOrEmpty(clientCertKey) &&
+                !string.IsNullOrEmpty(clientCertArchive) &&
+                !string.IsNullOrEmpty(clientCertPassword))
+            {
+                // Ensure all client cert pieces are there.
+                clientCert = Path.Combine(Directory.GetCurrentDirectory(), clientCert);
+                clientCertKey = Path.Combine(Directory.GetCurrentDirectory(), clientCertKey);
+                clientCertArchive = Path.Combine(Directory.GetCurrentDirectory(), clientCertArchive);
+
+                ArgUtil.File(clientCert, nameof(clientCert));
+                ArgUtil.File(clientCertKey, nameof(clientCertKey));
+                ArgUtil.File(clientCertArchive, nameof(clientCertArchive));
+            }
+            else if (!string.IsNullOrEmpty(clientCert) ||
+                     !string.IsNullOrEmpty(clientCertKey) ||
+                     !string.IsNullOrEmpty(clientCertArchive) ||
+                     !string.IsNullOrEmpty(clientCertPassword))
+            {
+                // Print out which args are missing.
+                ArgUtil.NotNullOrEmpty(Constants.Agent.CommandLine.Args.SslClientCert, Constants.Agent.CommandLine.Args.SslClientCert);
+                ArgUtil.NotNullOrEmpty(Constants.Agent.CommandLine.Args.SslClientCertKey, Constants.Agent.CommandLine.Args.SslClientCertKey);
+                ArgUtil.NotNullOrEmpty(Constants.Agent.CommandLine.Args.SslClientCertArchive, Constants.Agent.CommandLine.Args.SslClientCertArchive);
+                ArgUtil.NotNullOrEmpty(Constants.Agent.CommandLine.Args.SslClientCertPassword, Constants.Agent.CommandLine.Args.SslClientCertPassword);
+            }
+
+            if (!string.IsNullOrEmpty(caCert) || !string.IsNullOrEmpty(clientCert))
+            {
+                Trace.Info("Reset agent cert setting base on commandline args.");
+                (agentCertManager as AgentCertificateManager).SetupCertificate(caCert, clientCert, clientCertKey, clientCertArchive, clientCertPassword);
+                saveCertSetting = true;
+            }
+
             AgentSettings agentSettings = new AgentSettings();
             // TEE EULA
             agentSettings.AcceptTeeEula = false;
@@ -352,6 +400,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 (vstsProxy as VstsAgentWebProxy).SaveProxySetting();
             }
 
+            if (saveCertSetting)
+            {
+                Trace.Info("Save agent cert setting to disk.");
+                (agentCertManager as AgentCertificateManager).SaveCertificateSetting();
+            }
+
             _term.WriteLine(StringUtil.Loc("SavedSettings", DateTime.UtcNow));
 
 #if OS_WINDOWS
@@ -487,7 +541,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 _term.WriteLine(currentAction);
                 if (isConfigured)
                 {
+                    // delete proxy setting
                     (HostContext.GetService<IVstsAgentWebProxy>() as VstsAgentWebProxy).DeleteProxySetting();
+
+                    // delete agent cert setting
+                    (HostContext.GetService<IAgentCertificateManager>() as AgentCertificateManager).DeleteCertificateSetting();
+
                     _store.DeleteSettings();
                     _term.WriteLine(StringUtil.Loc("Success") + currentAction);
                 }
