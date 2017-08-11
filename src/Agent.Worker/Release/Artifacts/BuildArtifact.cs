@@ -237,11 +237,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release.Artifacts
                 };
 
                 int fetchEngineTimeoutSeconds;
-                if (!int.TryParse(Environment.GetEnvironmentVariable("VSTS_FETCHENGINE_TIMEOUT") ?? string.Empty, out fetchEngineTimeoutSeconds))
+                if (!int.TryParse(Environment.GetEnvironmentVariable("VSTS_HTTP_TIMEOUT") ?? string.Empty, out fetchEngineTimeoutSeconds))
                 {
                     // set the timeout max but make sure it's between [100, 1200]
                     containerFetchEngineOptions.GetFileAsyncTimeout = TimeSpan.FromSeconds(Math.Min(Math.Max(fetchEngineTimeoutSeconds, 100), 1200));
-                } 
+                }
                 else 
                 {
                     containerFetchEngineOptions.GetFileAsyncTimeout = ContainerFetchEngineDefaultOptions.GetFileAsyncTimeout;
