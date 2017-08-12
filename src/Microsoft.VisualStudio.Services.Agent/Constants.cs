@@ -101,8 +101,12 @@ namespace Microsoft.VisualStudio.Services.Agent
                 {
                     public static readonly string Configure = "configure";
                     public static readonly string LocalRun = "localRun";
+                    public static readonly string Lint = "lint";
+                    public static readonly string Login = "login";
+                    public static readonly string Logout = "logout";
                     public static readonly string Remove = "remove";
                     public static readonly string Run = "run";
+                    public static readonly string Validate = "validate";
                 }
 
                 //if you are adding a new flag, please make sure you update the

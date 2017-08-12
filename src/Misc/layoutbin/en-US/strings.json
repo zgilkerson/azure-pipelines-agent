@@ -34,6 +34,12 @@
   "AutoLogonPolicies_ShutdownReason": "Shutdown reason",
   "AutoLogonPoliciesInspection": "Checking for policies that may prevent autologon from working correctly.",
   "AutoLogonPoliciesWarningsHeader": "Following policies may affect the autologon:",
+  "Banner": [
+      "",
+      "Visual Studio Team Services (R) {0} version {1}",
+      "Copyright (C) Microsoft Corporation. All rights reserved.",
+      ""
+  ],  
   "BuildCommandNotFound": "##vso[build.{0}] is not a recognized command for Build command extension. Please reference documentation (http://go.microsoft.com/fwlink/?LinkId=817296)",
   "BuildDirLastUseTIme": "The last time build directory '{0}' been used is: {1}",
   "BuildNumberRequired": "Build number is required.",
@@ -202,6 +208,26 @@
     "",
     "{3}"
   ],
+  "CommandLineHelp_PL": [
+    "CLI-WIDTH-TOTAL-(105-CHARS)------------------------------------------------------------------------------",
+    "Commands:",
+    " login        Login and connect with the service.  Only needed once.",
+    " run          Run a pipeline",
+    " lint         Validate syntax of a yaml file",
+    " validate     Validate a pipeline file.  Includes lint and validating referenced tasks and inputs",
+    " logout       Logout",
+    "",
+    "Options:",
+    " --yaml     Path to a yaml file.  If not supplied, first file ending in .yml is used",
+    " --offline  Do not attempt to resolve task versions.  Always use what is local task cache.",
+    "",
+    "Examples:",
+    ".{0}vsts-pi login --url https://<account>.visualstudio.com --auth pat --token <pat>",
+    ".{0}vsts-pi validate --yaml vsts-ci.yml",
+    ".{0}vsts-pi run --yaml vsts-ci.yml",
+    "",
+    "{1}"
+  ],  
   "CommandLineHelp_Remove": [
     ".{0}config.{1} remove [options]",
     "",
