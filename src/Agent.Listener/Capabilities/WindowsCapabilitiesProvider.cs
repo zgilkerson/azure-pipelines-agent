@@ -109,10 +109,119 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             public List<Capability> GetCapabilities()
             {
                 var capabilities = new List<Capability>();
+                // Do this when we add any capability
                 //Trace.Info($"Adding '{capability.Name}': '{capability.Value}'");
+
+                string androidSdkPath = GetAndroidSdkPath();
+
+                if (!string.IsNullOrEmpty(androidSdkPath))
+                {
+                    // Add the capability
+                    // TODO: Write to host. We can probably put this in a special collection that writes to host when items are added? Something to reuse code.
+                    capabilities.Add(new Capability("AndroidSDK", androidSdkPath));
+
+                    // Check if the platforms directory exists
+                    string platformsDirectory = Path.Combine(androidSdkPath, "platforms");
+
+                    if (Directory.Exists(platformsDirectory))
+                    {
+                        foreach (string platformDir in Directory.GetDirectories(platformsDirectory))
+                        {
+                            string capabilityName = new DirectoryInfo(platformDir).Name.Replace("android-", "AndroidSDK_");
+                            capabilities.Add(new Capability(capabilityName, platformDir));
+                        }
+                    }
+                }
 
                 return capabilities;
             }
+
+            private string GetAndroidSdkPath()
+            {
+                // Attempt to get it from ANDROID_HOME environment variable
+                string envVar = Environment.GetEnvironmentVariable("ANDROID_HOME");
+                if (!string.IsNullOrEmpty(envVar))
+                {
+                    // Write-Host "Found ANDROID_HOME from machine environment."
+                    return envVar;
+                }
+
+                // Attempt to get from registry info
+                var hiveViewPairs = new List<HiveViewPair>
+                {
+                    new HiveViewPair("CurrentUser", "Default"), 
+                    new HiveViewPair("LocalMachine", "Registry64"), 
+                    new HiveViewPair("LocalMachine", "Registry32")
+                };
+
+                foreach (HiveViewPair pair in hiveViewPairs)
+                {
+                    string registryValue = GetRegistryValue(pair.Hive, pair.View, "SOFTWARE\\Android SDK Tools", "Path");
+
+                    if (!string.IsNullOrEmpty(registryValue))
+                    {
+                        return registryValue.Trim();
+                    }
+                }
+
+                return null;
+            }
+
+            private string GetRegistryValue(string hive, string view, string keyName, string valueName) // TODO: In some format, this should go in an IRegistryService I think, for testing.
+            {
+                if (view == "Registry64" && 
+                    !System.Environment.Is64BitOperatingSystem)
+                {
+                    // TODO: Log... "Skipping."
+                    return null;
+                }
+
+                Win32.RegistryKey baseKey = null;
+                Win32.RegistryKey subKey = null;
+
+                try
+                {
+                    baseKey = Microsoft.Win32.RegistryKey.OpenBaseKey(hive, view);
+                    subKey = baseKey.OpenSubKey(keyName);
+
+                    var value = subKey.GetValue(valueName);
+
+                    if (value != null)
+                    {
+                        string sValue = value as string;
+
+                        if (!string.IsNullOrEmpty(sValue))
+                        {
+                            // TODO: Write that we found it
+                            return sValue;
+                        }
+                    }
+                    else
+                    {
+                        // TODO: Write that we didn't find it
+                        return null;
+                    }
+                }
+                finally
+                {
+                    if (baseKey != null) { baseKey.Dispose(); }
+                    if (subKey != null) { subKey.Dispose(); }
+                }
+
+                return null;
+            }
+        }
+
+        private class HiveViewPair
+        {
+            public HiveViewPair(string hive, string view)
+            {
+                Hive = hive;
+                View = view;
+            }
+
+            public string Hive { get; }
+            public string View { get; }
         }
 
         private class AntCapabilities : IPrivateWindowsCapabilityProvider
