@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
+using System.Diagnostics;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 {
@@ -104,6 +106,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             List<Capability> GetCapabilities();
         }
 
+        public static class CapabilityNames
+        {
+            public static string AndroidSdk = "AndroidSDK";
+            public static string AzureGuestAgent = "AzureGuestAgent";
+        }
+
         private class AndroidSdkCapabilities : IPrivateWindowsCapabilityProvider
         {
             public List<Capability> GetCapabilities()
@@ -118,7 +126,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
                 {
                     // Add the capability
                     // TODO: Write to host. We can probably put this in a special collection that writes to host when items are added? Something to reuse code.
-                    capabilities.Add(new Capability("AndroidSDK", androidSdkPath));
+                    capabilities.Add(new Capability(CapabilityNames.AndroidSdk, androidSdkPath));
 
                     // Check if the platforms directory exists
                     string platformsDirectory = Path.Combine(androidSdkPath, "platforms");
@@ -127,7 +135,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
                     {
                         foreach (string platformDir in Directory.GetDirectories(platformsDirectory))
                         {
-                            string capabilityName = new DirectoryInfo(platformDir).Name.Replace("android-", "AndroidSDK_");
+                            string capabilityName = new DirectoryInfo(platformDir).Name.Replace("android-", CapabilityNames.AndroidSdk + "_");
                             capabilities.Add(new Capability(capabilityName, platformDir));
                         }
                     }
@@ -279,9 +287,20 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             {
                 var capabilities = new List<Capability>();
 
-                // @(Get-Process -Name 'WindowsAzureGuestAgent' -ErrorAction Ignore) | Select-Object -First 1 | ForEach-Object { Write-Capability -Name 'AzureGuestAgent' -Value $_.Path }
-                // TODO: Pretty sure there are a ton that use Get-Process, can we combine them all? Can add comments to separate sections but no need to be separate ps file or be 
-                //       separate ps file.
+                Process runningProcess = Process.GetProcessesByName("WindowsAzureGuestAgent").FirstOrDefault();
+
+                if (runningProcess == null)
+                {
+                    // TODO: Log that we couldnt find WindowsAzureGuestAgent
+                }
+                else
+                {
+                    // TODO: Log that we found WindowsAzureGuestAgent
+                    // TODO: Make sure runningProcess.MainModule.FileName is right
+                    // TODO: Abstract getting the name and file of a running process?
+                    capabilities.Add(new Capability(CapabilityNames.AzureGuestAgent, runningProcess.MainModule.FileName)); 
+                }
+
                 // TODO: Is the best way to get this to look at the list of running processes? Is there something static we can check or does it have to be running?
 
                 return capabilities;
