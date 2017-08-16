@@ -106,10 +106,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             List<Capability> GetCapabilities();
         }
 
+        private interface IRegistryService
+        {
+            // TODO: Write methods and implement. Inject in Capabilities classes.
+        }
+
+        private interface IEnvironmentService
+        {
+            // TODO: Write methods and implement. Inject in Capabilities classes.
+        }
+
         public static class CapabilityNames
         {
             public static string AndroidSdk = "AndroidSDK";
             public static string AzureGuestAgent = "AzureGuestAgent";
+            public static string Chef = "Chef";
         }
 
         private class AndroidSdkCapabilities : IPrivateWindowsCapabilityProvider
@@ -324,8 +335,40 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             {
                 var capabilities = new List<Capability>();
 
+                // Attempt to get location from Registry
+                string version = GetVersionFromRegistry();
+
+                // Get the chef directory from PATH
+                string chefDirectory = GetChefDirectoryFromPath();
+
+                // Add capabilities
+                if (!string.IsNullOrEmpty(version) && 
+                    !string.IsNullOrEmpty(chefDirectory))
+                {
+                    // chef
+                    // Write-Capability -Name 'Chef' -Value $version // TODO: Would this even work correctly? It's adding the version but not the path
+                    capabilities.Add(new Capability(CapabilityNames.Chef, version));
+
+                    // Add-KnifeCapabilities -ChefDirectory $chefDirectory
+
+
+                }
 
                 return capabilities;
+            }
+
+            private string GetVersionFromRegistry()
+            {
+
+
+                return null;
+            }
+
+            private string GetChefDirectoryFromPath()
+            {
+
+
+                return null;
             }
         }
 
