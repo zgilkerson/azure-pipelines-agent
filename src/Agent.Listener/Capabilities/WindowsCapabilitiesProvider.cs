@@ -366,7 +366,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 
             private string GetChefDirectoryFromPath()
             {
+                // TODO: Find out what the path normally looks like
+                var pathEnvVar = Environment.GetEnvironmentVariable("PATH");
+                string chefPath = pathEnvVar.Split(';').Where(p => p.Contains("chefdk\\bin")).FirstOrDefault();
 
+                if (!string.IsNullOrEmpty(chefPath) && 
+                    Directory.Exists(chefPath))
+                {
+                    // return [System.IO.Directory]::GetParent($cdkBin.TrimEnd([System.IO.Path]::DirectorySeparatorChar)).FullName
+                }
 
                 return null;
             }
