@@ -65,13 +65,16 @@ I'm personally on the fence here. Although my gut tells me \"display\" might hea
 For example, phase display name would look like:
 
 ```yaml
+resources:
+- repo: Name
+
 phases:
 - phase: PhaseA
-  display: My phase display name
+  displayName: My phase display name
   steps:
   - step: echo hello world
 - phase: PhaseB
-  display: My phase B display name
+  displayName: My phase B display name
   dependsOn: PhaseA
   steps:
   - step: echo hello 2
@@ -82,9 +85,15 @@ And task refName example:
 ```yaml
 steps:
 - script: echo hello 1
-  display: My fancy display name
-  refName: myFirstScript
+  displayName: My fancy display name
+  name: myFirstScript
 - script: echo hello 2
-  display: My second fancy display name
-  refName: mySecondScript
+  displayName: My second fancy display name
+  name: mySecondScript
+- task: CmdLine@2
+  displayName: My fancy name
+  name: MyStableRefName
 ```
+
+Ref name rules:
+startsWith `_A-Za-z` followed by `_A-Za-z0-9`
