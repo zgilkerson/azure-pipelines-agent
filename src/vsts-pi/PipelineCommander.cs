@@ -1,29 +1,38 @@
+using Microsoft.TeamFoundation.Common;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Util;
+using Microsoft.VisualStudio.Services.Agent.Configuration;
+using Microsoft.VisualStudio.Services.Common;
+using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.Services.Common;
 
 namespace Microsoft.VisualStudio.Services.Agent
 {
-    [ServiceLocator(Default = typeof(PipelineRunner))]
-    public interface IPipelineRunner : IAgentService
+    [ServiceLocator(Default = typeof(PipelineCommander))]
+    public interface IPipelineCommander : IAgentService
     {
         Task<int> RunAsync(CommandSettings command);
     }
 
-    public sealed class PipelineRunner : AgentService, IPipelineRunner
+    public sealed class PipelineCommander : AgentService, IPipelineCommander
     {
+        private ILoginManager _loginMgr;
+        private ILoginStore _loginStore;
         private ITerminal _term;
         private ManualResetEvent _completedCommand = new ManualResetEvent(false);
 
-        public sealed override void Initialize(IHostContext hostContext)
+        public sealed override void Initialize(IHostContext context)
         {
-            base.Initialize(hostContext);
-            _term = hostContext.GetService<ITerminal>();
+            base.Initialize(context);
+            _loginStore = context.GetService<ILoginStore>();
+            // _loginMgr = new LoginManager();
+            // _loginMgr.Initialize(context);
+            _loginMgr = context.GetService<ILoginManager>();
+            _term = context.GetService<ITerminal>();
         }
 
         public async Task<int> RunAsync(CommandSettings command)
@@ -60,26 +69,34 @@ namespace Microsoft.VisualStudio.Services.Agent
                     return Constants.Agent.ReturnCode.Success;
                 }
 
+                if (command.Lint)
+                {
+                    yamlRunner.Lint(command, HostContext.AgentShutdownToken);
+                    return Constants.Agent.ReturnCode.Success;
+                }
+
                 if (command.Login)
                 {
-                    _term.WriteLine("TODO: Login");
-                    return Constants.Agent.ReturnCode.Success;                    
+                    return await _loginMgr.Login(command);                
                 }
 
                 if (command.Logout)
                 {
+                    EnsureLoggedIn();
                     _term.WriteLine("TODO: Logout");
                     return Constants.Agent.ReturnCode.Success;                    
                 }
 
                 if (command.Validate)
                 {
+                    EnsureLoggedIn();
                     await yamlRunner.ValidateAsync(command, HostContext.AgentShutdownToken);
                     return Constants.Agent.ReturnCode.Success;
                 }
 
                 if (command.Run)
                 {
+                    EnsureLoggedIn();
                     await yamlRunner.RunAsync(command, HostContext.AgentShutdownToken);
                     return Constants.Agent.ReturnCode.Success;
                 }
@@ -116,6 +133,14 @@ namespace Microsoft.VisualStudio.Services.Agent
             Environment.Exit(Constants.Agent.ReturnCode.TerminatedError);
         }
 
+        private void EnsureLoggedIn()
+        {
+            if (!_loginStore.IsLoggedIn())
+            {
+                throw new InvalidOperationException("Must be logged in to run this command");
+            }
+        }      
+
         private void PrintUsage(CommandSettings command)
         {
             string separator;
@@ -125,7 +150,10 @@ namespace Microsoft.VisualStudio.Services.Agent
             separator = "/";
 #endif
 
-            string commonHelp = StringUtil.Loc("CommandLineHelp_Common");
+            //string commonHelp = StringUtil.Loc("CommandLineHelp_Common");
+            // common help differs
+            // TODO: fix
+            string commonHelp = "";
             _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL", separator, commonHelp));
 
             // TODO: per command help and examples

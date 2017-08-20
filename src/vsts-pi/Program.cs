@@ -1,3 +1,4 @@
+using Microsoft.VisualStudio.Services.Agent;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using System;
 using System.Globalization;
@@ -9,13 +10,25 @@ namespace Microsoft.VisualStudio.Services.Agent.Pipeline
     {
         public static int Main(string[] args)
         {
-            using (HostContext context = new HostContext("Pipeline"))
+            // we need to ensure enough structure is in place to even log.
+            try
+            {
+                PipelineContext.EnsureDataPath();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return 1;
+            }
+            
+
+            using (PipelineContext context = new PipelineContext("Pipeline"))
             {
                 return MainAsync(context, args).GetAwaiter().GetResult();
             }
         }
 
-        public static async Task<int> MainAsync(IHostContext context, string[] args)
+        public static async Task<int> MainAsync(PipelineContext context, string[] args)
         {
             //ITerminal registers a CTRL-C handler, which keeps the Agent.Worker process running
             //and lets the Agent.Listener handle gracefully the exit.
@@ -50,10 +63,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Pipeline
                 }                
 
                 // Defer to the pipeline class to execute the command.
-                IPipelineRunner pipeline = context.GetService<IPipelineRunner>();
+                IPipelineCommander commander = context.GetService<IPipelineCommander>();
                 try
                 {
-                    return await pipeline.RunAsync(command);
+                    return await commander.RunAsync(command);
                 }
                 catch (OperationCanceledException) when (context.AgentShutdownToken.IsCancellationRequested)
                 {

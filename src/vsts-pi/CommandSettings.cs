@@ -49,6 +49,8 @@ namespace Microsoft.VisualStudio.Services.Agent
         };
 
         // Commands.
+        // TODO: move to constants
+        public bool Lint => TestCommand("Lint");
         public bool Login => TestCommand(Constants.Agent.CommandLine.Commands.Login);
         public bool Logout => TestCommand(Constants.Agent.CommandLine.Commands.Logout);
         public bool Run => TestCommand(Constants.Agent.CommandLine.Commands.Run);
@@ -209,6 +211,16 @@ namespace Microsoft.VisualStudio.Services.Agent
         public string GetProxyPassword()
         {
             return GetArg(Constants.Agent.CommandLine.Args.ProxyPassword);
+        }
+
+        public string GetMatrix()
+        {
+            return GetArg(Constants.Agent.CommandLine.Args.Matrix);
+        }
+
+        public string GetPhase()
+        {
+            return GetArg(Constants.Agent.CommandLine.Args.Phase);
         }
 
         //

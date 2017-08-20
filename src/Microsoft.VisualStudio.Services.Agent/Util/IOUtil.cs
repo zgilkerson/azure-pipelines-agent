@@ -151,6 +151,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
                 settings.WorkFolder);
         }
 
+        public static string GetHomePath()
+        {
+            var envHome = Constants.Agent.Platform == Constants.OSPlatform.Windows ? "HOMEPATH" : "HOME";
+            return Environment.GetEnvironmentVariable(envHome);            
+        }
+
         public static string GetTasksPath(IHostContext hostContext)
         {
             return Path.Combine(

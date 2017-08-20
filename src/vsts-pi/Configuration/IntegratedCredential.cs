@@ -25,5 +25,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
         {
             //Integrated credentials do not require any configuration parameters
         }
+
+        public override void SaveCredential(IHostContext context)
+        {
+            //Integrated credentials do not require any configuration parameters
+        }        
     }
 }

@@ -23,6 +23,7 @@ namespace Microsoft.VisualStudio.Services.Agent
     [ServiceLocator(Default = typeof(YamlRunner))]
     public interface IYamlRunner : IAgentService
     {
+        int Lint(CommandSettings command, CancellationToken token);
         Task<int> RunAsync(CommandSettings command, CancellationToken token);
         Task<int> ValidateAsync(CommandSettings command, CancellationToken token);
     }
@@ -39,6 +40,28 @@ namespace Microsoft.VisualStudio.Services.Agent
             hostContext.RunMode = RunMode.Local;
             //_taskStore = HostContext.GetService<ITaskStore>();
             _term = hostContext.GetService<ITerminal>();
+        }
+
+        public int Lint(CommandSettings command, CancellationToken token)
+        {
+            try
+            {
+                string ymlFile = ResolveYamlPath(command);
+                _term.WriteLine($"Loading {ymlFile}");
+
+                PipelineParser parser = GetParser();
+                parser.DeserializeAndSerialize(
+                    defaultRoot: Directory.GetCurrentDirectory(),
+                    path: ymlFile,
+                    mustacheContext: null,
+                    cancellationToken: HostContext.AgentShutdownToken);
+                return Constants.Agent.ReturnCode.Success;
+            }
+            catch (Exception e)
+            {
+                _term.WriteLine($"Invalid: {e.Message}");    
+            }
+            return Constants.Agent.ReturnCode.TerminatedError;
         }
 
         public async Task<int> ValidateAsync(CommandSettings command, CancellationToken token)
@@ -68,6 +91,13 @@ namespace Microsoft.VisualStudio.Services.Agent
             string ymlFile = ResolveYamlPath(command);
             _term.WriteLine($"Loading {ymlFile}");
 
+            // Verify the current directory is the root of a git repo.
+            string repoDirectory = Directory.GetCurrentDirectory();
+            if (!Directory.Exists(Path.Combine(repoDirectory, ".git")))
+            {
+                throw new Exception("Unable to run the build locally. The command must be executed from the root directory of a local git repository.");
+            }
+
             PipelineParser parser = GetParser();            
             YamlContracts.Process process = parser.LoadInternal(
                 defaultRoot: Directory.GetCurrentDirectory(),
@@ -76,6 +106,54 @@ namespace Microsoft.VisualStudio.Services.Agent
                 cancellationToken: HostContext.AgentShutdownToken);
             ArgUtil.NotNull(process, nameof(process));  
 
+            // Filter the phases.
+            string phaseName = command.GetPhase();
+            if (!string.IsNullOrEmpty(phaseName))
+            {
+                process.Phases = process.Phases
+                    .Cast<YamlContracts.Phase>()
+                    .Where(x => string.Equals(x.Name, phaseName, StringComparison.OrdinalIgnoreCase))
+                    .Cast<YamlContracts.IPhase>()
+                    .ToList();
+                if (process.Phases.Count == 0)
+                {
+                    throw new Exception($"Phase '{phaseName}' not found.");
+                }
+            }
+
+            // Verify a phase was specified if more than one phase was found.
+            if (process.Phases.Count > 1)
+            {
+                throw new Exception($"More than one phase was discovered. Use the --{Constants.Agent.CommandLine.Args.Phase} argument to specify a phase.");
+            }
+
+            // Get the matrix.
+            var phase = process.Phases[0] as YamlContracts.Phase;
+            var queueTarget = phase.Target as QueueTarget;
+
+            // Filter to a specific matrix.
+            string matrixName = command.GetMatrix();
+            if (!string.IsNullOrEmpty(matrixName))
+            {
+                if (queueTarget?.Matrix != null)
+                {
+                    queueTarget.Matrix = queueTarget.Matrix.Keys
+                        .Where(x => string.Equals(x, matrixName, StringComparison.OrdinalIgnoreCase))
+                        .ToDictionary(keySelector: x => x, elementSelector: x => queueTarget.Matrix[x]);
+                }
+
+                if (queueTarget?.Matrix == null || queueTarget.Matrix.Count == 0)
+                {
+                    throw new Exception($"Job configuration matrix '{matrixName}' not found.");
+                }
+            }
+
+            // Verify a matrix was specified if more than one matrix was found.
+            if (queueTarget?.Matrix != null && queueTarget.Matrix.Count > 1)
+            {
+                throw new Exception($"More than one job configuration matrix was discovered. Use the --{Constants.Agent.CommandLine.Args.Matrix} argument to specify a matrix.");
+            }
+                        
             return Constants.Agent.ReturnCode.Success;          
         } 
 

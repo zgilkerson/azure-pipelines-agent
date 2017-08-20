@@ -17,11 +17,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
         public static readonly Dictionary<string, Type> CredentialTypes = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
         {
             { Constants.Configuration.PAT, typeof(PersonalAccessToken)},
-            { Constants.Configuration.Alternate, typeof(AlternateCredential)},
-            { Constants.Configuration.Negotiate, typeof(NegotiateCredential)},
-            { Constants.Configuration.Integrated, typeof(IntegratedCredential)},
-            { Constants.Configuration.OAuth, typeof(OAuthCredential)},
-            { Constants.Configuration.ServiceIdentity, typeof(ServiceIdentityCredential)},
+            { Constants.Configuration.Integrated, typeof(IntegratedCredential)}
         };
 
         public ICredentialProvider GetCredentialProvider(string credType)
@@ -42,7 +38,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
         
         public VssCredentials LoadCredentials()
         {
-            IConfigurationStore store = HostContext.GetService<IConfigurationStore>(); 
+            ILoginStore store = HostContext.GetService<ILoginStore>(); 
 
             if (!store.HasCredentials())
             {

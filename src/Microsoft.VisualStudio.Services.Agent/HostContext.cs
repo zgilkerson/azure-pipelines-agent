@@ -38,7 +38,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         AutoStartup
     }
 
-    public sealed class HostContext : EventListener, IObserver<DiagnosticListener>, IObserver<KeyValuePair<string, object>>, IHostContext, IDisposable
+    public class HostContext : EventListener, IObserver<DiagnosticListener>, IObserver<KeyValuePair<string, object>>, IHostContext, IDisposable
     {
         private const int _defaultLogPageSize = 8;  //MB
         private static int _defaultLogRetentionDays = 30;
@@ -126,7 +126,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             }
         }
 
-        public string GetDirectory(WellKnownDirectory directory)
+        public virtual string GetDirectory(WellKnownDirectory directory)
         {
             string path;
             switch (directory)
