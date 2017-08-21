@@ -33,8 +33,14 @@ namespace Microsoft.VisualStudio.Services.Agent
         // TODO: move to login manager
         public async Task<int> Login(CommandSettings command)
         {
+            Trace.Info(nameof(Login));
             try
             {
+                if (_loginStore.IsLoggedIn()) {
+                    // TODO: loc
+                    throw new InvalidOperationException("Already logged in.  Log out first.");
+                }
+
                 LoginSettings settings = new LoginSettings();
 
                 // Loop getting url and creds until you can connect
@@ -54,8 +60,10 @@ namespace Microsoft.VisualStudio.Services.Agent
                     authType = command.GetAuth(defaultValue: defaultAuth);
 
                     credProvider = GetCredentialProvider(command, authType, settings.ServerUrl);
-                    creds = credProvider.GetVssCredentials(HostContext);
-                    Trace.Info("cred retrieved");
+                    creds = credProvider.GatherCredential(HostContext, command, settings.ServerUrl);
+
+                    //creds = credProvider.LoadVssCredentials(HostContext);
+                    Trace.Info("cred gathered");
                     try
                     {
                         // Validate can connect.
@@ -75,9 +83,9 @@ namespace Microsoft.VisualStudio.Services.Agent
                     Scheme = authType
                 };
                 _loginStore.SaveCredentialData(credentialData);
-                credProvider.SaveCredential(HostContext);       
+                credProvider.SaveCredential(HostContext);
+                _loginStore.SaveSettings(settings);       
 
-                //
                 return Constants.Agent.ReturnCode.Success;
             }
             catch (Exception e)
@@ -98,17 +106,17 @@ namespace Microsoft.VisualStudio.Services.Agent
             // Create the credential.
             Trace.Info("Creating credential for auth: {0}", authType);
             var provider = credentialManager.GetCredentialProvider(authType);
-            provider.EnsureCredential(HostContext, command, serverUrl);
             return provider;
         }
 
         public async Task TestConnectionAsync(LoginSettings settings, VssCredentials creds)
         {
+            Trace.Info("Testing connection");
             IAgentServer server = HostContext.GetService<IAgentServer>();
             _term.WriteLine(StringUtil.Loc("ConnectingToServer"));
             VssConnection connection = ApiUtil.CreateConnection(new Uri(settings.ServerUrl), creds);
-
             await server.ConnectAsync(connection);
+            Trace.Info("connected");
         }          
     }   
 }

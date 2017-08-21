@@ -7,11 +7,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
     {
         public IntegratedCredential() : base(Constants.Configuration.Integrated) { }
 
-        public override VssCredentials GetVssCredentials(IHostContext context)
+        public override VssCredentials LoadVssCredentials(IHostContext context)
         {
             ArgUtil.NotNull(context, nameof(context));
             Tracing trace = context.GetTrace(nameof(IntegratedCredential));
-            trace.Info(nameof(GetVssCredentials));
+            trace.Info(nameof(LoadVssCredentials));
 
             // Create instance of VssConnection using default Windows credentials (NTLM)
             VssCredentials creds = new VssCredentials(true);
@@ -21,13 +21,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
             return creds;
         }
 
-        public override void EnsureCredential(IHostContext context, CommandSettings command, string serverUrl)
+        public override VssCredentials GatherCredential(IHostContext context, CommandSettings command, string serverUrl)
         {
-            //Integrated credentials do not require any configuration parameters
+            return new VssCredentials(true);
         }
 
         public override void SaveCredential(IHostContext context)
         {
+            // no op
             //Integrated credentials do not require any configuration parameters
         }        
     }

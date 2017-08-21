@@ -43,24 +43,24 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
         private LoginSettings _settings;
         // private IAgentCredentialStore _credStore;
 
-        public override void Initialize(IHostContext hostContext)
+        public override void Initialize(IHostContext context)
         {
-            base.Initialize(hostContext);
+            base.Initialize(context);
 
-            if (hostContext.GetType() != typeof(PipelineContext)) {
+            if (context.GetType() != typeof(PipelineContext)) {
                 throw new ArgumentException("hostContext");
             }
 
             var currentAssemblyLocation = System.Reflection.Assembly.GetEntryAssembly().Location;
             Trace.Info("currentAssemblyLocation: {0}", currentAssemblyLocation);
 
-            _rootPath = HostContext.GetDirectory(WellKnownDirectory.Root);
+            _rootPath = context.GetDirectory(WellKnownDirectory.Root);
             Trace.Info("rootPath: {0}", _rootPath);
 
-            _loginSettingsPath = IOUtil.GetConfigFilePath();
-            Trace.Info("ConfigFilePath: {0}", _loginSettingsPath);
+            _loginSettingsPath = Path.Combine(_rootPath, ".pipeline");;
+            Trace.Info("LoginSettingsPath: {0}", _loginSettingsPath);
 
-            _credFilePath = IOUtil.GetCredFilePath();
+            _credFilePath = Path.Combine(_rootPath, ".credentials");
             Trace.Info("CredFilePath: {0}", _credFilePath);
         }
 
@@ -76,13 +76,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
         public bool IsLoggedIn()
         {
             Trace.Info("IsLogged()");
-            bool loggedIn = HostContext.RunMode == RunMode.Local || (new FileInfo(_loginSettingsPath)).Exists;
+            bool loggedIn = (new FileInfo(_loginSettingsPath)).Exists;
             Trace.Info("IsLoggedIn: {0}", loggedIn);
             return loggedIn;
         }
 
         public CredentialData GetCredentials()
         {
+            Trace.Info("GetCredentials()");
             ArgUtil.Equal(RunMode.Normal, HostContext.RunMode, nameof(HostContext.RunMode));
             if (_creds == null)
             {
@@ -94,6 +95,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
 
         public LoginSettings GetSettings()
         {
+            Trace.Info("GetSettings()");
             if (_settings == null)
             {
                 if (File.Exists(_loginSettingsPath))
@@ -107,7 +109,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
 
         public void SaveCredentialData(CredentialData credential)
         {
-            ArgUtil.Equal(RunMode.Normal, HostContext.RunMode, nameof(HostContext.RunMode));
             Trace.Info("Saving {0} credential data @ {1}", credential.Scheme, _credFilePath);
             if (File.Exists(_credFilePath))
             {
@@ -123,7 +124,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
 
         public void SaveSettings(LoginSettings settings)
         {
-            ArgUtil.Equal(RunMode.Normal, HostContext.RunMode, nameof(HostContext.RunMode));
             Trace.Info("Saving login settings.");
             if (File.Exists(_loginSettingsPath))
             {
@@ -139,12 +139,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
 
         public void DeleteCredential()
         {
+            Trace.Info("DeleteCredential()");
             ArgUtil.Equal(RunMode.Normal, HostContext.RunMode, nameof(HostContext.RunMode));
             IOUtil.Delete(_credFilePath, default(CancellationToken));
         }
 
         public void DeleteSettings()
         {
+            Trace.Info("DeleteSettings()");
             ArgUtil.Equal(RunMode.Normal, HostContext.RunMode, nameof(HostContext.RunMode));
             IOUtil.Delete(_loginSettingsPath, default(CancellationToken));
         }

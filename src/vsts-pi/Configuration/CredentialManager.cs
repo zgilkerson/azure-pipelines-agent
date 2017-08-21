@@ -49,7 +49,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
             ICredentialProvider credProv = GetCredentialProvider(credData.Scheme);
             credProv.CredentialData = credData;
             
-            VssCredentials creds = credProv.GetVssCredentials(HostContext);
+            VssCredentials creds = credProv.LoadVssCredentials(HostContext);
 
             return creds;
         }
