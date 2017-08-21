@@ -82,9 +82,7 @@ namespace Microsoft.VisualStudio.Services.Agent
 
                 if (command.Logout)
                 {
-                    EnsureLoggedIn();
-                    _term.WriteLine("TODO: Logout");
-                    return Constants.Agent.ReturnCode.Success;                    
+                    return _loginMgr.Logout();                    
                 }
 
                 if (command.Validate)

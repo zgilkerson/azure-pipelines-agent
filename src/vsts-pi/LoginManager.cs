@@ -16,6 +16,7 @@ namespace Microsoft.VisualStudio.Services.Agent
     public interface ILoginManager : IAgentService
     {
         Task<int> Login(CommandSettings command);
+        int Logout();
     }
 
     public class LoginManager: AgentService, ILoginManager
@@ -86,6 +87,10 @@ namespace Microsoft.VisualStudio.Services.Agent
                 credProvider.SaveCredential(HostContext);
                 _loginStore.SaveSettings(settings);       
 
+                // TODO: loc
+                _term.WriteLine($"Successfully logged on to {settings.ServerUrl}");
+                _term.WriteLine();
+
                 return Constants.Agent.ReturnCode.Success;
             }
             catch (Exception e)
@@ -95,6 +100,57 @@ namespace Microsoft.VisualStudio.Services.Agent
                 _term.WriteError("Failed to Login");
                 return Constants.Agent.ReturnCode.TerminatedError;
             }
+        }
+
+        public int Logout()
+        {
+            bool success = true;
+
+            try
+            {
+                _loginStore.DeleteSettings();
+            }
+            catch(Exception e)
+            {
+                success = false;
+                _term.WriteError(e);
+                // TODO: loc
+                _term.WriteLine("Warning.  Failed to delete .pipeline file");                
+            }
+
+            try
+            {
+                _loginStore.DeleteCredential();
+            }
+            catch(Exception e)
+            {
+                success = false;
+                _term.WriteError(e);
+                // TODO: loc
+                _term.WriteLine("Warning.  Failed to delete .credential file");                
+            }            
+
+            try
+            {
+                Trace.Info("Saving credential");
+                var credStore = HostContext.GetService<IAgentCredentialStore>();
+                credStore.Delete($"VSTS_PI");
+            }
+            catch (Exception e)
+            {
+                success = false;
+                // TODO: loc
+                _term.WriteLine("Could not delete credential store login (VSTS_PI).  This might be normal if already deleted.");
+            }
+
+            if (success)
+            {
+                // TODO: lob
+                _term.WriteLine("Successfully logged out");
+            }
+            _term.WriteLine(); 
+
+            return success ? Constants.Agent.ReturnCode.Success : Constants.Agent.ReturnCode.TerminatedError;
         }
 
         private ICredentialProvider GetCredentialProvider(CommandSettings command, string authType, string serverUrl)

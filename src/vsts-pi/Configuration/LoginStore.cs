@@ -140,14 +140,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
         public void DeleteCredential()
         {
             Trace.Info("DeleteCredential()");
-            ArgUtil.Equal(RunMode.Normal, HostContext.RunMode, nameof(HostContext.RunMode));
             IOUtil.Delete(_credFilePath, default(CancellationToken));
         }
 
         public void DeleteSettings()
         {
             Trace.Info("DeleteSettings()");
-            ArgUtil.Equal(RunMode.Normal, HostContext.RunMode, nameof(HostContext.RunMode));
             IOUtil.Delete(_loginSettingsPath, default(CancellationToken));
         }
     }
