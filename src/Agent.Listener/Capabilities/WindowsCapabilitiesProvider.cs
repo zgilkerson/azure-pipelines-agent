@@ -21,10 +21,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             Trace.Entering();
             var capabilities = new List<Capability>();
 
+            // TODO: Get this from the HostContext. Will have to add mapping there.
+            //HostContext.GetService<IEnvironmentService>()
+            IEnvironmentService environmentService = new EnvironmentService();
+
             var capabilityProviders = new List<IPrivateWindowsCapabilityProvider>
             {
                 // new AndroidSdkCapabilities(), 
-                new AntCapabilities(), 
+                new AntCapability(environmentService), 
                 // new AzureGuestAgentCapabilities(), 
                 // new AzurePowerShellCapabilities(), 
                 // new ChefCapabilities(), 
@@ -32,7 +36,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
                 // new JavaCapabilities(), 
                 // new MavenCapabilities(), 
                 // new MSBuildCapabilities(), 
-                // new NodeToolCapabilities(), 
+
+                // TODO: Add npm, gulp, etc.
+
                 // new PowerShellCapabilities(), 
                 // new ScvmmAdminConsoleCapabilities(), 
                 // new SqlPackageCapabilities(), 
@@ -111,9 +117,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             // TODO: Write methods and implement. Inject in Capabilities classes.
         }
 
-        private interface IEnvironmentService
+        public interface IEnvironmentService
         {
             // TODO: Write methods and implement. Inject in Capabilities classes.
+            string GetEnvironmentVariable(string variable);
+        }
+
+        public class EnvironmentService : IEnvironmentService
+        {
+            string IEnvironmentService.GetEnvironmentVariable(string variable)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public static class CapabilityNames
@@ -243,23 +258,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             public string View { get; }
         }
 
-        private class AntCapabilities : IPrivateWindowsCapabilityProvider
+        internal class AntCapability : IPrivateWindowsCapabilityProvider
         {
+            private readonly IEnvironmentService _environmentService;
+
+            public AntCapability(IEnvironmentService environmentService)
+            {
+                ArgUtil.NotNull(environmentService, nameof(environmentService));
+
+                _environmentService = environmentService;
+            }
+
             public List<Capability> GetCapabilities()
             {
                 var capabilities = new List<Capability>();
 
                 var environmentCapability = new EnvironmentVariableCapability(name: "ant", variableName: "ANT_HOME");
-                // TODO: 
-                // Add-CapabilityFromEnvironment -Name 'ant' -VariableName 'ANT_HOME'
-                // TODO: Can we put all the capabilities from environment into one EnvironmentCapabilities: IPrivateWindowsCapabilityProvider class?
-                // if (AttemptAddEnvironmentCapability(environmentCapability))
-                // {
-                //     capabilities.Add()
-                // }
 
+                // Add-CapabilityFromEnvironment -Name 'ant' -VariableName 'ANT_HOME'
                 // TODO: Trace... checking for value ant and variable name ANT_HOME
-                string value = Environment.GetEnvironmentVariable(environmentCapability.VariableName);
+                string value = _environmentService.GetEnvironmentVariable(environmentCapability.VariableName);
                 if (!string.IsNullOrEmpty(value))
                 {
                     // The environment variable exists
@@ -270,14 +288,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 
                 return capabilities;
             }
-
-            // private bool AttemptAddEnvironmentCapability(EnvironmentVariableCapability environmentCapability)
-            // {
-            //     Environment.GetEnvironmentVariable("ANT_HOME");
-
-
-            //     return false;
-            // }
         }
 
         private class EnvironmentVariableCapability
@@ -435,21 +445,61 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             }
         }
 
-        private class NodeToolCapabilities : IPrivateWindowsCapabilityProvider
+        internal abstract class ApplicationCapability : IPrivateWindowsCapabilityProvider
         {
+            protected abstract string Name { get; }
+
+            protected abstract string ApplicationName { get; }
+
             public List<Capability> GetCapabilities()
             {
-                var capabilities = new List<Capability>();
+                ArgUtil.NotNullOrEmpty(Name, nameof(Name));
+                ArgUtil.NotNullOrEmpty(ApplicationName, nameof(ApplicationName));
 
+                // TODO: Get the capability for the application
                 // Add-CapabilityFromApplication -Name 'npm' -ApplicationName 'npm'
-                // Add-CapabilityFromApplication -Name 'gulp' -ApplicationName 'gulp'
-                // Add-CapabilityFromApplication -Name 'node.js' -ApplicationName 'node'
-                // Add-CapabilityFromApplication -Name 'bower' -ApplicationName 'bower'
-                // Add-CapabilityFromApplication -Name 'grunt' -ApplicationName 'grunt'
-                // Add-CapabilityFromApplication -Name 'svn' -ApplicationName 'svn'
+                // which then calls:
+                //Get-Command -Name $ApplicationName -CommandType Application -ErrorAction Ignore
+                // Then get the Path
 
-                return capabilities;
+                throw new NotImplementedException();
             }
+        }
+
+        internal sealed class NpmCapability : ApplicationCapability
+        {
+            protected override string Name => "npm";
+            protected override string ApplicationName => "npm";
+        }
+
+        internal sealed class GulpCapability : ApplicationCapability
+        {
+            protected override string Name => "gulp";
+            protected override string ApplicationName => "gulp";
+        }
+
+        internal sealed class NodeJsCapability : ApplicationCapability
+        {
+            protected override string Name => "node.js";
+            protected override string ApplicationName => "node";
+        }
+
+        internal sealed class BowerCapability : ApplicationCapability
+        {
+            protected override string Name => "bower";
+            protected override string ApplicationName => "bower";
+        }
+
+        internal sealed class GruntCapability : ApplicationCapability
+        {
+            protected override string Name => "grunt";
+            protected override string ApplicationName => "grunt";
+        }
+
+        internal sealed class SvnCapability : ApplicationCapability
+        {
+            protected override string Name => "svn";
+            protected override string ApplicationName => "svn";
         }
 
         private class PowerShellCapabilities : IPrivateWindowsCapabilityProvider
