@@ -2,11 +2,13 @@ using Microsoft.Win32;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 {
+    // TODO: It seems like we use the same hive and view for all of these? Can we get rid of those parameters?
     [ServiceLocator(Default = typeof(RegistryService))]
     internal interface IRegistryService
     {
         bool TryGetRegistryValue(Win32.RegistryHive hive, Win32.RegistryView view, string keyName, string valueName, out string registryValue);
         string[] GetRegistryValueNames(Win32.RegistryHive hive, Win32.RegistryView view, string keyName);
+        string[] GetRegistrySubKeyNames(RegistryHive hive, RegistryView view, string keyName);
     }
 
     internal class RegistryService : IRegistryService
@@ -98,6 +100,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
                 if (baseKey != null) { baseKey.Dispose(); }
                 if (subKey != null) { subKey.Dispose(); }
             }
+        }
+
+        public string[] GetRegistrySubKeyNames(RegistryHive hive, RegistryView view, string keyName)
+        {
+            // TODO: Implement.
+            return null;
         }
     }
 }

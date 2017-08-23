@@ -47,6 +47,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
                     //         continue
                     //     }
                     // TODO: Why is it looking at -1 index?
+                    // TODO: Is this a bug?
                     Version version;
                     if(!Version.TryParse(splitInstallDirectory[-1], out version))
                     {
