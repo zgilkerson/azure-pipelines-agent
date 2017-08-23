@@ -19,7 +19,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             var capabilities = new List<Capability>();
 
             // TODO: Use CapabilityNames.Ant here?
-            var environmentCapability = new EnvironmentVariableCapability(name: "ant", variableName: "ANT_HOME");
+            var environmentCapability = new EnvironmentVariableCapability(name: CapabilityNames.Ant, variableName: "ANT_HOME");
 
             // Add-CapabilityFromEnvironment -Name 'ant' -VariableName 'ANT_HOME'
             // TODO: Trace... checking for value ant and variable name ANT_HOME

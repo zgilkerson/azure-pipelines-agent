@@ -13,7 +13,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
         internal bool TryGetRegistryValue(string hive, string view, string keyName, string valueName, out string registryValue)
         {
             if (view == "Registry64" && 
-                !System.Environment.Is64BitOperatingSystem)
+                !OsHelper.Is64BitOperatingSystem())
             {
                 // TODO: Log... "Skipping."
                 registryValue = string.Empty;

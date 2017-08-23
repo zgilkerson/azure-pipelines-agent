@@ -2,14 +2,8 @@
 
 using Microsoft.VisualStudio.Services.Agent.Listener.Capabilities;
 using Microsoft.VisualStudio.Services.Agent.Listener;
-// using Microsoft.VisualStudio.Services.Agent.Util;
-// using Microsoft.Win32;
 using Moq;
 using System;
-// using System.Collections.Generic;
-// using System.Diagnostics;
-// using System.Threading;
-// using System.Threading.Tasks;
 using Xunit;
 
 namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
@@ -35,8 +29,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                 List<Capability> result = antCapability.GetCapabilities();
 
                 // Assert
-                Assert.True(result != null);
-                Assert.True(result.Count == 0);
+                Assert.NotNull(result);
+                Assert.Equal(0, result.Count);
             }
         }
 
@@ -45,7 +39,27 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
         [Trait("Category", "Agent")]
         public async void TestAntCapabilityFound()
         {
+            using (var hc = new TestHostContext(this))
+            {
+                // Arrange
+                string antHomeDirectory = @"C:\Ant";
+                var mockEnvironmentService = new Mock<IEnvironmentService>();
+                mockEnvironmentService.Setup(service => service.GetEnvironmentVariable("ANT_HOME"))
+                                      .Returns(antHomeDirectory);
 
+                var antCapability = new AntCapability(mockEnvironmentService);
+
+                // Act
+                List<Capability> result = antCapability.GetCapabilities();
+
+                // Assert
+                Assert.NotNull(result);
+                Assert.Equal(1, result.Count);
+
+                Capability antCapability = result.First();
+                Assert.Equal(CapabilityNames.Ant, antCapability.Name);
+                Assert.Equal(antHomeDirectory, antCapability.Value);
+            }
         }
     }
 }
