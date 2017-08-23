@@ -16,7 +16,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
                 !System.Environment.Is64BitOperatingSystem)
             {
                 // TODO: Log... "Skipping."
-                return null;
+                registryValue = string.Empty;
+                return false;
             }
 
             Win32.RegistryKey baseKey = null;
@@ -36,12 +37,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
                     if (!string.IsNullOrEmpty(sValue))
                     {
                         // TODO: Write that we found it
-                        return sValue;
+                        registryValue = sValue;
+                        return true;
                     }
                 }
                 else
                 {
                     // TODO: Write that we didn't find it
+                    registryValue = string.Empty;
                     return false;
                 }
             }
@@ -51,6 +54,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
                 if (subKey != null) { subKey.Dispose(); }
             }
 
+            registryValue = string.Empty;
             return false;
         }
 
@@ -96,6 +100,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             //         $null = $baseKey.Dispose()
             //     }
             // }
+            return null;
         }
     }
 }
