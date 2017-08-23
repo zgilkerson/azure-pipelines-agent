@@ -25,7 +25,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             // if this is not null or empty, add the new capability
             // TODO: create static class for Hive options, same for View
             string registryValue;
-            if (_registryService.TryGetRegistryValue(hive: "LocalMachine", view: "Registry32", keyName: "Software\\Novell\\Mono for Android", valueName: "InstalledVersion", registryValue: out registryValue))
+            if (_registryService.TryGetRegistryValue(hive: Win32.RegistryHive.LocalMachine, 
+                                                     view: Win32.RegistryView.Registry32, 
+                                                     keyName: "Software\\Novell\\Mono for Android", 
+                                                     valueName: "InstalledVersion", 
+                                                     registryValue: out registryValue))
             {
                 capabilities.Add(new Capability(CapabilityNames.XamarinAndroid, registryValue));
             }

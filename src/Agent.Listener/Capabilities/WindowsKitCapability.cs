@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.Services.Agent.Util;
 
@@ -20,45 +22,67 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             var capabilities = new List<Capability>();
             
             string rootsKeyName = "Software\\Microsoft\\Windows Kits\\Installed Roots";
-            object[] valueNames = _registryService.GetRegistryValueNames(hive: "LocalMachine", view: "Registry32", keyName: rootsKeyName);
+            string[] valueNames = _registryService.GetRegistryValueNames(hive: Win32.RegistryHive.LocalMachine, view: Win32.RegistryView.Registry32, keyName: rootsKeyName);
 
-            // $versionInfos = @( )
-            object[] versionInfos;
-            // foreach ($valueName in $valueNames) {
-            //     if (!"$valueName".StartsWith('KitsRoot', 'OrdinalIgnoreCase')) {
-            //         continue
-            //     }
-
-            //     $installDirectory = Get-RegistryValue -Hive 'LocalMachine' -View 'Registry32' -KeyName $rootsKeyName -ValueName $valueName
-            //     $splitInstallDirectory =
-            //         "$installDirectory".Split(@( ([System.IO.Path]::DirectorySeparatorChar) ) ) |
-            //         ForEach-Object { "$_".Trim() } |
-            //         Where-Object { $_ }
-            //     $splitInstallDirectory = @( $splitInstallDirectory )
-            //     if ($splitInstallDirectory.Length -eq 0) {
-            //         continue
-            //     }
-
-            //     $version = $null
-            //     if (!([System.Version]::TryParse($splitInstallDirectory[-1], [ref]$version))) {
-            //         continue
-            //     }
-
-            //     Write-Capability -Name "WindowsKit_$($version.Major).$($version.Minor)" -Value $installDirectory
-            //     $versionInfos += @{
-            //         Version = $version
-            //         InstallDirectory = $installDirectory
-            //     }
-            // }
-
-            if (versionInfos.Length > 0)
+            var versionInfos = new List<VersionInfo>();
+            foreach (string valueName in valueNames)
             {
-                var maxInfo = versionInfos.ToList().OrderBy(v => v).First();
+                if (!valueName.StartsWith("KitsRoot", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
 
-                capabilities.Add(new Capability(name: CapabilityNames.WindowsKit, maxInfo.InstallDirectory));
+                string installDirectory;
+                if(_registryService.TryGetRegistryValue(Win32.RegistryHive.LocalMachine, Win32.RegistryView.Registry32, rootsKeyName, valueName, out installDirectory))
+                {
+                    List<string> splitInstallDirectory = installDirectory.Split(Path.DirectorySeparatorChar).Select(d => d.Trim()).ToList();
+
+                    if (!splitInstallDirectory.Any())
+                    {
+                        continue;
+                    }
+
+                    //     $version = $null
+                    //     if (!([System.Version]::TryParse($splitInstallDirectory[-1], [ref]$version))) {
+                    //         continue
+                    //     }
+                    // TODO: Why is it looking at -1 index?
+                    Version version;
+                    if(!Version.TryParse(splitInstallDirectory[-1], out version))
+                    {
+                        continue;
+                    }
+
+                    capabilities.Add(new Capability(name: $"{CapabilityNames.WindowsKit}_{version.Major}.{version.Minor}", value: installDirectory));
+                    versionInfos.Add(new VersionInfo(version: version, installDirectory: installDirectory));
+                }
+                else
+                {
+                    // TODO: Report error? Check PS code again tos ee what it does. The code there seems to assume this will never happen.
+
+                }
+            }
+
+            if (versionInfos.Any())
+            {
+                VersionInfo maxInfo = versionInfos.ToList().OrderBy(v => v).First();
+
+                capabilities.Add(new Capability(name: CapabilityNames.WindowsKit, value: maxInfo.InstallDirectory));
             }
 
             return capabilities;
+        }
+
+        private class VersionInfo
+        {
+            public VersionInfo(Version version, string installDirectory)
+            {
+                Version = version;
+                InstallDirectory = installDirectory;
+            }
+
+            public Version Version { get; }
+            public string InstallDirectory { get; }
         }
     }
 }

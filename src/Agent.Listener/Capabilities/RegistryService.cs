@@ -1,18 +1,20 @@
+using Microsoft.Win32;
+
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 {
     [ServiceLocator(Default = typeof(RegistryService))]
     internal interface IRegistryService
     {
-        bool TryGetRegistryValue(string hive, string view, string keyName, string valueName, out string registryValue);
-        object GetRegistryValueNames(string hive, string view, string keyName);
+        bool TryGetRegistryValue(Win32.RegistryHive hive, Win32.RegistryView view, string keyName, string valueName, out string registryValue);
+        string[] GetRegistryValueNames(Win32.RegistryHive hive, Win32.RegistryView view, string keyName);
     }
 
     internal class RegistryService : IRegistryService
     {
         // TODO: Refactor to TryGetRegistryValue
-        internal bool TryGetRegistryValue(string hive, string view, string keyName, string valueName, out string registryValue)
+        public bool TryGetRegistryValue(Win32.RegistryHive hive, Win32.RegistryView view, string keyName, string valueName, out string registryValue)
         {
-            if (view == "Registry64" && 
+            if (view == Win32.RegistryView.Registry64 && 
                 !OsHelper.Is64BitOperatingSystem())
             {
                 // TODO: Log... "Skipping."
@@ -58,49 +60,44 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
             return false;
         }
 
-        internal object GetRegistryValueNames(string hive, string view, string keyName)
+        public string[] GetRegistryValueNames(Win32.RegistryHive hive, Win32.RegistryView view, string keyName)
         {
-            // Write-Host "Checking: hive '$Hive', view '$View', key name '$KeyName', value name '$ValueName'"
-            // if ($View -eq 'Registry64' -and !([System.Environment]::Is64BitOperatingSystem)) {
-            //     Write-Host "Skipping."
-            //     return
-            // }
+            if (view == Win32.RegistryView.Registry64 && 
+                !OsHelper.Is64BitOperatingSystem())
+            {
+                // TODO: Log... "Skipping."
+                return null; // TODO: Return correct thing.
+            }
 
-            // $baseKey = $null
-            // $subKey = $null
-            // try {
-            //     # Open the base key.
-            //     $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey($Hive, $View)
+            Win32.RegistryKey baseKey = null;
+            Win32.RegistryKey subKey = null;
 
-            //     # Open the sub key as read-only.
-            //     $subKey = $baseKey.OpenSubKey($KeyName, $false)
+            try
+            {
+                baseKey = Microsoft.Win32.RegistryKey.OpenBaseKey(hive, view);
+                subKey = baseKey.OpenSubKey(keyName);
 
-            //     # Check if the sub key was found.
-            //     if (!$subKey) {
-            //         Write-Host "Key not found."
-            //         return
-            //     }
+                if (subKey == null)
+                {
+                    // Write-Host "Key not found."
+                    // return
+                }
 
-            //     # Get the value names.
-            //     $valueNames = $subKey.GetValueNames()
-            //     Write-Host "Value names:"
-            //     foreach ($valueName in $valueNames) {
-            //         Write-Host "  '$valueName'"
-            //     }
+                string[] valueNames = subKey.GetValueNames();
 
-            //     return $valueNames
-            // } finally {
-            //     # Dispose the sub key.
-            //     if ($subKey) {
-            //         $null = $subKey.Dispose()
-            //     }
+                //     Write-Host "Value names:"
+                foreach (string valueName in valueNames)
+                {
+                    //         Write-Host "  '$valueName'"
+                }
 
-            //     # Dispose the base key.
-            //     if ($baseKey) {
-            //         $null = $baseKey.Dispose()
-            //     }
-            // }
-            return null;
+                return valueNames;
+            }
+            finally
+            {
+                if (baseKey != null) { baseKey.Dispose(); }
+                if (subKey != null) { subKey.Dispose(); }
+            }
         }
     }
 }
