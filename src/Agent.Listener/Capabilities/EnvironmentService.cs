@@ -2,6 +2,7 @@ using System;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 {
+    [ServiceLocator(Default = typeof(EnvironmentService))]
     internal interface IEnvironmentService
     {
         // TODO: Write methods and implement. Inject in Capabilities classes.

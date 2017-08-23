@@ -134,5 +134,30 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
         {
 
         }
+
+        private sealed class Java7JRECapability : RegistryCapability
+        {
+
+        }
+
+        private sealed class Java8JRECapability : RegistryCapability
+        {
+
+        }
+
+        private sealed class Java6x64JRECapability : RegistryCapability
+        {
+
+        }
+
+        private sealed class Java7x64JRECapability : RegistryCapability
+        {
+
+        }
+
+        private sealed class Java8x64JRECapability : RegistryCapability
+        {
+
+        }
     }
 }

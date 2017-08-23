@@ -1,5 +1,6 @@
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Capabilities
 {
+    [ServiceLocator(Default = typeof(RegistryService))]
     internal interface IRegistryService
     {
         bool TryGetRegistryValue(string hive, string view, string keyName, string valueName, out string registryValue);
