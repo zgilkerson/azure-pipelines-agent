@@ -7,9 +7,9 @@ namespace Microsoft.VisualStudio.Services.Agent
     [ServiceLocator(Default = typeof(PagingLogger))]
     public interface IPagingLogger : IAgentService
     {
-        void Setup(Guid timelineId, Guid timelineRecordId);
+        void Setup(Guid timelineId, Guid timelineRecordId, bool performCourtesyDebugLogging);
 
-        void Write(string message);
+        void Write(string message, bool isDebugLogMessage);
 
         void End();
     }
@@ -17,6 +17,7 @@ namespace Microsoft.VisualStudio.Services.Agent
     public class PagingLogger : AgentService, IPagingLogger
     {
         public static string PagingFolder = "pages";
+        private static string DebugPrevis = "debug_";
 
         // 8 MB
         public const int PageSize = 8 * 1024 * 1024;
@@ -24,13 +25,19 @@ namespace Microsoft.VisualStudio.Services.Agent
         private Guid _timelineId;
         private Guid _timelineRecordId;
         private string _pageId;
-        private FileStream _pageData;
-        private StreamWriter _pageWriter;
         private int _byteCount;
         private int _pageCount;
-        private string _dataFileName;
         private string _pagesFolder;
         private IJobServerQueue _jobServerQueue;
+        private bool _performCourtesyDebugLogging;
+
+        // Standard Logging
+        private FileStream _pageData;
+        private StreamWriter _pageWriter;
+        private string _dataFileName;
+
+        // Courtesy Debug Logging
+        
 
         public override void Initialize(IHostContext hostContext)
         {
@@ -41,10 +48,11 @@ namespace Microsoft.VisualStudio.Services.Agent
             Directory.CreateDirectory(_pagesFolder);
         }
 
-        public void Setup(Guid timelineId, Guid timelineRecordId)
+        public void Setup(Guid timelineId, Guid timelineRecordId, bool performCourtesyDebugLogging)
         {
             _timelineId = timelineId;
             _timelineRecordId = timelineRecordId;
+            _performCourtesyDebugLogging = performCourtesyDebugLogging;
         }
 
         //
@@ -53,7 +61,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         // and the consumer queues it for upload
         // Ensure this is lazy.  Create a page on first write
         //
-        public void Write(string message)
+        public void Write(string message, bool isDebugLogMessage)
         {
             // lazy creation on write
             if (_pageWriter == null)

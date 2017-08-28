@@ -411,9 +411,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         public void Write(string tag, string message)
         {
             string msg = _secretMasker.MaskSecrets($"{tag}{message}");
+
+            bool isDebugLogMessage = (tag == WellKnownTags.Debug);
+
             lock (_loggerLock)
             {
-                _logger.Write(msg);
+                _logger.Write(msg, isDebugLogMessage);
             }
 
             // write to job level execution context's log file.
@@ -422,7 +425,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             {
                 lock (parentContext._loggerLock)
                 {
-                    parentContext._logger.Write(msg);
+                    parentContext._logger.Write(msg, isDebugLogMessage);
                 }
             }
 
