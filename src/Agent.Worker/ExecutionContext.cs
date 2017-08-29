@@ -75,6 +75,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         // only job level ExecutionContext will track throttling delay.
         private long _totalThrottlingDelayInMilliseconds = 0;
 
+        // Store the child ExecutionContexts
+        private readonly List<ExecutionContext> _childExecutionContexts = new List<ExecutionContext>();
+
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
         public List<ServiceEndpoint> Endpoints { get; private set; }
         public List<SecureFile> SecureFiles { get; private set; }
@@ -152,7 +155,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             child.InitializeTimelineRecord(_mainTimelineId, recordId, _record.Id, ExecutionContextType.Task, displayName, refName, ++_childTimelineRecordOrder);
 
             child._logger = HostContext.CreateService<IPagingLogger>();
-            child._logger.Setup(_mainTimelineId, recordId);
+            child._logger.Setup(_mainTimelineId, recordId, performCourtesyDebugLogging: !WriteDebug);
+
+            _childExecutionContexts.Add(child);
 
             return child;
         }
@@ -205,7 +210,36 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             _logger.End();
 
+            FlushConvenienceDebugLogs();            
+
             return Result.Value;
+        }
+
+        private void FlushConvenienceDebugLogs()
+        {
+            // TODO: Set this as instance variable?
+            bool isJobExecutionContext = false;
+
+            if (Result == TaskResult.Failed && 
+                isJobExecutionContext && 
+                !WriteDebug)
+            {
+                // Flush the debug log for the current logger.
+                // Call this method or use some of its internal features
+                // This first one is the Diagnostic node itself
+                // InitializeTimelineRecord(_mainTimelineId, recordId, _record.Id, ExecutionContextType.Task, displayName, refName, ++_childTimelineRecordOrder);
+                _logger.FlushDebugLog(null, null);
+
+                foreach (ExecutionContext childExecutionContext in _childExecutionContexts)
+                {
+                    // create a timeline record attached to the parent Diagnostic node.
+                    // See how CreateChild does this as we will have to pass similar data (Task Name)
+
+
+                    // flush the debug logs
+                    childExecutionContext._logger.FlushDebugLog(null, null);
+                }
+            }
         }
 
         public void SetVariable(string name, string value, bool isSecret, bool isOutput)
@@ -391,15 +425,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 refName: message.JobRefName,
                 order: null); // The job timeline record's order is set by server.
 
+            // Verbosity (from system.debug).
+            WriteDebug = Variables.System_Debug ?? false;
+
             // Logger (must be initialized before writing warnings).
             _logger = HostContext.CreateService<IPagingLogger>();
-            _logger.Setup(_mainTimelineId, _record.Id);
+            _logger.Setup(_mainTimelineId, _record.Id, performCourtesyDebugLogging: !WriteDebug);
 
             // Log warnings from recursive variable expansion.
             warnings?.ForEach(x => this.Warning(x));
-
-            // Verbosity (from system.debug).
-            WriteDebug = Variables.System_Debug ?? false;
 
             // Hook up JobServerQueueThrottling event, we will log warning on server tarpit.
             _jobServerQueue.JobServerQueueThrottling += JobServerQueueThrottling_EventReceived;
@@ -532,10 +566,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         // Do not add a format string overload. See comment on ExecutionContext.Write().
         public static void Debug(this IExecutionContext context, string message)
         {
-            if (context.WriteDebug)
-            {
-                context.Write(WellKnownTags.Debug, message);
-            }
+            context.Write(WellKnownTags.Debug, message);
         }
     }
 

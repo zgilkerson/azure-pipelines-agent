@@ -1,6 +1,8 @@
 using Microsoft.VisualStudio.Services.Agent.Util;
 using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Microsoft.VisualStudio.Services.Agent
 {
@@ -13,7 +15,6 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         void End();
 
-        // TODO: Add method to flush debug log? This would check performCourtesyDebugLogging and do what we need to do.
         void FlushDebugLog(Guid timelineId, Guid timelineRecordId);
     }
 
@@ -45,6 +46,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         private FileStream _debugPageData;
         private StreamWriter _debugPageWriter;
         private string _debugDataFileName;
+        private List<string> _debugFileNames;
 
         public override void Initialize(IHostContext hostContext)
         {
@@ -53,6 +55,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             _pagesFolder = Path.Combine(hostContext.GetDirectory(WellKnownDirectory.Diag), PagingFolder);
             _jobServerQueue = HostContext.GetService<IJobServerQueue>();
             Directory.CreateDirectory(_pagesFolder);
+            _debugFileNames = new List<string>();
         }
 
         public void Setup(Guid timelineId, Guid timelineRecordId, bool performCourtesyDebugLogging)
@@ -141,19 +144,18 @@ namespace Microsoft.VisualStudio.Services.Agent
             }
         }
 
+        // TODO: Make sure that this happens before we empty the job server queue
         public void FlushDebugLog(Guid timelineId, Guid timelineRecordId)
         {
-            if (_performCourtesyDebugLogging)
+            if (_performCourtesyDebugLogging && 
+                _debugFileNames != null && 
+                _debugFileNames.Any())
             {
-                
+                foreach (string debugFileName in _debugFileNames)
+                {
+                    _jobServerQueue.QueueFileUpload(timelineId, timelineRecordId, "DistributedTask.Core.Log", "CustomToolLog", debugFileName, true);
+                }
             }
-
-            // TODO: Implement.
-            // This is where we do _jobServerQueue.QueueFileUpload
-            // Make sure that this happens before we empty the job server queue
-
-            // Do we need an internal list of all the data file names for debug?
-            // _jobServerQueue.QueueFileUpload(_timelineId, _timelineRecordId, "DistributedTask.Core.Log", "CustomToolLog", _dataFileName, true)
         }
 
         private void Create()
