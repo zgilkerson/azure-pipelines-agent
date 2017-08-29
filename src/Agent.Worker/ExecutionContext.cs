@@ -87,6 +87,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         public bool WriteDebug { get; private set; }
         public List<string> PrependPath { get; private set; }
         public ContainerInfo Container { get; private set; }
+        public bool IsJob { get; private set; }
 
         public List<IAsyncCommandContext> AsyncCommands => _asyncCommands;
 
@@ -156,6 +157,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             child._logger = HostContext.CreateService<IPagingLogger>();
             child._logger.Setup(_mainTimelineId, recordId, performCourtesyDebugLogging: !WriteDebug);
+            child.IsJob = false;
 
             _childExecutionContexts.Add(child);
 
@@ -217,16 +219,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
         private void FlushConvenienceDebugLogs()
         {
-            // TODO: Set this as instance variable?
-            bool isJobExecutionContext = false;
-
             if (Result == TaskResult.Failed && 
-                isJobExecutionContext && 
+                IsJob && 
                 !WriteDebug)
             {
                 // Flush the debug log for the current logger.
                 // Call this method or use some of its internal features
-                // This first one is the Diagnostic node itself
+                // This first one is the Diagnostic node itself and should have all the job level logs
                 // InitializeTimelineRecord(_mainTimelineId, recordId, _record.Id, ExecutionContextType.Task, displayName, refName, ++_childTimelineRecordOrder);
                 _logger.FlushDebugLog(null, null);
 
@@ -437,6 +436,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             // Hook up JobServerQueueThrottling event, we will log warning on server tarpit.
             _jobServerQueue.JobServerQueueThrottling += JobServerQueueThrottling_EventReceived;
+
+            // This is a Job ExecutionContext
+            IsJob = true;
         }
 
         // Do not add a format string overload. In general, execution context messages are user facing and

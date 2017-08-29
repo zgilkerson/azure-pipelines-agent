@@ -93,12 +93,12 @@ namespace Microsoft.VisualStudio.Services.Agent
                 // debug log: yes, normal log: yes
 
             // _performCourtesyDebugLogging: false, isDebugLogMessage: true
-                // debug log: no, normal log: no (not sure this could happen)
+                // debug log: no, normal log: yes (if they set system.debug to true)
             // _performCourtesyDebugLogging: false, isDebugLogMessage: false
                 // debug log: no, normal log: yes
 
             if ((_performCourtesyDebugLogging && !isDebugLogMessage) || 
-                (!_performCourtesyDebugLogging && isDebugLogMessage))
+                (!_performCourtesyDebugLogging))
             {
                 WriteLine(line);
             }
