@@ -28,14 +28,15 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         private Guid _timelineId;
         private Guid _timelineRecordId;
-        private string _pageId;
-        private int _byteCount;
-        private int _pageCount;
+        
         private string _pagesFolder;
         private IJobServerQueue _jobServerQueue;
         private bool _performCourtesyDebugLogging;
 
         // Standard Logging
+        private string _pageId;
+        private int _byteCount;
+        private int _pageCount;
         private FileStream _pageData;
         private StreamWriter _pageWriter;
         private string _dataFileName;
@@ -183,7 +184,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             {
                 EndDebugPage();
                 _debugByteCount = 0;
-                _debugDataFileName = Path.Combine(_pagesFolder, $"{DebugPrefix}_{_pageId}_{_pageCount}.log");
+                _debugDataFileName = Path.Combine(_pagesFolder, $"{DebugPrefix}_{_pageId}_{++_debugPageCount}.log");
                 _debugPageData = new FileStream(_debugDataFileName, FileMode.CreateNew);
                 _debugPageWriter = new StreamWriter(_debugPageData, System.Text.Encoding.UTF8);
             }
