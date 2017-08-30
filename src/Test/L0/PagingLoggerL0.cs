@@ -73,10 +73,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
 
                     //Act
                     int bytesSent = 0;
-                    pagingLogger.Setup(timeLineId, timeLineRecordId);
+                    pagingLogger.Setup(timeLineId, timeLineRecordId, performCourtesyDebugLogging: false);
                     while (bytesSent < totalBytes)
                     {
-                        pagingLogger.Write(LogData);
+                        pagingLogger.Write(LogData, isDebugLogMessage: false);
                         bytesSent += logDataSize;
                     }
                     pagingLogger.End();
@@ -114,7 +114,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Listener
                     _jobServerQueue.Setup(x => x.QueueFileUpload(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), true));
 
                     //Act
-                    pagingLogger.Setup(timeLineId, timeLineRecordId);
+                    pagingLogger.Setup(timeLineId, timeLineRecordId, performCourtesyDebugLogging: false);
                     pagingLogger.End();
 
                     //Assert

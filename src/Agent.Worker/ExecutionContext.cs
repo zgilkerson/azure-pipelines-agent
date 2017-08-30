@@ -239,7 +239,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     recordType: ExecutionContextType.Task, // Does this have to be Task or Job?
                     displayName: "Diagnostics", 
                     refName: "DiagnosticsRefName", // TODO: Figure out how to name this correctly. Other places use nameof(...) 
-                    order: ++_childTimelineRecordOrder);
+                    order: ++_childTimelineRecordOrder
+                );
 
                 _logger.FlushDebugLog(_mainTimelineId, diagnosticsTimelineRecordId);
 

@@ -104,7 +104,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             _config.Setup(x => x.GetSettings())
                 .Returns(settings);
 
-            _logger.Setup(x => x.Setup(It.IsAny<Guid>(), It.IsAny<Guid>()));
+            _logger.Setup(x => x.Setup(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<bool>()));
 
             hc.SetSingleton(_config.Object);
             hc.SetSingleton(_jobServer.Object);
