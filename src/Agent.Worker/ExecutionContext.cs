@@ -217,6 +217,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             return Result.Value;
         }
 
+        // 
+        // 
+        // 
         private void FlushConvenienceDebugLogs()
         {
             if (Result == TaskResult.Failed && 
@@ -226,19 +229,49 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 // Flush the debug log for the current logger.
                 // Call this method or use some of its internal features
                 // This first one is the Diagnostic node itself and should have all the job level logs
-                // InitializeTimelineRecord(_mainTimelineId, recordId, _record.Id, ExecutionContextType.Task, displayName, refName, ++_childTimelineRecordOrder);
-                _logger.FlushDebugLog(null, null);
 
+                Guid diagnosticsTimelineRecordId = Guid.NewGuid();
+
+                InitializeTimelineRecord(
+                    timelineId: _mainTimelineId, // We want this to be the id of "Build"?
+                    timelineRecordId: diagnosticsTimelineRecordId, 
+                    parentTimelineRecordId: _record.Id, // Or is this the id of "Build"?
+                    recordType: ExecutionContextType.Task, // Does this have to be Task or Job?
+                    displayName: "Diagnostics", 
+                    refName: "DiagnosticsRefName", // TODO: Figure out how to name this correctly. Other places use nameof(...) 
+                    order: ++_childTimelineRecordOrder);
+
+                _logger.FlushDebugLog(_mainTimelineId, diagnosticsTimelineRecordId);
+
+                int diagnosticRecordOrder = 0;
                 foreach (ExecutionContext childExecutionContext in _childExecutionContexts)
                 {
-                    // create a timeline record attached to the parent Diagnostic node.
-                    // See how CreateChild does this as we will have to pass similar data (Task Name)
+                    Guid childDiagNodeRecordId = Guid.NewGuid();
+                    String displayName = "TempDisplayName" + (diagnosticRecordOrder + 1);
+                    String refName = displayName + "_RefName";
 
+                    // create a timeline record attached to the parent Diagnostic node.
+                    InitializeTimelineRecord(
+                        timelineId: _mainTimelineId, // I think this is the id of the Build root timeline?
+                        timelineRecordId: childDiagNodeRecordId, 
+                        parentTimelineRecordId: diagnosticsTimelineRecordId, 
+                        recordType: ExecutionContextType.Task, 
+                        displayName: displayName, // TODO: Use the name of the task from the child execution context
+                        refName: refName, // same as one above + RefName
+                        order: ++diagnosticRecordOrder
+                    );
 
                     // flush the debug logs
-                    childExecutionContext._logger.FlushDebugLog(null, null);
+                    childExecutionContext._logger.FlushDebugLog(_mainTimelineId, childDiagNodeRecordId);
                 }
             }
+        }
+
+        // TODO: Revisit if it's best to have a separate method to InitializeTimelineRecord for this.
+        //       Not sure yet.
+        private void InitializeConvenienceDebugTimelineRecord()
+        {
+
         }
 
         public void SetVariable(string name, string value, bool isSecret, bool isOutput)
