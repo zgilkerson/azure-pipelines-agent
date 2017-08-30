@@ -74,18 +74,6 @@ namespace Microsoft.VisualStudio.Services.Agent
         //
         public void Write(string message, bool isDebugLogMessage)
         {
-            // lazy creation on write
-            if (_pageWriter == null)
-            {
-                Create();
-            }
-            
-            // TODO: Maybe change the order?
-            if (isDebugLogMessage && _debugPageWriter == null)
-            {
-                CreateDebug();
-            }
-
             string line = $"{DateTime.UtcNow.ToString("O")} {message}";
 
             // _performCourtesyDebugLogging: true, isDebugLogMessage: true
@@ -114,6 +102,12 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         private void WriteLine(string line)
         {
+            // lazy creation on write
+            if (_pageWriter == null)
+            {
+                Create();
+            }
+
             _pageWriter.WriteLine(line);
             _byteCount += System.Text.Encoding.UTF8.GetByteCount(line);
             if (_byteCount >= PageSize)
@@ -126,6 +120,12 @@ namespace Microsoft.VisualStudio.Services.Agent
         {
             if (_performCourtesyDebugLogging)
             {
+                // TODO: Maybe change the order?
+                if (_debugPageWriter == null)
+                {
+                    CreateDebug();
+                }
+
                 _debugPageWriter.WriteLine(line);
                 _debugByteCount += System.Text.Encoding.UTF8.GetByteCount(line);
                 if (_debugByteCount >= PageSize)
