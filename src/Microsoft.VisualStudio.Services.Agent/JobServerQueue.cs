@@ -18,7 +18,11 @@ namespace Microsoft.VisualStudio.Services.Agent
         void Start(JobRequestMessage jobRequest);
         void QueueWebConsoleLine(string line);
         void QueueFileUpload(Guid timelineId, Guid timelineRecordId, string type, string name, string path, bool deleteSource);
+        void QueueDebugFileUpload(Guid timelineId, Guid timelineRecordId, string type, string name, string path, bool deleteSource);
         void QueueTimelineRecordUpdate(Guid timelineId, TimelineRecord timelineRecord);
+
+        void StopFileUploadQueue();
+        void StartDebugFileUploadQueue();
     }
 
     public sealed class JobServerQueue : AgentService, IJobServerQueue
@@ -28,6 +32,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         private static readonly TimeSpan _delayForWebConsoleLineDequeue = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan _delayForTimelineUpdateDequeue = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan _delayForFileUploadDequeue = TimeSpan.FromMilliseconds(1000);
+        private static readonly TimeSpan _delayForDebugFileUploadDequeue = TimeSpan.FromMilliseconds(1000);
 
         // Job message information
         private Guid _scopeIdentifier;
@@ -42,6 +47,9 @@ namespace Microsoft.VisualStudio.Services.Agent
         // queue for file upload (log file or attachment)
         private readonly ConcurrentQueue<UploadFileInfo> _fileUploadQueue = new ConcurrentQueue<UploadFileInfo>();
 
+        // queue for debug file upload
+        private readonly ConcurrentQueue<UploadFileInfo> _debugFileUploadQueue = new ConcurrentQueue<UploadFileInfo>();
+
         // queue for timeline or timeline record update (one queue per timeline)
         private readonly ConcurrentDictionary<Guid, ConcurrentQueue<TimelineRecord>> _timelineUpdateQueue = new ConcurrentDictionary<Guid, ConcurrentQueue<TimelineRecord>>();
 
@@ -54,12 +62,14 @@ namespace Microsoft.VisualStudio.Services.Agent
         // Task for each queue's dequeue process
         private Task _webConsoleLineDequeueTask;
         private Task _fileUploadDequeueTask;
+        private Task _debugFileUploadDequeueTask;
         private Task _timelineUpdateDequeueTask;
 
         // common
         private IJobServer _jobServer;
         private Task[] _allDequeueTasks;
         private readonly TaskCompletionSource<int> _jobCompletionSource = new TaskCompletionSource<int>();
+        private readonly TaskCompletionSource<int> _fileUploadCompletionSource = new TaskCompletionSource<int>();
         private bool _queueInProcess = false;
         private ITerminal _term;
 
@@ -151,8 +161,12 @@ namespace Microsoft.VisualStudio.Services.Agent
 
             // ProcessFilesUploadQueueAsync() will never throw exception, log file upload is always best effort.
             Trace.Verbose("Draining file upload queue.");
+            // TODO: What if we already cancelled this due to needing to upload debug logs?
             await ProcessFilesUploadQueueAsync(runOnce: true);
             Trace.Info("File upload queue drained.");
+
+            // TODO: We may also need to try to drain the debug file upload queue here too.
+
 
             // ProcessTimelinesUpdateQueueAsync() will throw exception during shutdown
             // if there is any timeline records that failed to update contains output variabls.
@@ -161,6 +175,31 @@ namespace Microsoft.VisualStudio.Services.Agent
             Trace.Info("Timeline update queue drained.");
 
             Trace.Info("All queue process tasks have been stopped, and all queues are drained.");
+        }
+
+        public void StopFileUploadQueue()
+        {
+            Trace.Info("Stopping file upload queue.");
+
+            bool stoppedUploadQueue = _fileUploadCompletionSource.TrySetResult(0);
+
+            if (stoppedUploadQueue)
+            {
+                Trace.Info("File upload queue stopped.");
+            }
+            else
+            {
+                Trace.Error("Unable to stop file upload queue.");
+            }
+        }
+
+        public void StartDebugFileUploadQueue()
+        {
+            Trace.Info("Starting debug file upload queue.");
+
+            _debugFileUploadDequeueTask = ProcessDebugFilesUploadQueueAsync();
+
+            Trace.Info("Debug file upload queue started.");
         }
 
         public void QueueWebConsoleLine(string line)
@@ -208,6 +247,31 @@ namespace Microsoft.VisualStudio.Services.Agent
 
             Trace.Verbose("Enqueue file upload queue: file '{0}' attach to record {1}", newFile.Path, timelineRecordId);
             _fileUploadQueue.Enqueue(newFile);
+        }
+
+        public void QueueDebugFileUpload(Guid timelineId, Guid timelineRecordId, string type, string name, string path, bool deleteSource)
+        {
+            if (HostContext.RunMode == RunMode.Local)
+            {
+                return;
+            }
+
+            ArgUtil.NotEmpty(timelineId, nameof(timelineId));
+            ArgUtil.NotEmpty(timelineRecordId, nameof(timelineRecordId));
+
+            // all parameter not null, file path exist.
+            var newFile = new UploadFileInfo()
+            {
+                TimelineId = timelineId,
+                TimelineRecordId = timelineRecordId,
+                Type = type,
+                Name = name,
+                Path = path,
+                DeleteSource = deleteSource
+            };
+
+            Trace.Verbose("Enqueue debug file upload queue: file '{0}' attach to record {1}", newFile.Path, timelineRecordId);
+            _debugFileUploadQueue.Enqueue(newFile);
         }
 
         public void QueueTimelineRecordUpdate(Guid timelineId, TimelineRecord timelineRecord)
@@ -313,7 +377,7 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         private async Task ProcessFilesUploadQueueAsync(bool runOnce = false)
         {
-            while (!_jobCompletionSource.Task.IsCompleted || runOnce)
+            while ((!_jobCompletionSource.Task.IsCompleted && !_fileUploadCompletionSource.Task.IsCompleted) || runOnce)
             {
                 List<UploadFileInfo> filesToUpload = new List<UploadFileInfo>();
                 UploadFileInfo dequeueFile;
@@ -364,6 +428,56 @@ namespace Microsoft.VisualStudio.Services.Agent
                     await Task.Delay(_delayForFileUploadDequeue);
                 }
             }
+        }
+
+        private async Task ProcessDebugFilesUploadQueueAsync(bool runOnce = false)
+        {
+            while (!_jobCompletionSource.Task.IsCompleted || runOnce)
+            {
+                List<UploadFileInfo> filesToUpload = new List<UploadFileInfo>();
+                UploadFileInfo dequeueFile;
+
+                while (_debugFileUploadQueue.TryDequeue(out dequeueFile))
+                {
+                    filesToUpload.Add(dequeueFile);
+                    // process at most 10 file upload.
+                    if (!runOnce && filesToUpload.Count > 10)
+                    {
+                        break;
+                    }
+                }
+
+                if (filesToUpload.Count > 0)
+                {
+                    // TODO: upload all file in parallel
+                    int errorCount = 0;
+                    foreach (var file in filesToUpload)
+                    {
+                        try
+                        {
+                            await UploadFile(file);
+                        }
+                        catch (Exception ex)
+                        {
+                            Trace.Info("Catch exception during log or attachment debug file upload, keep going since the process is best effort.");
+                            Trace.Error(ex);
+                            errorCount++;
+                        }
+                    }
+
+                    Trace.Info("Try to upload {0} debug log files or attachments, success rate: {1}/{0}.", filesToUpload.Count, filesToUpload.Count - errorCount);
+                }
+
+                if (runOnce)
+                {
+                    break;
+                }
+                else
+                {
+                    await Task.Delay(_delayForFileUploadDequeue);
+                }
+            }
+            
         }
 
         private async Task ProcessTimelinesUpdateQueueAsync(bool runOnce = false)

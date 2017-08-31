@@ -9,7 +9,7 @@ namespace Microsoft.VisualStudio.Services.Agent
     [ServiceLocator(Default = typeof(PagingLogger))]
     public interface IPagingLogger : IAgentService
     {
-        void Setup(Guid timelineId, Guid timelineRecordId, bool performCourtesyDebugLogging);
+        void Setup(Guid timelineId, Guid timelineRecordId, bool performCourtesyDebugLogging, Guid debugTimelineId, Guid debugTimelineRecordId);
 
         void Write(string message, bool isDebugLogMessage);
 
@@ -28,10 +28,14 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         private Guid _timelineId;
         private Guid _timelineRecordId;
+
+        // Used for courtesy debug logging
+        private bool _performCourtesyDebugLogging;
+        private Guid _debugTimelineId;
+        private Guid _debugTimelineRecordId;
         
         private string _pagesFolder;
         private IJobServerQueue _jobServerQueue;
-        private bool _performCourtesyDebugLogging;
 
         // Standard Logging
         private string _pageId;
@@ -59,11 +63,14 @@ namespace Microsoft.VisualStudio.Services.Agent
             _debugFileNames = new List<string>();
         }
 
-        public void Setup(Guid timelineId, Guid timelineRecordId, bool performCourtesyDebugLogging)
+        public void Setup(Guid timelineId, Guid timelineRecordId, bool performCourtesyDebugLogging, Guid debugTimelineId, Guid debugTimelineRecordId)
         {
             _timelineId = timelineId;
             _timelineRecordId = timelineRecordId;
+
             _performCourtesyDebugLogging = performCourtesyDebugLogging;
+            _debugTimelineId = debugTimelineId;
+            _debugTimelineRecordId = debugTimelineRecordId;
         }
 
         //
@@ -215,6 +222,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 _debugPageWriter = null;
                 _debugPageData = null;
                 // We don't QueueFileUpload here because this is for debug. We only push that data later, if need be.
+                _jobServerQueue.QueueDebugFileUpload(_debugTimelineId, _debugTimelineRecordId, "DistributedTask.Core.Log", "CustomToolLog", _dataFileName, true);
             }
         }
     }

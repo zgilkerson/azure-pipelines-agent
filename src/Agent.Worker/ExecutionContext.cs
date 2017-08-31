@@ -55,7 +55,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
     {
         private const int _maxIssueCount = 10;
 
+        // TODO: Does this represent the most recently inserted timeline record?
         private readonly TimelineRecord _record = new TimelineRecord();
+
         private readonly Dictionary<Guid, TimelineRecord> _detailRecords = new Dictionary<Guid, TimelineRecord>();
         private readonly object _loggerLock = new object();
         private readonly List<IAsyncCommandContext> _asyncCommands = new List<IAsyncCommandContext>();
@@ -65,6 +67,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         private ISecretMasker _secretMasker;
         private IJobServerQueue _jobServerQueue;
         private IExecutionContext _parentExecutionContext;
+
+        // Debug Timeline Information
+        private Guid _debugTimelineId;
+        private Guid _debugTimelineRecordId;        
 
         private Guid _mainTimelineId;
         private Guid _detailTimelineId;
@@ -87,6 +93,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         public bool WriteDebug { get; private set; }
         public List<string> PrependPath { get; private set; }
         public ContainerInfo Container { get; private set; }
+
+        // Whether or not this is a Job ExecutionContext. The alternative is to be a Task.
         public bool IsJob { get; private set; }
 
         public List<IAsyncCommandContext> AsyncCommands => _asyncCommands;
@@ -153,10 +161,19 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             child.PrependPath = PrependPath;
             child.Container = Container;
 
+            // Setup the time line for courtesy debug logging. These should be created on demand.
+            // This on demand creation will happen in Complete(...)
+            Guid debugTimelineRecordId = Guid.NewGuid();
+
+            child._debugTimelineId = _mainTimelineId;
+            child._debugTimelineRecordId = debugTimelineRecordId;
+            child._displayName = displayName;
+            child._refName = refName;
+
             child.InitializeTimelineRecord(_mainTimelineId, recordId, _record.Id, ExecutionContextType.Task, displayName, refName, ++_childTimelineRecordOrder);
 
             child._logger = HostContext.CreateService<IPagingLogger>();
-            child._logger.Setup(_mainTimelineId, recordId, performCourtesyDebugLogging: !WriteDebug);
+            child._logger.Setup(_mainTimelineId, recordId, performCourtesyDebugLogging: !WriteDebug, debugTimelineId: _mainTimelineId, debugTimelineRecordId: debugTimelineRecordId);
             child.IsJob = false;
 
             _childExecutionContexts.Add(child);
@@ -212,59 +229,68 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             _logger.End();
 
-            FlushConvenienceDebugLogs();            
+            if (result == TaskResult.Failed && IsJob && !WriteDebug)
+            {
+                ProcessFailedBuild();
+            }
 
             return Result.Value;
         }
 
-        // 
-        // 
-        // 
-        private void FlushConvenienceDebugLogs()
+        // The job has failed. We want to stop uploading the Task file uploads.
+        // We need to be careful here because I think we want to keep uploading if 
+        // it's a Job level log but stop if it's Task level? Need to clarify this.
+        private void ProcessFailedBuild()
         {
-            if (Result == TaskResult.Failed && 
-                IsJob && 
-                !WriteDebug)
+            // TODO: Do we only do this if it's the Job level ExecutionContext?
+            // I think so. Then we would also need to create the root Build(Job) and Task timelines
+            // That would need to be done before we run the code below this.
+            CreateDebugTimelines();
+
+            _jobServerQueue.StopFileUploadQueue();
+            _jobServerQueue.StartDebugFileUploadQueue();
+
+        }
+
+        // The job has failed. We now need to create timelines for the Job and
+        // all child Tasks.
+        private void CreateDebugTimelines()
+        {
+            // TODO: Does each execution context store the timeline id and timeline record id for
+            // debug? we could use this to create the timelines for the root job and all children
+            // execution contexts
+            InitializeTimelineRecord(
+                timelineId: _mainTimelineId, // We want this to be the id of "Build"?
+                timelineRecordId: _debugTimelineRecordId, 
+                parentTimelineRecordId: _record.Id, // Or is this the id of "Build"?
+                recordType: ExecutionContextType.Task, // Does this have to be Task or Job?
+                displayName: "Build-DEBUG", 
+                refName: "Build-DEBUGRefName", // TODO: Figure out how to name this correctly. Other places use nameof(...) 
+                order: ++_childTimelineRecordOrder
+            );
+
+            //_logger.FlushDebugLog(_mainTimelineId, diagnosticsTimelineRecordId);
+
+            int diagnosticRecordOrder = 0;
+            foreach (ExecutionContext childExecutionContext in _childExecutionContexts)
             {
-                // Flush the debug log for the current logger.
-                // Call this method or use some of its internal features
-                // This first one is the Diagnostic node itself and should have all the job level logs
+                Guid childDiagNodeRecordId = childExecutionContext._debugTimelineRecordId;
+                String displayName = childExecutionContext._displayName + "_FROMDEBUG";
+                String refName = childExecutionContext._refName + "_RefName";
 
-                Guid diagnosticsTimelineRecordId = Guid.NewGuid();
-
+                // create a timeline record attached to the parent Diagnostic node.
                 InitializeTimelineRecord(
-                    timelineId: _mainTimelineId, // We want this to be the id of "Build"?
-                    timelineRecordId: diagnosticsTimelineRecordId, 
-                    parentTimelineRecordId: _record.Id, // Or is this the id of "Build"?
-                    recordType: ExecutionContextType.Task, // Does this have to be Task or Job?
-                    displayName: "Diagnostics", 
-                    refName: "DiagnosticsRefName", // TODO: Figure out how to name this correctly. Other places use nameof(...) 
-                    order: ++_childTimelineRecordOrder
+                    timelineId: _mainTimelineId, // I think this is the id of the Build root timeline?
+                    timelineRecordId: childDiagNodeRecordId, 
+                    parentTimelineRecordId: _debugTimelineRecordId, 
+                    recordType: ExecutionContextType.Task, 
+                    displayName: displayName, // TODO: Use the name of the task from the child execution context
+                    refName: refName, // same as one above + RefName
+                    order: ++diagnosticRecordOrder
                 );
 
-                _logger.FlushDebugLog(_mainTimelineId, diagnosticsTimelineRecordId);
-
-                int diagnosticRecordOrder = 0;
-                foreach (ExecutionContext childExecutionContext in _childExecutionContexts)
-                {
-                    Guid childDiagNodeRecordId = Guid.NewGuid();
-                    String displayName = "TempDisplayName" + (diagnosticRecordOrder + 1);
-                    String refName = displayName + "_RefName";
-
-                    // create a timeline record attached to the parent Diagnostic node.
-                    InitializeTimelineRecord(
-                        timelineId: _mainTimelineId, // I think this is the id of the Build root timeline?
-                        timelineRecordId: childDiagNodeRecordId, 
-                        parentTimelineRecordId: diagnosticsTimelineRecordId, 
-                        recordType: ExecutionContextType.Task, 
-                        displayName: displayName, // TODO: Use the name of the task from the child execution context
-                        refName: refName, // same as one above + RefName
-                        order: ++diagnosticRecordOrder
-                    );
-
-                    // flush the debug logs
-                    childExecutionContext._logger.FlushDebugLog(_mainTimelineId, childDiagNodeRecordId);
-                }
+                // flush the debug logs
+                //childExecutionContext._logger.FlushDebugLog(_mainTimelineId, childDiagNodeRecordId);
             }
         }
 
@@ -448,6 +474,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 }
             }
 
+            // TODO: Are these needed? They map to _mainTimelineId and _record.Id respectively.
+            //       But I think those values change over time. I think we want these to be static.
+            //       They get passed to the logger and become static there so that is the effect I want here too.
+            _debugTimelineId = message.Timeline.Id;
+            _debugTimelineRecordId = message.JobId;
+            _displayName = message.JobName;
+            _refName = message.JobRefName;
+
             // Job timeline record.
             InitializeTimelineRecord(
                 timelineId: message.Timeline.Id,
@@ -463,7 +497,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             // Logger (must be initialized before writing warnings).
             _logger = HostContext.CreateService<IPagingLogger>();
-            _logger.Setup(_mainTimelineId, _record.Id, performCourtesyDebugLogging: !WriteDebug);
+            _logger.Setup(_mainTimelineId, _record.Id, performCourtesyDebugLogging: !WriteDebug, debugTimelineId: _debugTimelineId, debugTimelineRecordId: _debugTimelineRecordId);
 
             // Log warnings from recursive variable expansion.
             warnings?.ForEach(x => this.Warning(x));
@@ -474,6 +508,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             // This is a Job ExecutionContext
             IsJob = true;
         }
+
+        private string _displayName;
+        private string _refName;
 
         // Do not add a format string overload. In general, execution context messages are user facing and
         // therefore should be localized. Use the Loc methods from the StringUtil class. The exception to
