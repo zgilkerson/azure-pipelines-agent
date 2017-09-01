@@ -264,9 +264,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             // debug? we could use this to create the timelines for the root job and all children
             // execution contexts
             InitializeTimelineRecord(
-                timelineId: _mainTimelineId, // We want this to be the id of "Build"?
+                timelineId: _mainTimelineId,
                 timelineRecordId: debugBuildTimelineId, 
-                parentTimelineRecordId: _record.Id, // This is the root id, e.g. "Build 10"
+                parentTimelineRecordId: null, // We want this to be the root id, e.g. "Build 10"
                 recordType: ExecutionContextType.Task, // Does this have to be Task or Job?
                 displayName: "Build-DEBUG", 
                 refName: "Build-DEBUGRefName", // TODO: Figure out how to name this correctly. Other places use nameof(...) 
@@ -293,8 +293,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     order: ++diagnosticRecordOrder
                 );
 
-                // flush the debug logs
-                //childExecutionContext._logger.FlushDebugLog(_mainTimelineId, childDiagNodeRecordId);
+                // Not sure if this will work
+                // TODO: We need to set the result for each timeline to the same result that we set inside the task
+                // The current code may need to be cleaned up/made more explicit
+                // _jobServerQueue.QueueTimelineRecordUpdate(childDiagNodeRecordId, childExecutionContext._record);
+
+
             }
         }
 
@@ -481,7 +485,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             // TODO: Are these needed? They map to _mainTimelineId and _record.Id respectively.
             //       But I think those values change over time. I think we want these to be static.
             //       They get passed to the logger and become static there so that is the effect I want here too.
-            _debugTimelineId = message.Timeline.Id;
+            _debugTimelineId = message.Timeline.Id; // TODO: This is wrong. We want it to be a new Guid since its a new node under "Build 10". It has been generated in CreateDebugTimelines or we can do it here too. Make sure to pass through.
             _debugTimelineRecordId = message.JobId;
             _displayName = message.JobName;
             _refName = message.JobRefName;
