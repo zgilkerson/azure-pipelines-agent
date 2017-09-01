@@ -85,7 +85,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             TaskRunner step11 = new TaskRunner();
             TaskRunner step12 = new TaskRunner();
 
-            _logger.Setup(x => x.Setup(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<bool>()));
+            _logger.Setup(x => x.Setup(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<Guid>(), It.IsAny<Guid>()));
             var settings = new AgentSettings
             {
                 AgentId = 1,
