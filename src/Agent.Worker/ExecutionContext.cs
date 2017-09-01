@@ -228,12 +228,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             _cancellationTokenSource?.Dispose();
 
-            _logger.End();
-
-            if (result == TaskResult.Failed && IsJob && !WriteDebug)
+            if (Result == TaskResult.Failed 
+                && IsJob 
+                && !WriteDebug)
             {
                 ProcessFailedBuild();
             }
+
+            _logger.End();
 
             return Result.Value;
         }
@@ -243,27 +245,28 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         // it's a Job level log but stop if it's Task level? Need to clarify this.
         private void ProcessFailedBuild()
         {
-            // TODO: Do we only do this if it's the Job level ExecutionContext?
-            // I think so. Then we would also need to create the root Build(Job) and Task timelines
-            // That would need to be done before we run the code below this.
+            this.Debug("Processing convenience debug for failed build.");
+
             CreateDebugTimelines();
 
             _jobServerQueue.StopFileUploadQueue();
             _jobServerQueue.StartDebugFileUploadQueue();
 
+            this.Debug("Finished processing convenience debug for failed build.");
         }
 
         // The job has failed. We now need to create timelines for the Job and
         // all child Tasks.
         private void CreateDebugTimelines()
         {
+            Guid debugBuildTimelineId = Guid.NewGuid();
             // TODO: Does each execution context store the timeline id and timeline record id for
             // debug? we could use this to create the timelines for the root job and all children
             // execution contexts
             InitializeTimelineRecord(
                 timelineId: _mainTimelineId, // We want this to be the id of "Build"?
-                timelineRecordId: _debugTimelineRecordId, 
-                parentTimelineRecordId: _record.Id, // Or is this the id of "Build"?
+                timelineRecordId: debugBuildTimelineId, 
+                parentTimelineRecordId: _record.Id, // This is the root id, e.g. "Build 10"
                 recordType: ExecutionContextType.Task, // Does this have to be Task or Job?
                 displayName: "Build-DEBUG", 
                 refName: "Build-DEBUGRefName", // TODO: Figure out how to name this correctly. Other places use nameof(...) 
@@ -283,7 +286,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 InitializeTimelineRecord(
                     timelineId: _mainTimelineId, // I think this is the id of the Build root timeline?
                     timelineRecordId: childDiagNodeRecordId, 
-                    parentTimelineRecordId: _debugTimelineRecordId, 
+                    parentTimelineRecordId: debugBuildTimelineId, 
                     recordType: ExecutionContextType.Task, 
                     displayName: displayName, // TODO: Use the name of the task from the child execution context
                     refName: refName, // same as one above + RefName

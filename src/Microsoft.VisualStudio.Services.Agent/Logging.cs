@@ -14,8 +14,6 @@ namespace Microsoft.VisualStudio.Services.Agent
         void Write(string message, bool isDebugLogMessage);
 
         void End();
-
-        void FlushDebugLog(Guid timelineId, Guid timelineRecordId);
     }
 
     public class PagingLogger : AgentService, IPagingLogger
@@ -51,7 +49,6 @@ namespace Microsoft.VisualStudio.Services.Agent
         private FileStream _debugPageData;
         private StreamWriter _debugPageWriter;
         private string _debugDataFileName;
-        private List<string> _debugFileNames;
 
         public override void Initialize(IHostContext hostContext)
         {
@@ -60,7 +57,6 @@ namespace Microsoft.VisualStudio.Services.Agent
             _pagesFolder = Path.Combine(hostContext.GetDirectory(WellKnownDirectory.Diag), PagingFolder);
             _jobServerQueue = HostContext.GetService<IJobServerQueue>();
             Directory.CreateDirectory(_pagesFolder);
-            _debugFileNames = new List<string>();
         }
 
         public void Setup(Guid timelineId, Guid timelineRecordId, bool performCourtesyDebugLogging, Guid debugTimelineId, Guid debugTimelineRecordId)
@@ -153,18 +149,18 @@ namespace Microsoft.VisualStudio.Services.Agent
         }
 
         // TODO: Make sure that this happens before we empty the job server queue
-        public void FlushDebugLog(Guid timelineId, Guid timelineRecordId)
-        {
-            if (_performCourtesyDebugLogging && 
-                _debugFileNames != null && 
-                _debugFileNames.Any())
-            {
-                foreach (string debugFileName in _debugFileNames)
-                {
-                    _jobServerQueue.QueueFileUpload(timelineId, timelineRecordId, "DistributedTask.Core.Log", "CustomToolLog", debugFileName, true);
-                }
-            }
-        }
+        // public void FlushDebugLog(Guid timelineId, Guid timelineRecordId)
+        // {
+        //     if (_performCourtesyDebugLogging && 
+        //         _debugFileNames != null && 
+        //         _debugFileNames.Any())
+        //     {
+        //         foreach (string debugFileName in _debugFileNames)
+        //         {
+        //             _jobServerQueue.QueueFileUpload(timelineId, timelineRecordId, "DistributedTask.Core.Log", "CustomToolLog", debugFileName, true);
+        //         }
+        //     }
+        // }
 
         private void Create()
         {
@@ -203,8 +199,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             {
                 _pageWriter.Flush();
                 _pageData.Flush();
-                //The StreamWriter object calls Dispose() on the provided Stream object when StreamWriter.Dispose is called.
-                _pageWriter.Dispose();
+                _pageWriter.Dispose(); //The StreamWriter object calls Dispose() on the provided Stream object when StreamWriter.Dispose is called.
                 _pageWriter = null;
                 _pageData = null;
                 _jobServerQueue.QueueFileUpload(_timelineId, _timelineRecordId, "DistributedTask.Core.Log", "CustomToolLog", _dataFileName, true);
@@ -221,8 +216,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 _debugPageWriter.Dispose();
                 _debugPageWriter = null;
                 _debugPageData = null;
-                // We don't QueueFileUpload here because this is for debug. We only push that data later, if need be.
-                _jobServerQueue.QueueDebugFileUpload(_debugTimelineId, _debugTimelineRecordId, "DistributedTask.Core.Log", "CustomToolLog", _dataFileName, true);
+                _jobServerQueue.QueueDebugFileUpload(_debugTimelineId, _debugTimelineRecordId, "DistributedTask.Core.Log", "CustomToolLog", _debugDataFileName, true);
             }
         }
     }
