@@ -273,7 +273,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 order: ++_childTimelineRecordOrder
             );
 
-            //_logger.FlushDebugLog(_mainTimelineId, diagnosticsTimelineRecordId);
+            //_jobServerQueue.QueueTimelineRecordUpdate(_mainTimelineId, _record);
 
             int diagnosticRecordOrder = 0;
             foreach (ExecutionContext childExecutionContext in _childExecutionContexts)
@@ -296,9 +296,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 // Not sure if this will work
                 // TODO: We need to set the result for each timeline to the same result that we set inside the task
                 // The current code may need to be cleaned up/made more explicit
-                // _jobServerQueue.QueueTimelineRecordUpdate(childDiagNodeRecordId, childExecutionContext._record);
-
-
+                // we can use childExecutionContext.Result
+                //_jobServerQueue.QueueTimelineRecordUpdate(childExecutionContext._debugTimelineId, childExecutionContext._record);
+                _jobServerQueue.QueueTimelineRecordUpdate(_mainTimelineId, childExecutionContext._record);
             }
         }
 
@@ -485,8 +485,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             // TODO: Are these needed? They map to _mainTimelineId and _record.Id respectively.
             //       But I think those values change over time. I think we want these to be static.
             //       They get passed to the logger and become static there so that is the effect I want here too.
-            _debugTimelineId = message.Timeline.Id; // TODO: This is wrong. We want it to be a new Guid since its a new node under "Build 10". It has been generated in CreateDebugTimelines or we can do it here too. Make sure to pass through.
-            _debugTimelineRecordId = message.JobId;
+
+            _debugTimelineId = message.Timeline.Id; // TODO: We want this to be a new Guid since its a new node under "Build 10". It has been generated in CreateDebugTimelines or we can do it here too. Make sure to pass through.
+            _debugTimelineRecordId = Guid.NewGuid(); // TODO: Is this right or should it be message.JobId?
             _displayName = message.JobName;
             _refName = message.JobRefName;
 
@@ -561,6 +562,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             _jobServerQueue.QueueFileUpload(_mainTimelineId, _record.Id, type, name, filePath, deleteSource: false);
         }
 
+        // TODO: This method is confusing. It does a timeline record update, is that creating a new one? This it also sets _record.
+        // What does _record really represent?
         private void InitializeTimelineRecord(Guid timelineId, Guid timelineRecordId, Guid? parentTimelineRecordId, string recordType, string displayName, string refName, int? order)
         {
             _mainTimelineId = timelineId;
