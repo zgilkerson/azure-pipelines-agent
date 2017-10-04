@@ -35,11 +35,11 @@
   "AutoLogonPoliciesInspection": "Checking for policies that may prevent autologon from working correctly.",
   "AutoLogonPoliciesWarningsHeader": "Following policies may affect the autologon:",
   "Banner": [
-      "",
-      "Visual Studio Team Services (R) {0} version {1}",
-      "Copyright (C) Microsoft Corporation. All rights reserved.",
-      ""
-  ],  
+    "",
+    "Visual Studio Team Services (R) {0} version {1}",
+    "Copyright (C) Microsoft Corporation. All rights reserved.",
+    ""
+  ],
   "BuildCommandNotFound": "##vso[build.{0}] is not a recognized command for Build command extension. Please reference documentation (http://go.microsoft.com/fwlink/?LinkId=817296)",
   "BuildDirLastUseTIme": "The last time build directory '{0}' been used is: {1}",
   "BuildNumberRequired": "Build number is required.",
