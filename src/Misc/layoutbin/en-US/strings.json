@@ -218,7 +218,7 @@
     " logout       Logout",
     "",
     "Options:",
-    " --yaml     Path to a yaml file.  If not supplied, first file ending in .yml is used",
+    " --yml      Path to a yaml file.  If not supplied, first file ending in .yml is used",
     " --offline  Do not attempt to resolve task versions.  Always use what is local task cache.",
     "",
     "Examples:",

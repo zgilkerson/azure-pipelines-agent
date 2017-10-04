@@ -60,7 +60,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                         (Constants.Agent.Platform == Constants.OSPlatform.Windows ? Constants.Configuration.Integrated : Constants.Configuration.Negotiate);
                     authType = command.GetAuth(defaultValue: defaultAuth);
 
-                    credProvider = GetCredentialProvider(command, authType, settings.ServerUrl);
+                    credProvider = GetCredentialProvider(authType, settings.ServerUrl);
                     creds = credProvider.GatherCredential(HostContext, command, settings.ServerUrl);
 
                     //creds = credProvider.LoadVssCredentials(HostContext);
@@ -153,7 +153,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             return success ? Constants.Agent.ReturnCode.Success : Constants.Agent.ReturnCode.TerminatedError;
         }
 
-        private ICredentialProvider GetCredentialProvider(CommandSettings command, string authType, string serverUrl)
+        private ICredentialProvider GetCredentialProvider(string authType, string serverUrl)
         {
             Trace.Info(nameof(GetCredentialProvider));
 

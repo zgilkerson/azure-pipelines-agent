@@ -14,6 +14,8 @@ using Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines.Ya
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Agent.Configuration;
 using Microsoft.VisualStudio.Services.Agent.Util;
+using Microsoft.VisualStudio.Services.Common;
+using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json;
 using Yaml = Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines.Yaml;
 using YamlContracts = Microsoft.TeamFoundation.DistributedTask.Orchestration.Server.Pipelines.Yaml.Contracts;
@@ -33,6 +35,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         private string _gitPath;
         //private ITaskStore _taskStore;
         private ITerminal _term;
+        private ILoginStore _loginStore;
 
         public sealed override void Initialize(IHostContext hostContext)
         {
@@ -40,6 +43,8 @@ namespace Microsoft.VisualStudio.Services.Agent
             hostContext.RunMode = RunMode.Local;
             //_taskStore = HostContext.GetService<ITaskStore>();
             _term = hostContext.GetService<ITerminal>();
+
+            _loginStore = hostContext.GetService<ILoginStore>();            
         }
 
         public int Lint(CommandSettings command, CancellationToken token)
@@ -68,6 +73,8 @@ namespace Microsoft.VisualStudio.Services.Agent
         {
             try
             {
+                VssCredentials creds = EnsureCredential(command);
+
                 string ymlFile = ResolveYamlPath(command);
                 _term.WriteLine($"Loading {ymlFile}");
 
@@ -88,6 +95,8 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         public async Task<int> RunAsync(CommandSettings command, CancellationToken token)
         {
+            VssCredentials creds = EnsureCredential(command);
+
             string ymlFile = ResolveYamlPath(command);
             _term.WriteLine($"Loading {ymlFile}");
 
@@ -252,5 +261,39 @@ namespace Microsoft.VisualStudio.Services.Agent
                 return Path.Combine(defaultRoot, path);
             }
         }
+
+        private VssCredentials EnsureCredential(CommandSettings command)
+        {
+            if (command.Offline)
+            {
+                return null;
+            }
+
+            VssCredentials creds;
+            // TODO: move to common constants
+            string overrideToken = Environment.GetEnvironmentVariable("VSTS_PAT");
+            if (overrideToken != null)
+            {
+                var credentialManager = HostContext.GetService<ICredentialManager>();
+
+                // Create the credential.
+                Trace.Info("using override credential for auth: {0}", Constants.Configuration.PAT);
+                var credProvider = credentialManager.GetCredentialProvider(Constants.Configuration.PAT);
+
+                VssBasicCredential basicCred = new VssBasicCredential("VstsPi", overrideToken);
+                creds = new VssCredentials(null, basicCred, CredentialPromptType.DoNotPrompt);
+                return creds;
+            }
+
+            if (!_loginStore.IsLoggedIn())
+            {
+                throw new InvalidOperationException("Must be logged in to run this command");
+            }
+
+            ICredentialManager mgr = HostContext.GetService<ICredentialManager>();
+            creds = mgr.LoadCredentials();
+            Trace.Info("Loaded creds");
+            return creds;
+        }        
     }   
 }

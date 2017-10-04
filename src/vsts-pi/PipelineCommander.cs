@@ -21,16 +21,13 @@ namespace Microsoft.VisualStudio.Services.Agent
     public sealed class PipelineCommander : AgentService, IPipelineCommander
     {
         private ILoginManager _loginMgr;
-        private ILoginStore _loginStore;
         private ITerminal _term;
         private ManualResetEvent _completedCommand = new ManualResetEvent(false);
 
         public sealed override void Initialize(IHostContext context)
         {
             base.Initialize(context);
-            _loginStore = context.GetService<ILoginStore>();
-            // _loginMgr = new LoginManager();
-            // _loginMgr.Initialize(context);
+
             _loginMgr = context.GetService<ILoginManager>();
             _term = context.GetService<ITerminal>();
         }
@@ -87,14 +84,12 @@ namespace Microsoft.VisualStudio.Services.Agent
 
                 if (command.Validate)
                 {
-                    EnsureLoggedIn();
                     await yamlRunner.ValidateAsync(command, HostContext.AgentShutdownToken);
                     return Constants.Agent.ReturnCode.Success;
                 }
 
                 if (command.Run)
                 {
-                    EnsureLoggedIn();
                     await yamlRunner.RunAsync(command, HostContext.AgentShutdownToken);
                     return Constants.Agent.ReturnCode.Success;
                 }
@@ -129,14 +124,6 @@ namespace Microsoft.VisualStudio.Services.Agent
             _term.WriteLine("Exiting...");
             HostContext.Dispose();
             Environment.Exit(Constants.Agent.ReturnCode.TerminatedError);
-        }
-
-        private void EnsureLoggedIn()
-        {
-            if (!_loginStore.IsLoggedIn())
-            {
-                throw new InvalidOperationException("Must be logged in to run this command");
-            }
         }      
 
         private void PrintUsage(CommandSettings command)
@@ -148,33 +135,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             separator = "/";
 #endif
 
-            //string commonHelp = StringUtil.Loc("CommandLineHelp_Common");
-            // common help differs
-            // TODO: fix
-            string commonHelp = "";
-            _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL", separator, commonHelp));
-
-            // TODO: per command help and examples
-            // if (command.Run)
-            // {
-            //     _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL_Run"));
-            // }
-            // else if (command.Validate)
-            // {
-            //     _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL_Validate"));
-            // }
-            // else if (command.Login)
-            // {
-            //     _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL_Login"));
-            // }
-            // else if (command.Logout)
-            // {
-            //     _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL_Logout"));
-            // }             
-            // else
-            // {
-            //     _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL", separator, commonHelp));
-            // }
+            _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL", separator, ""));
         }        
     }
 }

@@ -59,7 +59,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         // Flags.
         public bool Commit => TestFlag(Constants.Agent.CommandLine.Flags.Commit);
         public bool Help => TestFlag(Constants.Agent.CommandLine.Flags.Help);
-        //public bool Offline => TestFlag(Constants.Agent.CommandLine.Flags.Offline);
+        public bool Offline => TestFlag(Constants.Agent.CommandLine.Flags.Offline);
         public bool Version => TestFlag(Constants.Agent.CommandLine.Flags.Version);
         public bool Unattended => TestFlag(Constants.Agent.CommandLine.Flags.Unattended);
         public bool WhatIf => TestFlag(Constants.Agent.CommandLine.Flags.WhatIf);

@@ -121,6 +121,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string OverwriteAutoLogon = "overwriteautologon";
                     public static readonly string Help = "help";
                     public static readonly string MachineGroup = "machinegroup";
+                    public static readonly string Offline = "offline";
                     public static readonly string Replace = "replace";
                     public static readonly string NoRestart = "norestart";
                     public static readonly string RunAsAutoLogon = "runasautologon";

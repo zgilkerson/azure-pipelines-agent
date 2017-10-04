@@ -153,7 +153,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
 
         public static string GetHomePath()
         {
-            var envHome = Constants.Agent.Platform == Constants.OSPlatform.Windows ? "HOMEPATH" : "HOME";
+            var envHome = Constants.Agent.Platform == Constants.OSPlatform.Windows ? "USERPROFILE" : "HOME";
             return Environment.GetEnvironmentVariable(envHome);            
         }
 
