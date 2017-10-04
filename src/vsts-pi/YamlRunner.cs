@@ -74,6 +74,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             try
             {
                 VssCredentials creds = EnsureCredential(command);
+                string url = EnsureUrl(command);
 
                 string ymlFile = ResolveYamlPath(command);
                 _term.WriteLine($"Loading {ymlFile}");
@@ -96,6 +97,7 @@ namespace Microsoft.VisualStudio.Services.Agent
         public async Task<int> RunAsync(CommandSettings command, CancellationToken token)
         {
             VssCredentials creds = EnsureCredential(command);
+            string url = EnsureUrl(command);
 
             string ymlFile = ResolveYamlPath(command);
             _term.WriteLine($"Loading {ymlFile}");
@@ -260,6 +262,32 @@ namespace Microsoft.VisualStudio.Services.Agent
             {
                 return Path.Combine(defaultRoot, path);
             }
+        }
+
+        private string EnsureUrl(CommandSettings command)
+        {
+            if (command.Offline)
+            {
+                return null;
+            }
+
+            // if we are overriding token via envvar (no login), then must pass url as well
+            string overrideToken = Environment.GetEnvironmentVariable("VSTS_PAT");
+            string url;
+            if (overrideToken != null)
+            {
+                url = Environment.GetEnvironmentVariable("VSTS_URL");
+                if (url == null)
+                {
+                    throw new InvalidOperationException("If you override PAT, you must set VSTS_URL variable");
+                }
+            }
+            else
+            {
+                url = command.GetUrl();
+            }
+
+            return url;
         }
 
         private VssCredentials EnsureCredential(CommandSettings command)

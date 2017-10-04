@@ -128,14 +128,32 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         private void PrintUsage(CommandSettings command)
         {
-            string separator;
-#if OS_WINDOWS
-            separator = "\\";
-#else
-            separator = "/";
-#endif
+            // TODO: loc
 
-            _term.WriteLine(StringUtil.Loc("CommandLineHelp_PL", separator, ""));
+            string help = 
+@"Commands:
+    login        Login and connect with the service.  Only needed once.
+    run          Run a pipeline
+    lint         Validate syntax of a yaml file
+    validate     Validate a pipeline file.  Includes lint and validating referenced tasks and inputs
+    logout       Logout
+
+Options:
+    --yml        Path to a yaml file.  If not supplied, first file ending in .yml is used
+    --offline    Do not attempt to resolve task versions.  Always use what is local task cache.
+
+Examples:
+    vsts-pi login --url https://<account>.visualstudio.com --auth pat --token <pat>
+    vsts-pi validate --yaml vsts-ci.yml
+    vsts-pi run --yaml vsts-ci.yml
+
+Environment Variable Override:
+    VSTS_URL     URL of the server or service
+    VSTS_PAT     PAT token to use
+    
+    ";
+
+            _term.WriteLine(help);
         }        
     }
 }
