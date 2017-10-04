@@ -41,7 +41,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Pipeline
                 trace.Info($"Culture: {CultureInfo.CurrentCulture.Name}");
                 trace.Info($"UI Culture: {CultureInfo.CurrentUICulture.Name}");
 
-                terminal.WriteLine(StringUtil.Loc("Banner", "Pipeline", Constants.Agent.Version));
+// TODO: Loc
+                string bannerFormat =
+@"
+
+Visual Studio Team Services (R) {0} version {1}
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+";
+                terminal.WriteLine(StringUtil.Format(bannerFormat, "Pipeline", Constants.Agent.Version));
 
                 // Validate args.
                 // ArgUtil.NotNull(args, nameof(args));
