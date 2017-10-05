@@ -24,11 +24,13 @@ namespace Microsoft.VisualStudio.Services.Agent
             Constants.Agent.CommandLine.Commands.Logout,
             Constants.Agent.CommandLine.Commands.Remove,
             Constants.Agent.CommandLine.Commands.Run,
+            Constants.Agent.CommandLine.Commands.Validate,
         };
 
         private readonly string[] validFlags =
         {
             Constants.Agent.CommandLine.Flags.Help,
+            Constants.Agent.CommandLine.Flags.Offline,
             Constants.Agent.CommandLine.Flags.Version,
             Constants.Agent.CommandLine.Flags.Unattended,
             Constants.Agent.CommandLine.Flags.WhatIf

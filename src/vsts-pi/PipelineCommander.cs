@@ -150,7 +150,7 @@ Examples:
 Environment Variable Override:
     VSTS_URL     URL of the server or service
     VSTS_PAT     PAT token to use
-    
+
     ";
 
             _term.WriteLine(help);

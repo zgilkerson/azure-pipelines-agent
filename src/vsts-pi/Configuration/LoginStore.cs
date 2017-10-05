@@ -36,7 +36,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
     public sealed class LoginStore : AgentService, ILoginStore
     {
         private string _rootPath;
-        private string _workPath;
         private string _loginSettingsPath;
         private string _credFilePath;
         private CredentialData _creds;
@@ -84,7 +83,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
         public CredentialData GetCredentials()
         {
             Trace.Info("GetCredentials()");
-            ArgUtil.Equal(RunMode.Normal, HostContext.RunMode, nameof(HostContext.RunMode));
             if (_creds == null)
             {
                 _creds = IOUtil.LoadObject<CredentialData>(_credFilePath);

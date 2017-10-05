@@ -136,7 +136,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 var credStore = HostContext.GetService<IAgentCredentialStore>();
                 credStore.Delete($"VSTS_PI");
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 success = false;
                 // TODO: loc

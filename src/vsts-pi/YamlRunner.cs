@@ -32,10 +32,12 @@ namespace Microsoft.VisualStudio.Services.Agent
 
     public sealed class YamlRunner : AgentService, IYamlRunner
     {
-        private string _gitPath;
-        //private ITaskStore _taskStore;
+        // private string _gitPath;
+        // private ITaskStore _taskStore;
         private ITerminal _term;
         private ILoginStore _loginStore;
+        private const string TOKENVAR = "VSTS_PAT";
+        private const string URLVAR = "VSTS_URL";
 
         public sealed override void Initialize(IHostContext hostContext)
         {
@@ -71,11 +73,12 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         public async Task<int> ValidateAsync(CommandSettings command, CancellationToken token)
         {
+            EnsureLoggedIn(command);
+            string url = EnsureUrl(command);
+            VssCredentials creds = await EnsureCredential(command, url);            
+
             try
             {
-                VssCredentials creds = EnsureCredential(command);
-                string url = EnsureUrl(command);
-
                 string ymlFile = ResolveYamlPath(command);
                 _term.WriteLine($"Loading {ymlFile}");
 
@@ -96,9 +99,10 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         public async Task<int> RunAsync(CommandSettings command, CancellationToken token)
         {
-            VssCredentials creds = EnsureCredential(command);
+            EnsureLoggedIn(command);
             string url = EnsureUrl(command);
-
+            VssCredentials creds = await EnsureCredential(command, url);
+        
             string ymlFile = ResolveYamlPath(command);
             _term.WriteLine($"Loading {ymlFile}");
 
@@ -272,25 +276,43 @@ namespace Microsoft.VisualStudio.Services.Agent
             }
 
             // if we are overriding token via envvar (no login), then must pass url as well
-            string overrideToken = Environment.GetEnvironmentVariable("VSTS_PAT");
+            string overrideToken = Environment.GetEnvironmentVariable(TOKENVAR);
             string url;
-            if (overrideToken != null)
+            if (!String.IsNullOrEmpty(overrideToken))
             {
-                url = Environment.GetEnvironmentVariable("VSTS_URL");
-                if (url == null)
+                Trace.Info($"using urlvar: {URLVAR}");
+                url = Environment.GetEnvironmentVariable(URLVAR);
+                Trace.Info($"using urlvar: {url}");
+                if (String.IsNullOrEmpty(url))
                 {
-                    throw new InvalidOperationException("If you override PAT, you must set VSTS_URL variable");
+                    throw new InvalidOperationException($"If you override PAT, you must set {URLVAR} variable");
                 }
             }
             else
             {
-                url = command.GetUrl();
+                Trace.Info("Loading settings");
+                LoginSettings settings = _loginStore.GetSettings();
+                url = settings.ServerUrl;
             }
 
+            Trace.Info($"using url: {url}");
             return url;
         }
 
-        private VssCredentials EnsureCredential(CommandSettings command)
+        private void EnsureLoggedIn(CommandSettings command)
+        {
+            if (command.Offline)
+            {
+                return;
+            }
+
+            if (String.IsNullOrEmpty(Environment.GetEnvironmentVariable(TOKENVAR)) && !_loginStore.IsLoggedIn())
+            {
+                throw new InvalidOperationException("Must be logged in to run this command");
+            }
+        }
+
+        private async Task<VssCredentials> EnsureCredential(CommandSettings command, string url)
         {
             if (command.Offline)
             {
@@ -299,8 +321,8 @@ namespace Microsoft.VisualStudio.Services.Agent
 
             VssCredentials creds;
             // TODO: move to common constants
-            string overrideToken = Environment.GetEnvironmentVariable("VSTS_PAT");
-            if (overrideToken != null)
+            string overrideToken = Environment.GetEnvironmentVariable(TOKENVAR);
+            if (!String.IsNullOrEmpty(overrideToken))
             {
                 var credentialManager = HostContext.GetService<ICredentialManager>();
 
@@ -310,17 +332,20 @@ namespace Microsoft.VisualStudio.Services.Agent
 
                 VssBasicCredential basicCred = new VssBasicCredential("VstsPi", overrideToken);
                 creds = new VssCredentials(null, basicCred, CredentialPromptType.DoNotPrompt);
-                return creds;
             }
-
-            if (!_loginStore.IsLoggedIn())
+            else
             {
-                throw new InvalidOperationException("Must be logged in to run this command");
+                ICredentialManager mgr = HostContext.GetService<ICredentialManager>();
+                creds = mgr.LoadCredentials();
+                Trace.Info("Loaded creds");
             }
 
-            ICredentialManager mgr = HostContext.GetService<ICredentialManager>();
-            creds = mgr.LoadCredentials();
-            Trace.Info("Loaded creds");
+            Trace.Info("Testing credentials and url");
+            IAgentServer server = HostContext.GetService<IAgentServer>();
+            VssConnection connection = ApiUtil.CreateConnection(new Uri(url), creds);
+            await server.ConnectAsync(connection);
+            Trace.Info("Validated credentials and url");
+
             return creds;
         }        
     }   

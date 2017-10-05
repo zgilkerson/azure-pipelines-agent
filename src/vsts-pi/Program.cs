@@ -48,6 +48,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Pipeline
 Visual Studio Team Services (R) {0} version {1}
 Copyright (C) Microsoft Corporation. All rights reserved.
 
+Caution: Tool is in early preview and subject to change.
+
 ";
                 terminal.WriteLine(StringUtil.Format(bannerFormat, "Pipeline", Constants.Agent.Version));
 
@@ -94,8 +96,6 @@ Copyright (C) Microsoft Corporation. All rights reserved.
                 trace.Error(e);
                 return Constants.Agent.ReturnCode.RetryableError;
             }
-
-            return 1;
         }
     }
 }

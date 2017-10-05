@@ -42,7 +42,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Configuration
 
             if (!store.HasCredentials())
             {
-                throw new InvalidOperationException("Credentials not stored.  Must reconfigure.");
+                throw new InvalidOperationException("Credentials not stored.  Must login.");
             }
                         
             CredentialData credData = store.GetCredentials();
