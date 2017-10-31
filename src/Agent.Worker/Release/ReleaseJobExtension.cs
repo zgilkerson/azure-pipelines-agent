@@ -40,7 +40,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
                 return new JobExtensionRunner(
                     context: jobContext.CreateChild(Guid.NewGuid(), StringUtil.Loc("DownloadArtifacts"),
                         nameof(ReleaseJobExtension)),
-                    runAsync: GetArtifactsAsync,
+                    runAsync: DownloadArtifactsAndCommitsAsync,
                     condition: ExpressionManager.Succeeded,
                     displayName: StringUtil.Loc("DownloadArtifacts"));
             }
@@ -110,7 +110,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             sourcePath = string.Empty;
         }
 
-        private async Task GetArtifactsAsync(IExecutionContext executionContext)
+        private async Task DownloadArtifactsAndCommitsAsync(IExecutionContext executionContext)
         {
             Trace.Entering();
 
@@ -353,6 +353,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
 
                 if (!ReleaseArtifacts.Any())
                 {
+                    CreateArtifactsFolder(executionContext, ArtifactsWorkingFolder);
                     Trace.Info("No artifacts found to be downloaded by agent.");
                 }
             }
