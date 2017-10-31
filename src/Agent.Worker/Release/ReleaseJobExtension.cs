@@ -357,6 +357,33 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
                 }
             }
 
+            CheckForAvailableDiskSpace(executionContext);
+
+        }
+
+        private void CheckForAvailableDiskSpace(IExecutionContext executionContext)
+        {
+            try
+            {
+                foreach (var drive in DriveInfo.GetDrives())
+                {
+                    var root = Path.GetPathRoot(ArtifactsWorkingFolder);
+
+                    if (string.Equals(root, drive.Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var availableSpaceInMB = drive.AvailableFreeSpace / (1024 * 1024);
+                        if (availableSpaceInMB < 100)
+                        {
+                            executionContext.Warning(StringUtil.Loc("RMLowAvailableDiskSpace", root));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // ignore any exceptions during checking for free disk space
+                Trace.Error("Failed to check for available disk space: " + ex);
+            }
         }
 
         private void SetLocalVariables(IExecutionContext executionContext, string artifactsDirectoryPath)
