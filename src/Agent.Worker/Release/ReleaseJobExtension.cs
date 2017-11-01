@@ -359,17 +359,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
             }
 
             CheckForAvailableDiskSpace(executionContext);
-
         }
 
         private void CheckForAvailableDiskSpace(IExecutionContext executionContext)
         {
             try
             {
+                var root = Path.GetPathRoot(ArtifactsWorkingFolder);
+
                 foreach (var drive in DriveInfo.GetDrives())
                 {
-                    var root = Path.GetPathRoot(ArtifactsWorkingFolder);
-
                     if (string.Equals(root, drive.Name, StringComparison.OrdinalIgnoreCase))
                     {
                         var availableSpaceInMB = drive.AvailableFreeSpace / (1024 * 1024);
@@ -377,6 +376,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Release
                         {
                             executionContext.Warning(StringUtil.Loc("RMLowAvailableDiskSpace", root));
                         }
+
+                        break;
                     }
                 }
             }
