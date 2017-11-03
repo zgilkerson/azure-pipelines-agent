@@ -83,7 +83,7 @@ phases:
 
 ## Phase conditions
 
-Phase conditions may make use of the following context:
+You can specify conditions under which the phase will run. All general functions of [task conditions](https://go.microsoft.com/fwlink/?linkid=842996) are available in phase conditions. Phase conditions may make use of the following context:
 
 * **variables** - all variables which are available in the root orchestration environment, including input variables, definition variables, linked variable groups, etc.
 * **dependencies** - a property for each phase exists as the name of the phase. For instance, using the **Fan in** example from above, the phase Subsequent would have the following dependencies (the output variables are a Dictionary(string, string) and the result can have one of the listed values):
@@ -130,3 +130,5 @@ phases:
   steps:
   - script: echo hello from subsequent
 ```
+
+For details about output variables, refer [here](https://github.com/Microsoft/vsts-agent/blob/master/docs/preview/outputvariable.md#for-ad-hoc-script).
