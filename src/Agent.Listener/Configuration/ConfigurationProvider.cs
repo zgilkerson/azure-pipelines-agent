@@ -67,6 +67,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             {
                 Trace.Info("Found pool {0} with id {1}", poolName, agentPool.Id);
                 agentSettings.PoolId = agentPool.Id;
+                agentSettings.PoolName = agentPool.Name;
             }
         }
 

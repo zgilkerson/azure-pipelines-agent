@@ -62,13 +62,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             // \_layout\_work\_temp\[jobname-support]\files\environment.txt
             var configurationStore = HostContext.GetService<IConfigurationStore>();
             AgentSettings settings = configurationStore.GetSettings();
-            int agentId = settings.AgentId;
-            string agentName = settings.AgentName;
-            int poolId = settings.PoolId;
 
             executionContext.Debug("Creating diagnostic log environment file.");
             string environmentFile = Path.Combine(supportFilesFolder, "environment.txt");
-            string content = await GetEnvironmentContent(agentId, agentName, message.Tasks);
+            string content = await GetEnvironmentContent(settings, message.Tasks);
             File.WriteAllText(environmentFile, content);
 
             // Create the capabilities file
@@ -108,7 +105,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             string metadataFilePath = Path.Combine(supportFilesFolder, metadataFileName);
             string phaseResult = GetTaskResultAsString(executionContext.Result);
             
-            IOUtil.SaveObject(new DiagnosticLogMetadata(agentName, agentId, poolId, phaseName, diagnosticsZipFileName, phaseResult), metadataFilePath);
+            IOUtil.SaveObject(new DiagnosticLogMetadata(settings.AgentName, settings.AgentId, settings.PoolId, phaseName, diagnosticsZipFileName, phaseResult), metadataFilePath);
 
             executionContext.QueueAttachFile(type: CoreAttachmentType.DiagnosticLog, name: metadataFileName, filePath: metadataFilePath);
 
@@ -176,14 +173,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             return workerLogFiles;
         }
 
-        private async Task<string> GetEnvironmentContent(int agentId, string agentName, ReadOnlyCollection<TaskInstance> tasks)
+        private async Task<string> GetEnvironmentContent(AgentSettings settings, ReadOnlyCollection<TaskInstance> tasks)
         {
             var builder = new StringBuilder();
 
             builder.AppendLine($"Environment file created at(UTC): {DateTime.UtcNow}"); // TODO: Format this like we do in other places.
             builder.AppendLine($"Agent Version: {Constants.Agent.Version}");
-            builder.AppendLine($"Agent Id: {agentId}");
-            builder.AppendLine($"Agent Name: {agentName}");
+            builder.AppendLine($"Agent Id: {settings.AgentId}");
+            builder.AppendLine($"Agent Name: {settings.AgentName}");
+            builder.AppendLine($"Pool Id: {settings.PoolId}");
+            builder.AppendLine($"Pool Name: {settings.PoolName}");
             builder.AppendLine($"OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
             builder.AppendLine("Tasks:");
 
