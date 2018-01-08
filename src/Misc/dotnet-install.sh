@@ -22,7 +22,7 @@ exec 3>&1
 
 # Setup some colors to use. These need to work in fairly limited shells, like the Ubuntu Docker container where there are only 8 colors.
 # See if stdout is a terminal
-if [ -t 1 ]; then
+if [ -t 1 ] && command -v tput > /dev/null; then
     # see if it supports colors
     ncolors=$(tput colors)
     if [ -n "$ncolors" ] && [ $ncolors -ge 8 ]; then
@@ -120,6 +120,10 @@ get_linux_platform_name() {
     else
         if [ -e /etc/os-release ]; then
             . /etc/os-release
+            if [[ $ID == "alpine" ]]; then
+                # remove the last version digit
+                VERSION_ID=${VERSION_ID%.*}
+            fi
             echo "$ID.$VERSION_ID"
             return 0
         elif [ -e /etc/redhat-release ]; then
@@ -146,8 +150,8 @@ get_current_os_name() {
         local linux_platform_name
         linux_platform_name="$(get_linux_platform_name)" || { echo "linux" && return 0 ; }
 
-        if [[ $linux_platform_name == "rhel.6"* ]]; then
-            echo "rhel.6"
+        if [[ $linux_platform_name == "rhel.6" || $linux_platform_name == "alpine.3.6" ]]; then
+            echo $linux_platform_name
             return 0
         else
             echo "linux"
@@ -227,10 +231,10 @@ check_pre_reqs() {
         local librarypath=${LD_LIBRARY_PATH:-}
         LDCONFIG_COMMAND="$LDCONFIG_COMMAND -NXv ${librarypath//:/ }"
 
-        [ -z "$($LDCONFIG_COMMAND | grep libunwind)" ] && say_err "Unable to locate libunwind. Install libunwind to continue" && failing=true
-        [ -z "$($LDCONFIG_COMMAND | grep libssl)" ] && say_err "Unable to locate libssl. Install libssl to continue" && failing=true
-        [ -z "$($LDCONFIG_COMMAND | grep libicu)" ] && say_err "Unable to locate libicu. Install libicu to continue" && failing=true
-        [ -z "$($LDCONFIG_COMMAND | grep -F libcurl.so)" ] && say_err "Unable to locate libcurl. Install libcurl to continue" && failing=true
+        [ -z "$($LDCONFIG_COMMAND 2>/dev/null | grep libunwind)" ] && say_err "Unable to locate libunwind. Install libunwind to continue" && failing=true
+        [ -z "$($LDCONFIG_COMMAND 2>/dev/null | grep libssl)" ] && say_err "Unable to locate libssl. Install libssl to continue" && failing=true
+        [ -z "$($LDCONFIG_COMMAND 2>/dev/null | grep libicu)" ] && say_err "Unable to locate libicu. Install libicu to continue" && failing=true
+        [ -z "$($LDCONFIG_COMMAND 2>/dev/null | grep -F libcurl.so)" ] && say_err "Unable to locate libcurl. Install libcurl to continue" && failing=true
     fi
 
     if [ "$failing" = true ]; then
@@ -618,6 +622,9 @@ downloadcurl() {
     local remote_path="$1"
     local out_path="${2:-}"
 
+    # Append feed_credential as late as possible before calling curl to avoid logging feed_credential
+    remote_path="${remote_path}${feed_credential}"
+
     local failed=false
     if [ -z "$out_path" ]; then
         curl --retry 10 -sSL -f --create-dirs "$remote_path" || failed=true
@@ -636,11 +643,14 @@ downloadwget() {
     local remote_path="$1"
     local out_path="${2:-}"
 
+    # Append feed_credential as late as possible before calling wget to avoid logging feed_credential
+    remote_path="${remote_path}${feed_credential}"
+
     local failed=false
     if [ -z "$out_path" ]; then
         wget -q --tries 10 -O - "$remote_path" || failed=true
     else
-        wget -v --tries 10 -O "$out_path" "$remote_path" || failed=true
+        wget --tries 10 -O "$out_path" "$remote_path" || failed=true
     fi
     if [ "$failed" = true ]; then
         say_verbose "Wget download failed"
@@ -725,6 +735,7 @@ dry_run=false
 no_path=false
 azure_feed="https://dotnetcli.azureedge.net/dotnet"
 uncached_feed="https://dotnetcli.blob.core.windows.net/dotnet"
+feed_credential=""
 verbose=false
 shared_runtime=false
 runtime_id=""
@@ -770,6 +781,10 @@ do
             shift
             uncached_feed="$1"
             ;;
+        --feed-credential|-[Ff]eed[Cc]redential)
+            shift
+            feed_credential="$1"
+            ;;
         --runtime-id|-[Rr]untime[Ii]d)
             shift
             runtime_id="$1"
@@ -804,22 +819,23 @@ do
             echo "              coherent applies only to SDK downloads"
             echo "          - 3-part version in a format A.B.C - represents specific version of build"
             echo "              examples: 2.0.0-preview2-006120; 1.1.0"
-            echo "  -i,--install-dir <DIR>         Install under specified location (see Install Location below)"
+            echo "  -i,--install-dir <DIR>             Install under specified location (see Install Location below)"
             echo "      -InstallDir"
-            echo "  --architecture <ARCHITECTURE>  Architecture of .NET Tools. Currently only x64 is supported."
+            echo "  --architecture <ARCHITECTURE>      Architecture of .NET Tools. Currently only x64 is supported."
             echo "      --arch,-Architecture,-Arch"
-            echo "  --shared-runtime               Installs just the shared runtime bits, not the entire SDK."
+            echo "  --shared-runtime                   Installs just the shared runtime bits, not the entire SDK."
             echo "      -SharedRuntime"
-            echo "  --skip-non-versioned-files     Skips non-versioned files if they already exist, such as the dotnet executable."
+            echo "  --skip-non-versioned-files         Skips non-versioned files if they already exist, such as the dotnet executable."
             echo "      -SkipNonVersionedFiles"
-            echo "  --dry-run,-DryRun              Do not perform installation. Display download link."
-            echo "  --no-path, -NoPath             Do not set PATH for the current process."
-            echo "  --verbose,-Verbose             Display diagnostics information."
-            echo "  --azure-feed,-AzureFeed        Azure feed location. Defaults to $azure_feed, This parameter typically is not changed by the user."
-            echo "  --uncached-feed,-UncachedFeed  Uncached feed location. This parameter typically is not changed by the user."
-            echo "  --runtime-id                   Installs the .NET Tools for the given platform (use linux-x64 for portable linux)."
+            echo "  --dry-run,-DryRun                  Do not perform installation. Display download link."
+            echo "  --no-path, -NoPath                 Do not set PATH for the current process."
+            echo "  --verbose,-Verbose                 Display diagnostics information."
+            echo "  --azure-feed,-AzureFeed            Azure feed location. Defaults to $azure_feed, This parameter typically is not changed by the user."
+            echo "  --uncached-feed,-UncachedFeed      Uncached feed location. This parameter typically is not changed by the user."
+            echo "  --feed-credential,-FeedCredential  Azure feed shared access token. This parameter typically is not specified."
+            echo "  --runtime-id                       Installs the .NET Tools for the given platform (use linux-x64 for portable linux)."
             echo "      -RuntimeId"
-            echo "  -?,--?,-h,--help,-Help         Shows this help message"
+            echo "  -?,--?,-h,--help,-Help             Shows this help message"
             echo ""
             echo "Install Location:"
             echo "  Location is chosen in following order:"
