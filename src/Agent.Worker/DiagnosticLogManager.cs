@@ -114,6 +114,23 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             executionContext.Debug("Diagnostic file upload complete.");
         }
 
+        private string GetPoolFriendlyName()
+        {
+            var agentServer = HostContext.GetService<IAgentServer>();
+
+            string poolName = command.GetPool();
+
+            TaskAgentPool agentPool = (await _agentServer.GetAgentPoolsAsync(poolName)).FirstOrDefault();
+            if (agentPool == null)
+            {
+                return String.Empty;
+            }
+            else
+            {
+                return agentPool.Name;
+            }
+        }
+
         private string GetCapabilitiesContent(Dictionary<string, string> capabilities)
         {
             var builder = new StringBuilder();
