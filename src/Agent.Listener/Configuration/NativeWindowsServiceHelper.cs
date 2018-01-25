@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using System;
 using System.Collections;
 using System.ComponentModel;
+using System.DirectoryServices;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -55,11 +56,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         void CreateVstsAgentRegistryKey();
 
         void DeleteVstsAgentRegistryKey();
-        
+
         string GetSecurityId(string domainName, string userName);
-        
+
         void SetAutoLogonPassword(string password);
-        
+
         void ResetAutoLogonPassword();
 
         bool IsRunningInElevatedMode();
@@ -69,6 +70,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         void UnloadUserProfile(IntPtr tokenHandle, PROFILEINFO userProfile);
 
         bool IsValidAutoLogonCredential(string domain, string userName, string logonPassword);
+
+        bool IsWellKnownIdentity(string accountName);
+
+        bool IsManagedServiceAccount(string accountName);
     }
 
     public class NativeWindowsServiceHelper : AgentService, INativeWindowsServiceHelper
@@ -362,10 +367,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             }
         }
 
-        public static bool IsWellKnownIdentity(String accountName)
+        public bool IsWellKnownIdentity(String accountName)
         {
             NTAccount ntaccount = new NTAccount(accountName);
             SecurityIdentifier sid = (SecurityIdentifier)ntaccount.Translate(typeof(SecurityIdentifier));
+            Trace.Info(sid.Value);
 
             SecurityIdentifier networkServiceSid = new SecurityIdentifier(WellKnownSidType.NetworkServiceSid, null);
             SecurityIdentifier localServiceSid = new SecurityIdentifier(WellKnownSidType.LocalServiceSid, null);
@@ -376,6 +382,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                    sid.Equals(localSystemSid);
         }
 
+        public bool IsManagedServiceAccount(String accountName)
+        {
+            bool isServiceAccount = false;
+            accountName = SanitizeManagedServiceAccountName(accountName);
+            var result = NetIsServiceAccount(null, accountName, ref isServiceAccount);
+            if (result == 0)
+            {
+                Trace.Info($"Account '{accountName}' is managed service account: {isServiceAccount}.");
+                return isServiceAccount;
+            }
+            else
+            {
+                Trace.Info($"Fail to check account '{accountName}' is managed service account or not.");
+                int lastErrorCode = (int)GetLastError();
+                Exception win32exception = new Win32Exception(lastErrorCode);
+                Trace.Error(win32exception);
+                return false;
+            }
+        }
+
         public bool IsValidCredential(string domain, string userName, string logonPassword)
         {
             return IsValidCredentialInternal(domain, userName, logonPassword, LOGON32_LOGON_NETWORK);
@@ -383,7 +409,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         public bool IsValidAutoLogonCredential(string domain, string userName, string logonPassword)
         {
-            return IsValidCredentialInternal(domain, userName, logonPassword, LOGON32_LOGON_INTERACTIVE);            
+            return IsValidCredentialInternal(domain, userName, logonPassword, LOGON32_LOGON_INTERACTIVE);
         }
 
         public NTAccount GetDefaultServiceAccount()
@@ -468,7 +494,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     processInvoker.ExecuteAsync(workingDirectory: string.Empty,
                                                 fileName: agentServiceExecutable,
                                                 arguments: "init",
-                                                environment:  null,
+                                                environment: null,
                                                 requireExitCodeZero: true,
                                                 cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
                 }
@@ -498,7 +524,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 {
                     throw new InvalidOperationException(StringUtil.Loc("OperationFailed", nameof(CreateService), GetLastError()));
                 }
-                
+
                 _term.WriteLine(StringUtil.Loc("ServiceInstalled", serviceName));
 
                 //set recovery option to restart on failure.
@@ -801,7 +827,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             tokenHandle = IntPtr.Zero;
 
             ArgUtil.NotNullOrEmpty(userName, nameof(userName));
-            if(LogonUser(userName, domain, logonPassword, LOGON32_LOGON_INTERACTIVE, LOGON32_PROVIDER_DEFAULT, out tokenHandle) == 0)
+            if (LogonUser(userName, domain, logonPassword, LOGON32_LOGON_INTERACTIVE, LOGON32_PROVIDER_DEFAULT, out tokenHandle) == 0)
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
@@ -813,24 +839,24 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
-            
+
             Trace.Info($"Successfully loaded the profile for {domain}\\{userName}.");
         }
 
         public void UnloadUserProfile(IntPtr tokenHandle, PROFILEINFO userProfile)
         {
             Trace.Entering();
-            
-            if(tokenHandle == IntPtr.Zero)
+
+            if (tokenHandle == IntPtr.Zero)
             {
                 Trace.Verbose("The handle to unload user profile is not set. Returning.");
             }
-            
+
             if (!UnloadUserProfile(tokenHandle, userProfile.hProfile))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
-            
+
             Trace.Info($"Successfully unloaded the profile for {userProfile.lpUserName}.");
         }
 
@@ -866,17 +892,56 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         private byte[] GetSidBinaryFromWindows(string domain, string user)
         {
-            try
+            string accountName = StringUtil.Format("{0}\\{1}", domain, user).TrimStart('\\');
+
+            if (IsManagedServiceAccount(accountName))
             {
-                SecurityIdentifier sid = (SecurityIdentifier)new NTAccount(StringUtil.Format("{0}\\{1}", domain, user).TrimStart('\\')).Translate(typeof(SecurityIdentifier));
-                byte[] binaryForm = new byte[sid.BinaryLength];
-                sid.GetBinaryForm(binaryForm, 0);
-                return binaryForm;
+                //lookup account sid from AD
+                DirectoryEntry entry = new DirectoryEntry();
+                DirectorySearcher search = new DirectorySearcher(entry);
+
+                accountName = SanitizeManagedServiceAccountName(accountName);
+                search.Filter = "(SAMAccountName=" + accountName + "$)";
+                search.PropertiesToLoad.Add("objectSid");
+                SearchResult result = search.FindOne();
+                if (result != null)
+                {
+                    return (byte[])result.Properties["objectSid"][0];
+                }
+                else
+                {
+                    Trace.Error("Failed to find SID");
+                    return null;
+                }
             }
-            catch (Exception exception)
+            else
             {
-                Trace.Error(exception);
-                return null;
+                try
+                {
+                    SecurityIdentifier sid = (SecurityIdentifier)new NTAccount(accountName).Translate(typeof(SecurityIdentifier));
+                    byte[] binaryForm = new byte[sid.BinaryLength];
+                    sid.GetBinaryForm(binaryForm, 0);
+                    return binaryForm;
+                }
+                catch (Exception exception)
+                {
+                    Trace.Error(exception);
+                    return null;
+                }
+            }
+        }
+
+        private string SanitizeManagedServiceAccountName(string accountName)
+        {
+            // remove the last '$' for MSA
+            ArgUtil.NotNullOrEmpty(accountName, nameof(accountName));
+            if (accountName[accountName.Length - 1].Equals('$'))
+            {
+                return accountName.Remove(accountName.Length - 1);
+            }
+            else
+            {
+                return accountName;
             }
         }
 
@@ -885,7 +950,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         {
             public IntPtr Handle { get; set; }
 
-            public LsaPolicy() 
+            public LsaPolicy()
                 : this(LSA_AccessPolicy.POLICY_ALL_ACCESS)
             {
             }
@@ -917,8 +982,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 LSA_UNICODE_STRING secretData = new LSA_UNICODE_STRING();
                 LSA_UNICODE_STRING secretName = new LSA_UNICODE_STRING();
 
-                secretName.Buffer = Marshal.StringToHGlobalUni(key);                
-                
+                secretName.Buffer = Marshal.StringToHGlobalUni(key);
+
                 var charSize = sizeof(char);
 
                 secretName.Length = (UInt16)(key.Length * charSize);
@@ -991,7 +1056,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         private const UInt32 LOGON32_LOGON_NETWORK = 3;
 
         // Declaration of external pinvoke functions
-        private static readonly string s_logonAsServiceName = "SeServiceLogonRight";        
+        private static readonly string s_logonAsServiceName = "SeServiceLogonRight";
 
         private const UInt32 LOGON32_PROVIDER_DEFAULT = 0;
 
@@ -1033,7 +1098,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             public const int NERR_GroupExists = 2223;
             public const int NERR_UserInGroup = 2236;
             public const uint STATUS_ACCESS_DENIED = 0XC0000022; //NTSTATUS error code: Access Denied
-        }     
+        }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct LocalGroupInfo
@@ -1158,6 +1223,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Reboot = 2,
             RunCommand = 3
         }
+
+        [DllImport("Logoncli.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern uint NetIsServiceAccount(string ServerName, string AccountName, ref bool IsServiceAccount);
 
         [DllImport("Netapi32.dll")]
         private extern static int NetLocalGroupGetInfo(string servername,
