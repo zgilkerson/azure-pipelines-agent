@@ -37,6 +37,7 @@ trigger:
 
 ```yaml
 schedules:
+- schedule: name
   whenUnchanged: bool
   days: # Also supports a string instead of an array: "<DAY>" or "All" or "Weekdays"
   - sun
