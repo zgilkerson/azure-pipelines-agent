@@ -33,7 +33,7 @@ trigger:
     exclude: []
 ```
 
-## Schedules (needs cleanup)
+## Schedules (future; needs cleanup)
 
 ```yaml
 schedules:
@@ -56,7 +56,7 @@ schedules:
     exclude: []
 ```
 
-## Triggers on resources
+## Triggers on resources (future)
 
 ```yaml
 resources:
