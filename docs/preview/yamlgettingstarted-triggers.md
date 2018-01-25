@@ -1,24 +1,29 @@
 # YAML getting started - YAML triggers (not yet available, for discussion only)
 
-## Schema
+## Simple trigger syntax
 
 ```yaml
-ci:           # Simple syntax is an array of include-branches. We had previously discussed
-- master      # "branches" but in this proposal "ci" is used more heavily:
-- releases/*  # 1) "ci: false"
-              # 2) full ci syntax (batch, branch include/exclude, path include/exclude
-              # 3) on each artifact type
-              #
-              # So for consistency, "ci" might make more sense. Note, for TFVC "branches"
-              # is not accurate terminology.
+trigger:
+- master
+- releases/*
 ```
 
-```yaml
-ci: none # Turn off CI.
-```
+## CI is opt-out
+
+When not specified, the default trigger for build would be all branches.
+
+For build this behavior makes sense. Especially when we start supporting on-push defintion creation from any branch. And on-push resource authorization from any branch.
+
+For release, CI trigger would likely be opt-in? However with YAML, release will be tightly coupled with a repository. So opt-out CI behavior might also make sense for release? Or opt-out, but the default for RM only includes master?
 
 ```yaml
-ci:
+trigger: false | none # Turn off CI
+```
+
+## Full CI trigger syntax
+
+```yaml
+trigger:
   batch: bool | number
   branches:
     include: []
@@ -26,7 +31,11 @@ ci:
   paths:
     include: []
     exclude: []
+```
 
+## Schedules (needs cleanup)
+
+```yaml
 schedules:
   whenUnchanged: bool
   days: # Also supports a string instead of an array: "<DAY>" or "All" or "Weekdays"
@@ -44,21 +53,26 @@ schedules:
   branches:
     include: []
     exclude: []
+```
 
+## Triggers on resources
+
+```yaml
 resources:
   repositories:
   - name: tools
-    ci: # Need a property to hang trigger info on
+    trigger: # Need a property to hang trigger info on
       branches:
         include: []
         exclude: []
+      # ...polling, etc
 
   builds:
   - name: otherDefinition
-    ci: true # Simple build trigger
+    trigger: true # Simple build trigger
 
   - name: otherDefinition2
-    ci: # Build trigger with branch/tag filters
+    trigger: # Build trigger with branch/tag filters
       branches:
         include:
         - releases/*
@@ -70,5 +84,5 @@ resources:
   packages:
   - name: somePackage
     feed: someFeed
-    ci: true # Packages too
+    trigger: true # Packages too
 ```
