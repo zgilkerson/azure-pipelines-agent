@@ -1,6 +1,13 @@
 # YAML getting started - YAML triggers (not yet available, for discussion only)
 
-## Simple trigger syntax
+## Simple CI trigger syntax
+
+On push, the YAML file from the branch that was updated, is used to determine whether
+to queue a CI build.
+
+For example, if master is updated, the trigger defined in master will be used. If a different
+branch is updated, the YAML file from that branch will be used to determine whether to queue a
+build.
 
 ```yaml
 trigger:
