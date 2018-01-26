@@ -1,12 +1,10 @@
 
-# Group Step and Container
-
-## Overview
-
-1. Group step in yaml that represent a set of task steps.
-2. Container resource in yaml that allow a task step or group step declare at runtime which container instance the step will use.
+# YAML getting started - YAML Group Step and Container (not yet available, for discussion only) 
 
 ## Group Step
+
+Group step in yaml that represent a set of task steps.
+
 ### Syntax
 
 The syntax to declare a group is:
@@ -57,6 +55,8 @@ The group step should fill the gap of the task group concept we had today and ma
 The group step will also becomes to a reuseable point for yaml template, like you can define group step in different files, and pull all of them in your main yaml file.
 
 ## Container
+
+Container resource in yaml that allow a task step or group step declare at runtime which container instance the step will use.
 
 ### Syntax
 
