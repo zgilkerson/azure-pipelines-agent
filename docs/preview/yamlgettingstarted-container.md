@@ -23,9 +23,9 @@ steps:
 
   timeoutInMinutes: number # Whole numbers only. Zero indicates no timeout.
   
-  container: string # The container the entire group will runs in.
+  container: string # The container the entire group will run in.
   
-  outputs: { string: string} # Output variables mapping for steps within the group, output variables from task in the group wouldn't flow automatically, declare is required. 
+  outputs: { string: string } # Output variables mapping for steps within the group, output variables from task in the group wouldn't flow automatically, declare is required. 
 
   steps: [ script | powershell | bash | task ] # A list of task that this group contains
 ```
@@ -47,13 +47,7 @@ steps:
     groupvar2: groupscript2.varX
 - script: set    
 ```
-
-The group step should fill the gap of the task group concept we had today and make it even more powerful, since the DistributedTask system and agent doesn't understand task group, we have few features are not working as people expected today.
-- Condition for group
-- Output variable for group
-
-The group step will also becomes to a reuseable point for yaml template, like you can define group step in different files, and pull all of them in your main yaml file.
-
+ 
 ## Container
 
 Container resource in yaml that allow a task step or group step declare at runtime which container instance the step will use.
@@ -63,10 +57,8 @@ Container resource in yaml that allow a task step or group step declare at runti
 ```yaml
 resources:
   containers:
-  - name: string # The container name, step will reference container by name.
-    
-    type: string # The container type, like docker and kubernetes. We only support docker today.
-    
+  - container: string # The container name, step will reference container by name.
+
     { string: string } # Any container data used by the container type.
 ```
 
@@ -74,9 +66,7 @@ Docker container syntax
 ```yaml
 resources:
   containers:
-  - name: string # The container name, step will reference container by name.    
-    
-    type: docker 
+  - container: string # The container name, step will reference container by name.    
     
     image: string # Docker image name
 
@@ -84,7 +74,7 @@ resources:
 
     options: string # Any extra options you want to add for container startup.
     
-    localimage: true | false # Whether the image is locally built and don't pull from docker registry
+    localImage: true | false # Whether the image is locally built and don't pull from docker registry
 ```
 
 ### Example
@@ -94,22 +84,18 @@ A simple container resource declaration may look like this:
 ```yaml
 resources:
   containers:
-  - name: dev1
-    type: docker
+  - container: dev1
     image: ubuntu:16.04
-  - name: dev2
-    type: docker
+  - container: dev2
     image: private:ubuntu
     registry: privatedockerhub
-  - name: dev3
-    type: docker
+  - container: dev3
     image: ubuntu:17.10
     options: --cpu-count 4
-  - name: dev4
-    type: docker
+  - container: dev4
     image: ubuntu:17.10
     options: --hostname container-test --env test=foo --ip 192.168.0.1
-    localimage: true
+    localImage: true
 ```
 
 A simple build definition with step using container may look like this:
@@ -117,11 +103,9 @@ A simple build definition with step using container may look like this:
 ```yaml
 resources:
   containers:
-  - name: dev1
-    type: docker
+  - container: dev1
     image: ubuntu:16.04
-  - name: dev2
-    type: docker
+  - container: dev2
     image: private:ubuntu
     registry: privatedockerhub
 phases:
