@@ -20,6 +20,8 @@ YAML builds require the latest agent. When a YAML build is queued, your agent wi
 
 [Checkout options](yamlgettingstarted-checkout.md)
 
+[Publish artifacts](yamlgettingstarted-publish.md)
+
 [Queues](yamlgettingstarted-queues.md)
 
 [Endpoints](yamlgettingstarted-endpoints.md)
