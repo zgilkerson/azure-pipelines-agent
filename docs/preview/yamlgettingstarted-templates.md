@@ -45,7 +45,7 @@ The following example illustrates two things:
    And the local variables could be used within expressions throughout the main section.
 
 2. Inputs are expanded using template expressions. A value that starts and ends
-   with `{{  }}` indicates a template expression.
+   with `${{  }}` indicates a template expression.
 
 Template:
 
@@ -58,10 +58,10 @@ inputs:
 steps:
 - task: msbuild@1
   inputs:
-    solution: "{{ inputs.solution }}"
+    solution: ${{ inputs.solution }}
 - task: vstest@2
   inputs:
-    solution: "{{ inputs.solution }}"
+    solution: ${{ inputs.solution }}
 ```
 
 Consumer:
@@ -87,10 +87,10 @@ inputs:
 phases:
 - phase: build
   steps:
-  - "{{ inputs.preBuild }}"
+  - ${{ inputs.preBuild }}
   - task: msbuild@1
   - task: vstest@2
-  - "{{ inputs.postBuild }}"
+  - ${{ inputs.postBuild }}
 ```
 
 Consumer:
@@ -117,7 +117,7 @@ We could always do three braces in that case, to indicate not to do the implicit
 Although YAML has a syntax for inserting into a dictionary, we need to invent
 something because we are post-processing the file.
 
-In the example below, the `@@insert` property indicates the value that follows
+In the example below, the `^^insert` property indicates the value that follows
 is expected to be a mapping, and should be inserted into the outer mapping.
 
 Template:
@@ -133,7 +133,7 @@ phases:
   variables:
     configuration: debug
     arch: x86
-    "@@insert": "{{ inputs.variables }}"
+    ^^insert: ${{ inputs.variables }}
   steps:
   - task: msbuild@1
   - task: vstest@2
@@ -151,10 +151,7 @@ phases:
 
 ## Example: If, elseif, else
 
-The below example illustrates `@@if`, `@@elseif`, and `@@else`.
-
-A template expression is expected to follow the `@@if` and `@@elseif` properties.
-The expression that follows may omit the surrounding `@@` symbols.
+The below example illustrates `^^if`, `^^elseif`, and `^^else`.
 
 Template:
 
@@ -166,12 +163,12 @@ inputs:
 ---
 steps:
   # msbuild
-  "@@if eq(inputs.toolset, 'msbuild')":
+  ^^if eq(inputs.toolset, 'msbuild'):
   - task: msbuild@1
   - task: vstest@2
 
   # dotnet
-  "@@elseif eq(inputs.toolset, 'dotnet')":
+  ^^elseif eq(inputs.toolset, 'dotnet'):
   - task: dotnet@1
     inputs:
       command: build
@@ -180,7 +177,7 @@ steps:
       command: test
 
   # error
-  "@@else":
+  ^^else:
   - script: echo Expected toolset 'dotnet' or 'msbuild' && exit 1
 ```
 
@@ -207,7 +204,7 @@ phases:
   steps:
   - task: msbuild@1
   - task: vstest@2
-  - "@@if parseBool(inputs.publish)":
+  - ^^if parseBool(inputs.publish):
     - task: publishBuildArtifacts@1
 ```
 
@@ -233,8 +230,8 @@ inputs:
 phases:
 - phase: build
   # Only insert the queue if it was specified
-  "@@if inputs.queue":
-    queue: "{{ inputs.queue }}"
+  ^^if inputs.queue:
+    queue: ${{ inputs.queue }}
   steps:
   - task: msbuild@1
   - task: vstest@2
@@ -262,22 +259,22 @@ nodeVersions:
 - "8.x"
 ---
 steps:
-- "@@foreach": "{{ inputs.nodeVersions }}"
-  "@@result":
+- ^^foreach: ${{ inputs.nodeVersions }}
+  ^^result:
   - task: nodeTool@0
-    displayName: "{{ concat('Setup node ', item) }}"
+    displayName: ${{ concat('Setup node ', item) }}
     inputs:
-      versionSpec: "{{ item }}"
+      versionSpec: ${{ item }}
   - script: npm test
-    displayName: "{{ concat('Build and test with node ', item) }}"
+    displayName: ${{ concat('Build and test with node ', item) }}
 ```
 
 ## Escaping
 
-Any value starting and ending with `{{ }}` is assumed to be a template expression.
+Any value starting and ending with `${{ }}` is assumed to be a template expression.
 
-TODO: How to escape `{{ }}`? We should resolve `{{{ }}}` to mean don't implicitly remove sequence layer. We also might want to look for `{{ }}` anywhere within the string.
+TODO: How to escape `${{ }}`? We should reserve `${{{ }}}` to mean don't implicitly remove sequence layer. We also might want to look for `${{ }}` anywhere within the string.
 
-Any value starting with `@@` is assumed to be an expansion directive (e.g. `@@if`).
+Any value starting with `^^` is assumed to be an expansion directive (e.g. `^^if`).
 
-TODO: How to escape `@@`?
+TODO: How to escape `^^`? With an extra `^^^`?
