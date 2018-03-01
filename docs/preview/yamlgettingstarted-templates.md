@@ -45,7 +45,7 @@ The following example illustrates two things:
    And the local variables could be used within expressions throughout the main section.
 
 2. Inputs are expanded using template expressions. A value that starts and ends
-   with `$$` indicates a template expression.
+   with `{{  }}` indicates a template expression.
 
 Template:
 
@@ -58,10 +58,10 @@ inputs:
 steps:
 - task: msbuild@1
   inputs:
-    solution: $$ inputs.solution $$
+    solution: "{{ inputs.solution }}"
 - task: vstest@2
   inputs:
-    solution: $$ inputs.solution $$
+    solution: "{{ inputs.solution }}"
 ```
 
 Consumer:
@@ -75,10 +75,6 @@ steps:
 
 ## Example: Insert into an array
 
-YAML does not have a syntax for inserting into an array. YAML only has a syntax for inserting into a dictionary. So we have to invent something for the array scenario.
-
-In the example below, the `$$insertSequence` property indicates the value that follows is expected be a sequence, and should be inserted into the outer sequence.
-
 Template:
 
 ```yaml
@@ -91,10 +87,10 @@ inputs:
 phases:
 - phase: build
   steps:
-  - $$insertSequnce: $$ inputs.preBuild $$
+  - "{{ inputs.preBuild }}"
   - task: msbuild@1
   - task: vstest@2
-  - $$insertSequence: $$ inputs.postBuild $$
+  - "{{ inputs.postBuild }}"
 ```
 
 Consumer:
@@ -109,12 +105,19 @@ phases:
     - script: echo hello from post build
 ```
 
+Note, when an array is inserted into an array, the nested array is flattened.
+
+TODO: How to preserve the nested layer when it matters? A workaround would be for the template
+author to wrap the value in an extra array. And then we are down to scenarios where the template
+author does not know ahead of time what the object shape should look like - not a scenario today.
+We could always do three braces in that case, to indicate not to do the implicit transform.
+
 ## Example: Insert into a dictionary
 
 Although YAML has a syntax for inserting into a dictionary, we need to invent
 something because we are post-processing the file.
 
-In the example below, the `$$insertMapping` property indicates the value that follows
+In the example below, the `@@insert` property indicates the value that follows
 is expected to be a mapping, and should be inserted into the outer mapping.
 
 Template:
@@ -128,7 +131,9 @@ inputs:
 phases:
 - phase: build
   variables:
-    $$insertMapping: $$ inputs.variables $$
+    configuration: debug
+    arch: x86
+    "@@insert": "{{ inputs.variables }}"
   steps:
   - task: msbuild@1
   - task: vstest@2
@@ -146,10 +151,10 @@ phases:
 
 ## Example: If, elseif, else
 
-The below example illustrates `$$if`, `$$elseif`, and `$$else`.
+The below example illustrates `@@if`, `@@elseif`, and `@@else`.
 
-A template expression is expected to follow the `$$if` and `$$elseif` properties.
-The expression that follows may omit the surrounding `$$` symbols.
+A template expression is expected to follow the `@@if` and `@@elseif` properties.
+The expression that follows may omit the surrounding `@@` symbols.
 
 Template:
 
@@ -161,14 +166,12 @@ inputs:
 ---
 steps:
   # msbuild
-  $$if: eq(inputs.toolset, 'msbuild')
-  $$then:
+  "@@if eq(inputs.toolset, 'msbuild')":
   - task: msbuild@1
   - task: vstest@2
 
   # dotnet
-  $$elseif: eq(inputs.toolset, 'dotnet')
-  $$then:
+  "@@elseif eq(inputs.toolset, 'dotnet')":
   - task: dotnet@1
     inputs:
       command: build
@@ -177,7 +180,7 @@ steps:
       command: test
 
   # error
-  $$else:
+  "@@else":
   - script: echo Expected toolset 'dotnet' or 'msbuild' && exit 1
 ```
 
@@ -204,10 +207,8 @@ phases:
   steps:
   - task: msbuild@1
   - task: vstest@2
-  - $$insertSequence:
-      $$if: parseBool(inputs.publish)
-      $$then:
-      - task: publishBuildArtifacts@1
+  - "@@if parseBool(inputs.publish)":
+    - task: publishBuildArtifacts@1
 ```
 
 Consumer:
@@ -232,10 +233,8 @@ inputs:
 phases:
 - phase: build
   # Only insert the queue if it was specified
-  $$insertMapping:
-    $$if: inputs.queue
-    $$then:
-      queue: $$ inputs.queue $$
+  "@@if inputs.queue":
+    queue: "{{ inputs.queue }}"
   steps:
   - task: msbuild@1
   - task: vstest@2
