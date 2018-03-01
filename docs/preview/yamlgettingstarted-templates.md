@@ -262,20 +262,22 @@ nodeVersions:
 - "8.x"
 ---
 steps:
-- $$insertSequence:
-    $$foreach: inputs.nodeVersions
-    $$local: nodeVersion
-    $$result:
-    - task: nodeTool@0
-      displayName: $$ concat('Setup node ', locals.nodeVersion) $$
-      inputs:
-        versionSpec: $$ locals.nodeVersion $$
-    - script: npm test
-      displayName: $$ concat('Build and test with node ', locals.nodeVersion) $$
+- "@@foreach": "{{ inputs.nodeVersions }}"
+  "@@result":
+  - task: nodeTool@0
+    displayName: "{{ concat('Setup node ', item) }}"
+    inputs:
+      versionSpec: "{{ item }}"
+  - script: npm test
+    displayName: "{{ concat('Build and test with node ', item) }}"
 ```
 
 ## Escaping
 
-Anything starting with `$$` is assumed to be either a template expression (which also end with `$$`), or an expansion directive (e.g. `$$if`).
+Any value starting and ending with `{{ }}` is assumed to be a template expression.
 
-Use `$$$` to escape a literal `$$`.
+TODO: How to escape `{{ }}`? We should resolve `{{{ }}}` to mean don't implicitly remove sequence layer. We also might want to look for `{{ }}` anywhere within the string.
+
+Any value starting with `@@` is assumed to be an expansion directive (e.g. `@@if`).
+
+TODO: How to escape `@@`?
