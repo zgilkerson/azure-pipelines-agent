@@ -25,7 +25,7 @@ the previous commit. We can extend this idea to apply to chains of commits.
 
 A further optimization can be made to minimize the amount of data that needs to be retrieved, when
 calls to the source provider are required. This approach would involve caching the GitHub tree objects,
-and is discussed further in the appendix.
+and caching the triggers by their blob ID. This approach is discussed further in the appendix.
 
 ## Strategy details
 
@@ -155,10 +155,11 @@ redirects:
 - "<REPO_URL>/cccccccccccccccccccccccccccccccccccccccc/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
-### Further optimization - cache the before sha
+### Push the idea one more level - cache the triggers from the before sha, and a redirect from the after sha
 
 When we receive a push event for an uncached sha, a further optimization would be to
-cache the triggers for the before sha, and cache a redirect for the after sha.
+cache the triggers for the before sha, and cache a redirect for the after sha. This
+strategy would seed the cache with additional data.
 
 For example, consider a scenario where the caches are initially empty, and the following
 push event is received:
@@ -202,4 +203,9 @@ redirects:
 
 Only cache objects under ___ kb
 
-### Caching the git trees
+### Caching the git trees, and caching the triggers by blob ID
+
+This is what is already implemented today. Caching the triggers by their blob ID is highly effective.
+The problem this strategy does not solve is, every ref update requires at least one API call to retrieve
+the new root tree. The upside is, retrieve the root tree should be a relatively cheap API call since
+the object is very small.
