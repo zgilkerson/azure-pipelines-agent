@@ -104,8 +104,8 @@ value:
 Consider the following push event:
 
 ```yaml
-refName: refs/heads/foo
-beforeSha: "0000000000000000000000000000000000000000"
+refName: refs/heads/master
+beforeSha: ""
 afterSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
@@ -121,7 +121,7 @@ redirects: []
 Second push event:
 
 ```yaml
-refName: refs/heads/foo
+refName: refs/heads/master
 beforeSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 afterSha: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ```
@@ -139,12 +139,53 @@ redirects:
 Third push event:
 
 ```yaml
-refName: refs/heads/foo
+refName: refs/heads/master
 beforeSha: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 afterSha: cccccccccccccccccccccccccccccccccccccccc
 ```
 
 After processing the third push event, the state of the caches would look like:
+
+```yaml
+triggers:
+  "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
+
+redirects:
+- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # both point directly to aaaaaaaa
+- "<REPO_URL>/cccccccccccccccccccccccccccccccccccccccc/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+```
+
+### Further optimization - cache the before sha
+
+When we receive a push event for an uncached sha, a further optimization would be to
+cache the triggers for the before sha, and cache a redirect for the after sha.
+
+For example, consider a scenario where the caches are initially empty, and the following
+push event is received:
+
+```yaml
+refName: refs/heads/users/johndoe/bugfix
+beforeSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # matches current refs/heads/master
+afterSha: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+```
+
+After processing the first push event, the state of the caches would look like:
+
+```yaml
+triggers:
+  "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
+
+redirects:
+- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+```
+
+Second push event:
+
+```yaml
+refName: refs/heads/users/janedoe/feature
+beforeSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # matches current refs/heads/master
+afterSha: cccccccccccccccccccccccccccccccccccccccc
+```
 
 ```yaml
 triggers:
