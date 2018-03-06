@@ -4,12 +4,12 @@
 
 When a ref is updated, the YAML file from the new commit is used to evaluate whether to trigger a build.
 
-With GitHub, we need to stay under the throttling limits of 1,000 API calls per hour, per user.
+With GitHub, we need to stay under the throttling limits of 5,000 API calls per hour, per user.
 Since we use service endpoints to talk to GitHub, this means throttling is tied back to the
 user associated with the service endpoint.
 
 Unauthenticated API calls to GitHub are not an option. Throttling rates for unauthenticated calls are
-even lower, and are per source IP address.
+60 requests per hour, per originating IP address.
 
 In general, caching will also be helpful anytime the source provider is hosted in a separate service.
 Currently Build is hosted in TFS with source control, so we do not leverage trigger caching for VSTS-Git.
@@ -31,32 +31,134 @@ and is discussed further in the appendix.
 
 ### Push notification
 
-When we receive a ref update, we want to avoid calling GitHub to retrieve the YAML file when possible.
+When we receive a ref update notification, we want to avoid calling GitHub to retrieve the
+YAML file when possible.
 
-We know the following relevant pieces of information from the push event:
+The push event contains the following relevant information:
 
 ```yaml
-beforeSha: string
-afterSha: string
+ref-name: string
+before-sha: string
+after-sha: string
 is-force-push: bool
 commits:
 - files-added: [ string ] # file paths
-  files-added: [ string ]
   files-removed: [ string ]
+  files-changed: [ string ]
+- ...
 - ...
 ```
 
-If the push notificaiton 
+Based on the information in the push event, we can determine whether the triggers changed.
 
+The triggers from the before sha can be reused when:
 
-The problem we have is 
+- The before sha is not empty
+- is-force-push == false
+- No .yml files were added, removed, or changed
 
-On push, based on the 
+### What to cache
 
-Cache the triggers section from the YAML file
+The triggers section of the file will be cached using the following information:
 
-## Only cache objects under 10k
+```yaml
+lookup-key:
+  repo-url: string
+  commit: string
+  file-path: string
+
+value: "<TRIGGER_OBJECT>"
+```
+
+When a push notification can reuse the triggers from the before sha, cache a
+redirect mapping from the after sha, to the before sha. Caching the redirect
+enables chains of redirects. The redirect would leverage the following information:
+
+```yaml
+lookup-key:
+  repo-url: string
+  commit: string # this is the after-sha from the push event
+  file-path: string
+
+value:
+  commit: string # this is the before-sha from the push event
+```
+
+When a push notification can reuse the triggers from the before sha, which
+in turn reuses the triggers from it's before sha, then cache a redirect mapping
+from the after sha, to the final before sha. The cached information would use
+the following:
+
+```yaml
+lookup-key:
+  repo-url: string
+  commit: string # this is the after-sha from the push event
+  file-path: string
+
+value:
+  commit: string # this is the before-sha's before-sha
+```
+
+### Example walkthrough
+
+Consider the following push event:
+
+```yaml
+refName: refs/heads/foo
+beforeSha: "0000000000000000000000000000000000000000"
+afterSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+```
+
+After processing the first push event, the state of the caches would look like:
+
+```yaml
+triggers:
+  "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
+
+redirects: []
+```
+
+Second push event:
+
+```yaml
+refName: refs/heads/foo
+beforeSha: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+afterSha: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+```
+
+After processing the second push event, the state of the caches would look like:
+
+```yaml
+triggers:
+  "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
+
+redirects:
+- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+```
+
+Third push event:
+
+```yaml
+refName: refs/heads/foo
+beforeSha: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+afterSha: cccccccccccccccccccccccccccccccccccccccc
+```
+
+After processing the third push event, the state of the caches would look like:
+
+```yaml
+triggers:
+  "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
+
+redirects:
+- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # both point directly to aaaaaaaa
+- "<REPO_URL>/cccccccccccccccccccccccccccccccccccccccc/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+```
 
 ## Appendix
 
+### Notes about caching
+
 Only cache objects under ___ kb
+
+### Caching the git trees
