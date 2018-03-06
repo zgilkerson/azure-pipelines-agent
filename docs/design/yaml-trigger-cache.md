@@ -133,7 +133,7 @@ triggers:
   "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
 
 redirects:
-- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/.vsts-ci.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
 Third push event:
@@ -151,8 +151,8 @@ triggers:
   "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
 
 redirects:
-- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # both point directly to aaaaaaaa
-- "<REPO_URL>/cccccccccccccccccccccccccccccccccccccccc/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/.vsts-ci.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # both point directly to aaaaaaaa
+- "<REPO_URL>/cccccccccccccccccccccccccccccccccccccccc/.vsts-ci.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
 ### Push the idea one more level - cache the triggers from the before sha, and a redirect from the after sha
@@ -177,7 +177,7 @@ triggers:
   "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
 
 redirects:
-- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/.vsts-ci.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
 Second push event:
@@ -193,8 +193,8 @@ triggers:
   "<REPO_URL>/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "<TRIGGER_OBJECT>"
 
 redirects:
-- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # both point directly to aaaaaaaa
-- "<REPO_URL>/cccccccccccccccccccccccccccccccccccccccc/my.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+- "<REPO_URL>/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/.vsts-ci.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # both point directly to aaaaaaaa
+- "<REPO_URL>/cccccccccccccccccccccccccccccccccccccccc/.vsts-ci.yml": aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
 ## Appendix
