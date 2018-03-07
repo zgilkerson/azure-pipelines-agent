@@ -40,7 +40,7 @@ Continuous integration builds can be turned off by specifying `trigger: none`
 
 Optionally, the triggers can be managed from the web definition editor, on the Triggers tab.
 
-## Pull request triggers
+## Pull request triggers (currently for GitHub repositories only)
 
 Pull request builds are on by default for all branches. Optionally an explicit list of branch filters can
 be specified in the YAML file.
