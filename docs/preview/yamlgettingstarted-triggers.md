@@ -56,7 +56,7 @@ A simple list of branches can be specified in the file, to control which branche
 For example, a simple list of inclusive branch filters may look like:
 
 ```yaml
-trigger:
+pr:
 - master
 - releases/*
 ```
@@ -72,3 +72,9 @@ pr:
     include: [string] # todo: examples
     exclude: [string]
 ```
+
+### PR is opt-out
+
+Pull request builds can be turned off by specifying `pr: none`
+
+Optionally, the pull request trigger can be managed from the web definition editor, on the Triggers tab.
