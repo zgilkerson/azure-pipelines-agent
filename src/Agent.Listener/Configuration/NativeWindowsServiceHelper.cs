@@ -894,28 +894,28 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         {
             string accountName = StringUtil.Format("{0}\\{1}", domain, user).TrimStart('\\');
 
-            if (IsManagedServiceAccount(accountName))
-            {
-                //lookup account sid from AD
-                DirectoryEntry entry = new DirectoryEntry();
-                DirectorySearcher search = new DirectorySearcher(entry);
+            // if (IsManagedServiceAccount(accountName))
+            // {
+            //     //lookup account sid from AD
+            //     DirectoryEntry entry = new DirectoryEntry();
+            //     DirectorySearcher search = new DirectorySearcher(entry);
 
-                accountName = SanitizeManagedServiceAccountName(accountName);
-                search.Filter = "(SAMAccountName=" + accountName + "$)";
-                search.PropertiesToLoad.Add("objectSid");
-                SearchResult result = search.FindOne();
-                if (result != null)
-                {
-                    return (byte[])result.Properties["objectSid"][0];
-                }
-                else
-                {
-                    Trace.Error("Failed to find SID");
-                    return null;
-                }
-            }
-            else
-            {
+            //     accountName = SanitizeManagedServiceAccountName(accountName);
+            //     search.Filter = "(SAMAccountName=" + accountName + "$)";
+            //     search.PropertiesToLoad.Add("objectSid");
+            //     SearchResult result = search.FindOne();
+            //     if (result != null)
+            //     {
+            //         return (byte[])result.Properties["objectSid"][0];
+            //     }
+            //     else
+            //     {
+            //         Trace.Error("Failed to find SID");
+            //         return null;
+            //     }
+            // }
+            // else
+            // {
                 try
                 {
                     SecurityIdentifier sid = (SecurityIdentifier)new NTAccount(accountName).Translate(typeof(SecurityIdentifier));
@@ -928,7 +928,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                     Trace.Error(exception);
                     return null;
                 }
-            }
+            // }
         }
 
         private string SanitizeManagedServiceAccountName(string accountName)
