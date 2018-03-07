@@ -474,6 +474,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             if (IsManagedServiceAccount(logonAccount))
             {
                 logonAccount = SanitizeManagedServiceAccountName(logonAccount);
+                Trace.Info(logonAccount);
             }
 
             string agentServiceExecutable = "\"" + Path.Combine(IOUtil.GetBinPath(), WindowsServiceControlManager.WindowsServiceControllerName) + "\"";
