@@ -471,6 +471,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
         {
             Trace.Entering();
 
+            if (IsManagedServiceAccount(logonAccount))
+            {
+                logonAccount = SanitizeManagedServiceAccountName(logonAccount);
+            }
+
             string agentServiceExecutable = "\"" + Path.Combine(IOUtil.GetBinPath(), WindowsServiceControlManager.WindowsServiceControllerName) + "\"";
             IntPtr scmHndl = IntPtr.Zero;
             IntPtr svcHndl = IntPtr.Zero;
@@ -916,18 +921,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             // }
             // else
             // {
-                try
-                {
-                    SecurityIdentifier sid = (SecurityIdentifier)new NTAccount(accountName).Translate(typeof(SecurityIdentifier));
-                    byte[] binaryForm = new byte[sid.BinaryLength];
-                    sid.GetBinaryForm(binaryForm, 0);
-                    return binaryForm;
-                }
-                catch (Exception exception)
-                {
-                    Trace.Error(exception);
-                    return null;
-                }
+            try
+            {
+                SecurityIdentifier sid = (SecurityIdentifier)new NTAccount(accountName).Translate(typeof(SecurityIdentifier));
+                byte[] binaryForm = new byte[sid.BinaryLength];
+                sid.GetBinaryForm(binaryForm, 0);
+                return binaryForm;
+            }
+            catch (Exception exception)
+            {
+                Trace.Error(exception);
+                return null;
+            }
             // }
         }
 
