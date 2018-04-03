@@ -12,11 +12,10 @@ The following example illustrates two things:
 Template:
 
 ```yaml
----
 # Default values
 inputs:
   solution: '**/*.sln'
----
+  
 steps:
 - task: msbuild@1
   inputs:
@@ -40,12 +39,11 @@ steps:
 Template:
 
 ```yaml
----
 # Default values
 inputs:
   preBuild: []
   postBuild: []
----
+
 phases:
 - phase: build
   steps:
@@ -80,11 +78,10 @@ is expected to be a mapping, and should be inserted into the outer mapping.
 Template:
 
 ```yaml
----
 # Default values
 inputs:
   variables: {}
----
+
 phases:
 - phase: build
   variables:
@@ -113,11 +110,10 @@ The below example illustrates `if`, `elseif`, and `else`.
 Template:
 
 ```yaml
----
 # Default values
 inputs:
   toolset: msbuild
----
+
 steps:
   # msbuild
   ${{ if eq(inputs.toolset, 'msbuild') }}:
@@ -152,11 +148,10 @@ phases:
 Template:
 
 ```yaml
----
 # Default values
 inputs:
   publish: true
----
+  
 phases:
   steps:
   - task: msbuild@1
@@ -179,11 +174,10 @@ phases:
 Template:
 
 ```yaml
----
 # Default values
 inputs:
   queue: ""
----
+
 phases:
 - phase: build
   # Only insert the queue if it was specified
@@ -211,10 +205,10 @@ In the below example, a foreach loop is used install, build, and test based on
 an array of node versions.
 
 ```yaml
----
-nodeVersions:
-- "8.x"
----
+inputs:
+  nodeVersions:
+  - "8.x"
+  
 steps:
 - ${{ foreach }}: ${{ inputs.nodeVersions }}
   ${{ yield }}:
