@@ -45,7 +45,10 @@ Repository resources may be defined in the resources section for use as template
 For more details on repository resource support and properties see repositories. 
 
 For example, a team which manages a separate repository for templates may define a definition
-in one repository which utilizes a common template for an organization.
+in one repository which utilizes a common template for an organization. Much like the task
+specification uses `task@version` the external template reference uses `filePath@repository`. If
+no source specification is present the current repository, or the repository hosting the file 
+currently being processed, is used as the template source.
 
 ```yaml
 # File: steps/msbuild.yml (this is located in the templates repo, defined below in the entry file)
