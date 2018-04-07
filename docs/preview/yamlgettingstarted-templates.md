@@ -69,14 +69,13 @@ steps:
 
 resources:
   repositories:
-  - repository: templates
+  - repository: contoso/build-templates
     type: github
     endpoint: my-github-endpoint
-    name: contoso/build-templates
     ref: refs/tags/lkg
     
 steps:
-- template: steps/msbuild.yml@templates
+- template: steps/msbuild.yml@contoso/build-templates
   parameters:
     solution: my.sln
 ```
