@@ -52,6 +52,7 @@ currently being processed, is used as the template source.
 
 ```yaml
 # File: steps/msbuild.yml (this is located in the templates repo, defined below in the entry file)
+
 parameters:
   solution: '**/*.sln'
 
