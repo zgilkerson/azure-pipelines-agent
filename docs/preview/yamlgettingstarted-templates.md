@@ -72,7 +72,7 @@ resources:
   - repository: templates
     type: github
     endpoint: my-github-endpoint
-    repo: contoso/build-templates
+    name: contoso/build-templates
     ref: refs/tags/lkg
     
 steps:
