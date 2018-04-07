@@ -41,7 +41,47 @@ For advanced template syntax, see the sections below describing template paramet
 
 ## Reuse from other repositories
 
-TODO
+Repository resources may be defined in the resources section for use as template source. 
+For more details on repository resource support and properties see repositories. 
+
+For example, a team which manages a separate repository for templates may define a definition
+in one repository which utilizes a common template for an organization.
+
+```yaml
+# File: steps/msbuild.yml (this is located in the templates repo, defined below in the entry file)
+parameters:
+  solution: '**/*.sln'
+
+steps:
+- task: msbuild@1
+  inputs:
+    solution: ${{ parameters.solution }}
+- task: vstest@2
+  inputs:
+    solution: ${{ parameters.solution }}
+```
+
+```yaml
+# File: .vsts-ci.yml
+
+resources:
+  repositories:
+  - repository: templates
+    type: github
+    endpoint: my-github-endpoint
+    repo: contoso/build-templates
+    ref: refs/tags/lkg
+    
+steps:
+- template: steps/msbuild.yml@templates
+  parameters:
+    solution: my.sln
+```
+
+When the file `.vsts-ci.yml` is processed the repository resources will be loaded. In the case of
+a git-based repository the `ref` property is used to resolve to a specific commit. Once the version
+has been determined it is saved onto the repository resource as a `version` property and is used
+for the duration of the pipeline.
 
 ## Template parameters
 
