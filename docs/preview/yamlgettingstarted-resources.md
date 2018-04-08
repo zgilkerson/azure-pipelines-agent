@@ -5,9 +5,8 @@ by the defining pipeline.
 
 ## Repositories
 
-The basic definition of a repository is something similar to below. The `alias`
-and `type` are the only properties shared among all repository types. For git specific
-properties and supported providers, see `Git Repositories`.
+The basic definition of a repository is something similar to below. The `alias` and 
+`type` are the only properties shared among all repository types. 
 
 ```yaml
 # File: .vsts-ci.yml
