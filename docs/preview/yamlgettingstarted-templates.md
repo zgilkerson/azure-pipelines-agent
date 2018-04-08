@@ -77,9 +77,13 @@ resources:
     ref: refs/tags/lkg
     
 steps:
+# This file will be pulled from the contoso/build-templates repository
 - template: steps/msbuild.yml@templates
   parameters:
     solution: my.sln
+    
+# This file will be pulled from the same repository as .vsts-ci.yml    
+- template: steps/mstest.yml
 ```
 
 When the file `.vsts-ci.yml` is processed the repository resources will be loaded. In the case of
