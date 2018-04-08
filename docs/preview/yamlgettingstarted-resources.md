@@ -5,36 +5,57 @@ by the defining pipeline.
 
 ## Repositories
 
-Repositories may be defined in the resources section. The basic definition of a repository
-is something similar to below, with different repository types requiring potentially 
-different inputs.
+The basic definition of a repository is something similar to below. The `alias`
+and `type` are the only properties shared among all repository types. For git specific
+properties and supported providers, see `Git Repositories`.
 
 ```yaml
 # File: .vsts-ci.yml
 
 resources:
   repositories:
-  - repository: myalias
-    type: tfsgit
-    name: myproduct
+    # Required. Specifies the alias by which this resource is known within the pipeline
+  - repository: string
+  
+    # Required. Specifies the type of repository
+    type: (tfsgit|github)
 ```
 
-## Supported Repository Types
+## Git Repositories
+
+Most git repositories share a common set of properties as shown below.
 
 ### TfsGit
 
-Initially only repositories located within the same project as the entry file are allowed.
+Initially only repositories located within the same project as the entry file are allowed. 
 
 ```yaml
-# Required Properties
+resources:
+  repositories:
+  - repository: alias
+    type: tfsgit
 
-repository: Specifies the alias of this repository within the pipeline
-type: tfsgit
-name: Specifies the name of the repository in TFS
+    # Required. Specifies the name of the repository in the project
+    name: string
+    
+    # Optional. Specifies the default ref used to resolve the version 
+    ref: string    
 ```
-```yaml
-# Optional Properties
 
-id: Specifies the repository identifier
-ref: Specifices a ref which should be 
+### GitHub
+
+```yaml
+resources:
+  repositories:
+  - repository: alias
+    type: github
+    
+    # Required. Specifies the name of the service endpoint used to connect to github
+    endpoint: string
+
+    # Required. Specifies the name of the repository in the project
+    name: string
+    
+    # Optional. Specifies the default ref used to resolve the version 
+    ref: string    
 ```
