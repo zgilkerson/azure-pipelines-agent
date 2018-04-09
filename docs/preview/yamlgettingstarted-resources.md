@@ -52,7 +52,7 @@ resources:
     # Required. Specifies the name of the service endpoint used to connect to github
     endpoint: string
 
-    # Required. Specifies the name of the repository in the project
+    # Required. Specifies the name of the repository. For example, user/repo or organization/repo.
     name: string
     
     # Optional. Specifies the default ref used to resolve the version 
