@@ -13,10 +13,10 @@ The basic definition of a repository is something similar to below. The `alias` 
 
 resources:
   repositories:
-    # Required. Specifies the alias by which this resource is known within the pipeline
+    # Required: Specifies the alias by which this resource is known within the pipeline
   - repository: string
   
-    # Required. Specifies the type of repository
+    # Required: Specifies the type of repository
     type: (tfsgit|github)
 ```
 
@@ -34,10 +34,11 @@ resources:
   - repository: alias
     type: tfsgit
 
-    # Required. Specifies the name of the repository in the project
+    # Required: Specifies the name of the repository in the project
     name: string
     
-    # Optional. Specifies the default ref used to resolve the version 
+    # Optional: Specifies the default ref used to resolve the version 
+    # Default: refs/heads/master
     ref: string    
 ```
 
@@ -49,12 +50,13 @@ resources:
   - repository: alias
     type: github
     
-    # Required. Specifies the name of the service endpoint used to connect to github
+    # Required: Specifies the name of the service endpoint used to connect to github
     endpoint: string
 
-    # Required. Specifies the name of the repository. For example, user/repo or organization/repo.
+    # Required: Specifies the name of the repository. For example, user/repo or organization/repo.
     name: string
     
-    # Optional. Specifies the default ref used to resolve the version 
+    # Optional: Specifies the default ref used to resolve the version
+    # Default: refs/heads/master
     ref: string    
 ```
