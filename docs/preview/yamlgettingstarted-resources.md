@@ -68,16 +68,22 @@ The basic definition of a container is something similar to below.
 ```yaml
 resources:
   containers:
-  - container: string # Required. Specifies the alias by which this resource is known within the pipeline
+  # Required. Specifies the alias by which this resource is known within the pipeline
+  - container: string 
     
-    image: string # Required. Specifies the docker image name
+    # Required. Specifies the docker image name
+    image: string 
 
-    endpoint: string # Optional. Specifies the private docker registry endpoint's name defined in VSTS
+    # Optional. Specifies the name of the service endpoint used to connect to the docker registry
+    endpoint: string 
 
-    options: string # Optional. Specifies any extra options you want to add for container startup.
+    # Optional. Specifies any extra options you want to add for container startup
+    options: string 
     
-    localImage: true | false # Optional. Specifies whether the image is locally built and don't pull from docker registry
+    # Optional. Specifies whether the image is locally built (not pulled from the docker registry)
+    localImage: true | false 
     
+    # Optional. Specifies a dictionary of environment variables added during container creation
     env:
-      { string: string } # Optional. Specifies a dictionary of environment variables added during container creation
+      { string: string } 
 ```
