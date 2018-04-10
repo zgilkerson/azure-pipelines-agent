@@ -32,7 +32,7 @@ resources:
 
 ## Repositories
 
-The `alias` and `type` are the only properties shared among all repository types. 
+The `alias` and `type` proprerties are the only shared constructs among all repository types. 
 
 ```yaml
 # File: .vsts-ci.yml
