@@ -20,11 +20,11 @@ resources:
     type: (tfsgit|github)
 ```
 
-## Git Repositories
+### Git Repositories
 
 Most git repositories share a common set of properties as shown below.
 
-### TfsGit
+#### TfsGit
 
 Initially only repositories located within the same project as the entry file are allowed. 
 
@@ -42,7 +42,7 @@ resources:
     ref: string    
 ```
 
-### GitHub
+#### GitHub
 
 ```yaml
 resources:
@@ -59,4 +59,25 @@ resources:
     # Optional: Specifies the default ref used to resolve the version
     # Default: refs/heads/master
     ref: string    
+```
+
+## Containers
+
+The basic definition of a container is something similar to below. 
+
+```yaml
+resources:
+  containers:
+  - container: string # Required. Specifies the alias by which this resource is known within the pipeline
+    
+    image: string # Required. Specifies the docker image name
+
+    endpoint: string # Optional. Specifies the private docker registry endpoint's name defined in VSTS
+
+    options: string # Optional. Specifies any extra options you want to add for container startup.
+    
+    localImage: true | false # Optional. Specifies whether the image is locally built and don't pull from docker registry
+    
+    env:
+      { string: string } # Optional. Specifies a dictionary of environment variables added during container creation
 ```
