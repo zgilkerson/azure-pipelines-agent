@@ -24,17 +24,8 @@ if [[ "$DEV_CONFIG" == "Release" ]]; then
     BUILD_CONFIG="Release"
 fi
 
-CURRENT_PLATFORM="windows"
-if [[ (`uname` == "Linux") || (`uname` == "Darwin") ]]; then
-    CURRENT_PLATFORM=`echo \`uname\` | awk '{print tolower($0)}'`
-fi
-
-RUNTIME_ID='win-x64'
-if [[ "$CURRENT_PLATFORM" == 'linux' ]]; then
-   RUNTIME_ID='linux-x64'
-elif [[ "$CURRENT_PLATFORM" == 'darwin' ]]; then
-   RUNTIME_ID='osx-x64'
-fi
+CURRENT_PLATFORM="linux"
+RUNTIME_ID='linux-arm64'
 
 WINDOWSAGENTSERVICE_PROJFILE="Agent.Service/Windows/AgentService.csproj"
 WINDOWSAGENTSERVICE_BIN="Agent.Service/Windows/bin/$BUILD_CONFIG"
