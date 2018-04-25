@@ -198,7 +198,7 @@ phases:
 
 ## Variables
 
-Variables can be specified on the phase. The variables can be passed to task inputs using the macro syntax `$(variableName)`, or accessed within a script using the environment variable.
+Variables can be specified on the phase. The variables can be passed to task inputs using the macro syntax `$(variableName)`, or accessed within a script using the environment variable. 
 
 ```yaml
 variables:
@@ -217,3 +217,24 @@ steps:
 
 - powershell: Write-Host "Input macro = $(my var with spaces). Env var = $env:MY_VAR_WITH_SPACES"
 ```
+
+Two different formats are supposed for variables. A mapping may be utilized in cases where only inline variables are necessary. For example:
+
+```yaml
+variables:
+  var1: value1
+  var2: value2
+```
+
+In more advanced scenarios, it may be desirable to support inline variable declaration in addition to the consumption of variable groups. In order to support this scenario, a list is required like the example below.
+
+```yaml
+variables:
+  - name: var1
+    value: value1
+  - name: var2
+    value: value2
+  - group: group1
+```
+
+Variables are set in-order of declaration, meaning the last value wins if the same name is defined more than once. The order the variables are declared in the list reflects the precedence order for this "last one wins" rule.
