@@ -41,6 +41,115 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             DateTime jobStartTimeUtc = DateTime.UtcNow;
 
+            var tfsGit1 = new Pipelines.RepositoryResource()
+            {
+                Endpoint = new Pipelines.ServiceEndpointReference() { Name = WellKnownServiceEndpointNames.SystemVssConnection },
+                Id = "11e2c5c2-0b38-4b8d-965d-1e1f275eb20a",
+                Alias = "self",
+                Type = "TfsGit",
+                Url = new Uri("https://tingweu.visualstudio.com/_git/g"),
+                Version = "878ca37d598e35c6a1e2ec678e5355682d51dde1",
+            };
+            tfsGit1.Properties.Set<bool>("clean", false);
+            tfsGit1.Properties.Set<string>("branch", "master");
+            tfsGit1.Properties.Set<string>("name", "g");
+            // gated check-in stuff
+
+            // var tfsGit2 = new Pipelines.RepositoryResource()
+            // {
+            //     Endpoint = new Pipelines.ServiceEndpointReference() { Name = WellKnownServiceEndpointNames.SystemVssConnection },
+            //     Id = "ba188439-b224-4878-9c32-f6c39fcada03",
+            //     Alias = "agent",
+            //     Type = "TfsGit",
+            //     Url = new Uri("https://tingweu.visualstudio.com/g/_git/vsts-agent"),
+            //     Version = "67f37676dd69b3f96e138121d60a680f3726985a",
+            // };
+            // tfsGit2.Properties.Set<bool>("clean", true);
+            // tfsGit2.Properties.Set<string>("branch", "master");
+            // tfsGit2.Properties.Set<string>("name", "vsts-agent");
+
+            var checkoutTask1 = new Pipelines.TaskStep()
+            {
+                Condition = "succeeded()",
+                ContinueOnError = false,
+                Name = "checkout",
+                Id = Guid.NewGuid(),
+                DisplayName = "GetSource",
+                Enabled = true,
+                Inputs = {
+                    {
+                        "Repository", "self"
+                    },
+                    {
+                        "clean", "true"
+                    }
+                },
+                Reference = new Pipelines.TaskStepDefinitionReference()
+                {
+                    Id = new Guid("c61807ba-5e20-4b70-bd8c-3683c9f74003"),
+                    Name = "checkout",
+                    Version = "1.0.0"
+                }
+            };
+
+            //var checkoutTask2 = new Pipelines.TaskStep()
+            // {
+            //     Condition = "succeeded()",
+            //     ContinueOnError = false,
+            //     Name = "checkout",
+            //     Id = Guid.NewGuid(),
+            //     DisplayName = "GetSource",
+            //     Enabled = true,
+            //     Inputs = {
+            //         {
+            //             "Repository", "agent"
+            //         },
+            //         {
+            //             "clean", "true"
+            //         }
+            //     },
+            //     Reference = new Pipelines.TaskStepDefinitionReference()
+            //     {
+            //         Id = WellKnownAgentPluginTasks.CheckoutTaskId,
+            //         Name = "checkout",
+            //         Version = "1.0.0"
+            //     }
+            // };
+
+            message.Resources.Repositories.Add(tfsGit1);
+            //message.Resources.Repositories.Add(tfsGit2);
+            message.Steps.Insert(0, checkoutTask1);
+            //message.Steps.Add(checkoutTask2);
+            //message.Resources.Endpoints.RemoveAt(0);
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+            message.Resources.Endpoints.Add(message.Resources.Endpoints.ElementAt(0));
+
             // Agent.RunMode
             RunMode runMode;
             if (message.Variables.ContainsKey(Constants.Variables.Agent.RunMode) &&
@@ -155,6 +264,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 jobContext.Variables.Set(Constants.Variables.Agent.RootDirectory, IOUtil.GetWorkPath(HostContext));
 #if OS_WINDOWS
                 jobContext.Variables.Set(Constants.Variables.Agent.ServerOMDirectory, Path.Combine(IOUtil.GetExternalsPath(), Constants.Path.ServerOMDirectory));
+#else
+                jobContext.Variables.Set(Constants.Variables.Agent.AcceptTeeEula, settings.AcceptTeeEula.ToString());
 #endif
                 jobContext.Variables.Set(Constants.Variables.Agent.WorkFolder, IOUtil.GetWorkPath(HostContext));
                 jobContext.Variables.Set(Constants.Variables.System.WorkFolder, IOUtil.GetWorkPath(HostContext));
@@ -503,13 +614,23 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             ServiceEndpoint systemConnection = message.Resources.Endpoints.Single(x => string.Equals(x.Name, WellKnownServiceEndpointNames.SystemVssConnection, StringComparison.OrdinalIgnoreCase));
             Uri systemConnectionUrl = systemConnection.Url;
 
-            // fixup any endpoint Url that match SystemConnect server.
+            // fixup any endpoint Url that match SystemConnection Url.
             foreach (var endpoint in message.Resources.Endpoints)
             {
                 if (Uri.Compare(endpoint.Url, systemConnectionUrl, UriComponents.SchemeAndServer, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     endpoint.Url = ReplaceWithConfigUriBase(endpoint.Url);
                     Trace.Info($"Ensure endpoint url match config url base. {endpoint.Url}");
+                }
+            }
+
+            // fixup any repository Url that match SystemConnection Url.
+            foreach (var repo in message.Resources.Repositories)
+            {
+                if (Uri.Compare(repo.Url, systemConnectionUrl, UriComponents.SchemeAndServer, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    repo.Url = ReplaceWithConfigUriBase(repo.Url);
+                    Trace.Info($"Ensure repository url match config url base. {repo.Url}");
                 }
             }
 
