@@ -2,9 +2,11 @@
   N/A
 ## Bugs
   - Avoid extra rest call to TaskDefinition endpoint. #1533
+  - Fix task input path resolve issue  caused by extra java env. #1561
 ## Misc
   - Consume latest vss-api package, update newtonsoft to 10.0.3. #1535
   - Displaying a warning when the environment variable's size exceeds 32K characters (Windows). #1508
+  - Also populate java in case user only has jdk installed. #1560
 
 ## Agent Downloads  
 
