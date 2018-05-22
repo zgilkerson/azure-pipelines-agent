@@ -1,7 +1,7 @@
 ## Features
   N/A
 ## Bugs
-  - Fix regression in tfvc gated check-in. #1573
+  N/A
 ## Misc
   N/A
 
