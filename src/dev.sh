@@ -165,7 +165,7 @@ if [[ (! -d "${DOTNETSDK_INSTALLDIR}") || (! -e "${DOTNETSDK_INSTALLDIR}/.${DOTN
         sdkinstallwindow_path=${sdkinstallwindow_path:0:1}:${sdkinstallwindow_path:1}
         powershell -NoLogo -Sta -NoProfile -NonInteractive -ExecutionPolicy Unrestricted -Command "& \"./Misc/dotnet-install.ps1\" -Channel release/2.1.4xx -InstallDir \"${sdkinstallwindow_path}\" -NoPath; exit $LastExitCode;" || checkRC dotnet-install.ps1
     else
-        bash ./Misc/dotnet-install.sh --channel release/2.1.4xx --architecture arm --install-dir ${DOTNETSDK_INSTALLDIR} --no-path || checkRC dotnet-install.sh
+        bash ./Misc/dotnet-install.sh --channel release/2.1.4xx --install-dir ${DOTNETSDK_INSTALLDIR} --no-path || checkRC dotnet-install.sh
     fi
 
     echo "${DOTNETSDK_VERSION}" > ${DOTNETSDK_INSTALLDIR}/.${DOTNETSDK_VERSION}
