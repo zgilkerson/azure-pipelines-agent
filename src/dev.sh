@@ -25,7 +25,7 @@ if [[ "$DEV_CONFIG" == "Release" ]]; then
 fi
 
 CURRENT_PLATFORM="linux"
-RUNTIME_ID='linux-arm'
+RUNTIME_ID='linux-arm64'
 
 WINDOWSAGENTSERVICE_PROJFILE="Agent.Service/Windows/AgentService.csproj"
 WINDOWSAGENTSERVICE_BIN="Agent.Service/Windows/bin/$BUILD_CONFIG"
