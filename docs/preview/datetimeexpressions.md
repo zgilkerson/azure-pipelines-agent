@@ -58,19 +58,41 @@ Extend the format function to support format specifiers for DateTime values.
 - `s`
 - `K` - The time zone offset. For example `-05:00` in `2018-01-02 00:00:00-05:00`. Or `Z` in the UTC time `2018-01-02 05:00:00Z`.
 
+Example:
+```yaml
+variables:
+  version: $[ format('{0:yyyyMMdd}.{1}', stage.startTime, counter(format('{0:yyyyMMdd}', stage.startTime))) ]
+
+# This example highlights the usefulness to offer an overload so the
+# prefix is included in the counter result.
+
+# An alternate approach could be something pragmatic like if the
+# prefix ends with "."
+```
+
+Escaping within the format specifiers can be performed using the `\` character. This enables non-format-specifier character to be interleaved between format specifiers.
+
+For example:
+```yaml
+variables:
+  startDate: format('{0:yyyy\-MM\-dd}', stage.startTime)
+```
+
 ## New functions, context
 
 Add a new function `now()` that returns the local time based on the account setting.
 
-Add `plan.startTime` to the expression context.
-
 Add `stage.startTime` to the expression context (`stage` indicates whatever stage you are in).
+
+In the future we can add `pipeline.startTime` or `plan.startTime`. It depends on whether we want to carry forward separate terms to distinguish between the definition (i.e. the pipeline template) and the sealed instance?
+
+Why is `now()` required? Wouldn't `stage.startTime`, `phase.startTime`, etc solve the same problems?
 
 ## Parse functions?
 
 Is now a good time go ahead and add parse functions for built-in types? For example:
 
-- `parseBool(string)`
+- `parseBool(string)` # the usefulness of `parseBool` has come up before
 - `parseDateTime(string)`
 - `parseNumber(string)`
 - `parseVersion(string)`
