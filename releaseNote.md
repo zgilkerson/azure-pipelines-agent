@@ -1,19 +1,9 @@
 ## Features
-  - Out of proc agent system plugins. #1537
-  - Added support for recursively checking out sub-modules for Git and GitHub artifacts. #1544 
-  - Reading owner attribute from junit xml And not using context owner as test case owner. #1587
-  - Consume latest version of TEE. #1586
-  - Bump git version to include security patch. #1597
-  - Reading NUnit attachments in Publish Test Result Task. #1609
-
+  - N/A
 ## Bugs
-  - Also populate java in case user only has jdk installed. #1560
-  - Handling duplicate attachments upload scenario while running using multi thread. #1578
-  - Shallow git submodule fetch. #1594
-  - Docker requirement check. #1619
-  - Ignore STDERR from tf.exe when query workspaces. #1642
+  - Remove command plugin for ##vso[artifact.upload]. #1667
 ## Misc
-  - Add assets.json to release assets. #1644
+  - Use Hosted Ubuntu 1604 pool. #1650
 
 ## Agent Downloads  
 
