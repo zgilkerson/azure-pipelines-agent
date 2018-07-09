@@ -11,7 +11,7 @@ steps:
 
   displayName: string
 
-  name: string
+  name: string # Reference name for output variables
 
   inputs: { string: string } # Map of task inputs. Refer to the task.json or use the View Yaml
                              # functionality on a designer definition.

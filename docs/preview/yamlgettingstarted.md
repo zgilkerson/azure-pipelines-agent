@@ -8,6 +8,10 @@ YAML builds require the latest agent. When a YAML build is queued, your agent wi
 
 [Create a definition](yamlgettingstarted-definition.md)
 
+[Pipeline overview](yamlgettingstarted-pipeline.md)
+
+[Pipeline instance name](yamlgettingstarted-name.md)
+
 ## Scripts and tasks
 
 [Run scripts](yamlgettingstarted-scripts.md)
@@ -20,15 +24,23 @@ YAML builds require the latest agent. When a YAML build is queued, your agent wi
 
 [Run tasks](yamlgettingstarted-tasks.md)
 
+## Triggers
+
+[Continuous integration](yamlgettingstarted-ci.md)
+
 ## Variables
 
-[Variables](yamlgettingstarted-variables.md)
+[Predefined variables](https://docs.microsoft.com/en-us/vsts/pipelines/build/variables)
+
+[Macro syntax](yamlgettingstarted-macros.md)
+
+[Accessing variables from scripts](yamlgettingstarted-accessingvariables.md)
 
 [Custom variables](yamlgettingstarted-customvariables.md)
 
-[Secret variables](yamlgettingstarted-secretvariables.md)
-
 [Setting variables from a script](yamlgettingstarted-setvariable.md)
+
+[Secret variables](yamlgettingstarted-secretvariables.md)
 
 [Output variables](yamlgettingstarted-outputvariables.md)
 
@@ -38,27 +50,25 @@ YAML builds require the latest agent. When a YAML build is queued, your agent wi
 
 [Authorization](yamlgettingstarted-authz.md)
 
-[Queues](yamlgettingstarted-queues.md)
-
 [Endpoints](yamlgettingstarted-endpoints.md)
 
 [Secure files](yamlgettingstarted-securefiles.md)
 
 <!-- todo: [Variable groups](yamlgettingstarted-variablegroups.md) -->
 
-## Pipeline and phases
+## Phases
 
-<!-- todo: [Pipeline overview](yamlgettingstarted-pipeline.md) -->
+[Options](yamlgettingstarted-job.md)
 
-<!-- todo: Restructure the phase/phases docs -->
+[Pools](yamlgettingstarted-pools.md)
 
-[Phase options](yamlgettingstarted-phase.md)
+[Containers](yamlgettingstarted-containers.md)
 
-[Multiple phases](yamlgettingstarted-phases.md)
+[Strategies](yamlgettingstarted-strategies.md)
 
-[Triggers](yamlgettingstarted-triggers.md)
+[Multiple phases](yamlgettingstarted-jobs.md)
 
-[Pipeline name format](yamlgettingstarted-name.md)
+[Output variables](yamlgettingstarted-outputvariables.md)
 
 ## Templates
 
