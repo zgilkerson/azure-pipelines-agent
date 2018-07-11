@@ -101,4 +101,65 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
 
         public AttachmentData AttachmentData { get; set; }
     }
+
+    public class TestCaseSubResultData
+    {
+        public int Id;
+
+        public TestCaseResultIdentifier TestResult { get; set; }
+
+        public int ParentId;
+
+        public int SequenceId;
+
+        public string DisplayName;
+
+        public ResultGroupType ResultGroupType;
+
+        public string Outcome;
+
+        public string Comment;
+
+        public string ErrorMessage;
+
+        public DateTime StartedDate;
+
+        public DateTime CompletedDate;
+
+        public long DurationInMs;
+
+        public ShallowReference Configuration;
+
+        public DateTime LastUpdatedDate;
+
+        public string ComputerName;
+
+        public string StackTrace;
+
+        public List<CustomTestField> CustomFields;
+
+        public string Url;
+
+        public List<TestCaseSubResultData> SubResultData { get; set; }
+
+        public AttachmentData AttachmentData { get; set; }
+    }
+
+    public class AttachmentData
+    {
+        /// <summary>
+        /// List of Filepaths of attachments associated with the TestRun.
+        /// </summary>
+        public IList<string> AttachmentsFilePathList { get; set; }
+
+        /// <summary>
+        /// Console log of the Test Run.
+        /// </summary>
+        public string ConsoleLog { get; set; }
+
+        /// <summary>
+        /// Standard Error of the Test Run.
+        /// </summary>
+        public string StandardError { get; set; }
+    }
 }
