@@ -106,11 +106,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
                     continue;
                 }
 
-                if(interfaceTypeInfo.FullName.Contains("IConverter"))
-                {
-                    continue;
-                }
-
                 // Assert the ServiceLocatorAttribute is defined on the interface.
                 CustomAttributeData attribute =
                     interfaceTypeInfo
