@@ -8,7 +8,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
     {
         public void Convert(TestCaseResultData testCaseResultData, TestCaseResult testCaseResultWebApi)
         {
-            //testCaseResultWebApi.AfnStripId = 0;
             testCaseResultWebApi.Area = testCaseResultData.Area;
             testCaseResultWebApi.AssociatedBugs = testCaseResultData.AssociatedBugs;
             testCaseResultWebApi.AutomatedTestId = testCaseResultData.AutomatedTestId;
@@ -26,7 +25,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             testCaseResultWebApi.CustomFields = testCaseResultData.CustomFields;
             testCaseResultWebApi.DurationInMs = testCaseResultData.DurationInMs;
             testCaseResultWebApi.ErrorMessage = testCaseResultData.ErrorMessage;
-            //testCaseResultWebApi.FailingSince = null;
             testCaseResultWebApi.FailureType = testCaseResultData.FailureType;
             testCaseResultWebApi.Id = testCaseResultData.Id;
             testCaseResultWebApi.IterationDetails = testCaseResultData.IterationDetails;

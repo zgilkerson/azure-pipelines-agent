@@ -101,7 +101,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
         /// </summary>
         private async Task PublishAllTestResultsToSingleTestRunAsync(List<string> resultFiles, ITestRunPublisher publisher, int buildId, TestRunContext runContext, string resultReader, CancellationToken cancellationToken)
         {
-            Thread.Sleep(30000);
             try
             {
                 //use local time since TestRunData defaults to local times
@@ -225,7 +224,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             int batchSize,
             CancellationToken cancellationToken)
         {
-            Thread.Sleep(30000);
             try
             {
                 var groupedFiles = resultFiles
