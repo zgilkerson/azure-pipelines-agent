@@ -52,7 +52,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
                 typeof(IHostContext),
                 typeof(ITraceManager),
                 typeof(IThrottlingReporter),
-                typeof(ICapabilitiesProvider),
+                typeof(ICapabilitiesProvider)
             };
             Validate(
                 assembly: typeof(IHostContext).GetTypeInfo().Assembly,
@@ -102,6 +102,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
             {
                 // Temporary hack due to shared code copied in two places.
                 if (interfaceTypeInfo.FullName.StartsWith("Microsoft.TeamFoundation.DistributedTask"))
+                {
+                    continue;
+                }
+
+                if(interfaceTypeInfo.FullName.Contains("IConverter"))
                 {
                     continue;
                 }

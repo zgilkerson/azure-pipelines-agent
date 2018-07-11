@@ -250,18 +250,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.TestResults
             Assert.Equal(runData.Results[0].ErrorMessage, "Assert.Fail failed.");
             Assert.Equal(runData.Results[0].StackTrace, "at UnitTestProject4.UnitTest1.TestMethod2() in C:\\Users\\somerandomusername\\Source\\Repos\\Projectx\\UnitTestProject4\\UnitTestProject4\\UnitTest1.cs:line 21");
             Assert.Equal(runData.Results[0].Priority.ToString(), "1");
-            Assert.Equal(runData.Results[0].ConsoleLog, "Show console log output.");
-            Assert.Equal(runData.Results[0].StandardError, "This is standard error message.");
-            Assert.Equal(runData.Results[0].Attachments.Length, 1);
-            Assert.True(runData.Results[0].Attachments[0].Contains("x.txt"));
+            Assert.Equal(runData.Results[0].AttachmentData.ConsoleLog, "Show console log output.");
+            Assert.Equal(runData.Results[0].AttachmentData.StandardError, "This is standard error message.");
+            Assert.Equal(runData.Results[0].AttachmentData.AttachmentsFilePathList.Count, 1);
+            Assert.True(runData.Results[0].AttachmentData.AttachmentsFilePathList[0].Contains("x.txt"));
 
             Assert.Equal(runData.Results[1].Outcome, "Passed");
             Assert.Equal(runData.Results[1].TestCaseTitle, "PSD_Startseite");
             Assert.Equal(runData.Results[1].ComputerName, "LAB-BUILDVNEXT");
             Assert.Equal(runData.Results[1].AutomatedTestType, "WebTest");
-            Assert.Equal(runData.Results[1].ConsoleLog, null);
-            Assert.Equal(runData.Results[1].Attachments.Length, 1);
-            Assert.True(runData.Results[1].Attachments[0].Contains("PSD_Startseite.webtestResult"));
+            Assert.Equal(runData.Results[1].AttachmentData.ConsoleLog, null);
+            Assert.Equal(runData.Results[1].AttachmentData.AttachmentsFilePathList.Count, 1);
+            Assert.True(runData.Results[1].AttachmentData.AttachmentsFilePathList[0].Contains("PSD_Startseite.webtestResult"));
 
             Assert.Equal(runData.Results[2].Outcome, "Passed");
             Assert.Equal(runData.Results[2].TestCaseTitle, "OrderedTest1");
@@ -384,18 +384,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.TestResults
                 Assert.Equal(runData.Results[0].ErrorMessage, "Assert.Fail failed.");
                 Assert.Equal(runData.Results[0].StackTrace, "at UnitTestProject4.UnitTest1.TestMethod2() in C:\\Users\\somerandomusername\\Source\\Repos\\Projectx\\UnitTestProject4\\UnitTestProject4\\UnitTest1.cs:line 21");
                 Assert.Equal(runData.Results[0].Priority.ToString(), "1");
-                Assert.Equal(runData.Results[0].ConsoleLog, "Show console log output.");
-                Assert.Equal(runData.Results[0].StandardError, "This is standard error message.");
-                Assert.Equal(runData.Results[0].Attachments.Length, 1);
-                Assert.True(runData.Results[0].Attachments[0].Contains("x.txt"));
+                Assert.Equal(runData.Results[0].AttachmentData.ConsoleLog, "Show console log output.");
+                Assert.Equal(runData.Results[0].AttachmentData.StandardError, "This is standard error message.");
+                Assert.Equal(runData.Results[0].AttachmentData.AttachmentsFilePathList.Count, 1);
+                Assert.True(runData.Results[0].AttachmentData.AttachmentsFilePathList[0].Contains("x.txt"));
 
                 Assert.Equal(runData.Results[1].Outcome, "Passed");
                 Assert.Equal(runData.Results[1].TestCaseTitle, "PSD_Startseite");
                 Assert.Equal(runData.Results[1].ComputerName, "LAB-BUILDVNEXT");
                 Assert.Equal(runData.Results[1].AutomatedTestType, "WebTest");
-                Assert.Equal(runData.Results[1].ConsoleLog, null);
-                Assert.Equal(runData.Results[1].Attachments.Length, 1);
-                Assert.True(runData.Results[1].Attachments[0].Contains("PSD_Startseite.webtestResult"));
+                Assert.Equal(runData.Results[1].AttachmentData.ConsoleLog, null);
+                Assert.Equal(runData.Results[1].AttachmentData.AttachmentsFilePathList.Count, 1);
+                Assert.True(runData.Results[1].AttachmentData.AttachmentsFilePathList[0].Contains("PSD_Startseite.webtestResult"));
 
                 Assert.Equal(runData.Results[2].Outcome, "Passed");
                 Assert.Equal(runData.Results[2].TestCaseTitle, "OrderedTest1");

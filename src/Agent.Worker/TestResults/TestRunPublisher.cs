@@ -40,7 +40,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
         #region Public API
         public void InitializePublisher(IExecutionContext executionContext, VssConnection connection, string projectName, IResultReader resultReader)
         {
-            System.Diagnostics.Debugger.Launch();
             Trace.Entering();
             _executionContext = executionContext;
             _projectName = projectName;
@@ -86,7 +85,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     // Remove duplicate entries
-                    string[] attachments = testResults[i + j].AttachmentData.AttachmentsFilePathList.ToArray();
+                    string[] attachments = (testResults[i + j].AttachmentData.AttachmentsFilePathList != null) ? testResults[i + j].AttachmentData.AttachmentsFilePathList.ToArray() : null;
                     HashSet<string> attachedFiles = GetUniqueTestRunFiles(attachments);
 
                     if (attachedFiles != null)
