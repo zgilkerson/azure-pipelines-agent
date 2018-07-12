@@ -420,33 +420,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
 
                 resultCreateModel.AttachmentData = new AttachmentData() { AttachmentsFilePathList = resulLeveltAttachments.ToArray() };
 
-                if (resultCreateModel.Outcome.Equals("Failed"))
-                {
-                    XmlNode errorMessage, errorStackTrace, consoleLog, standardError;
-
-                    if ((errorMessage = resultNode.SelectSingleNode("./Output/ErrorInfo/Message")) != null && !string.IsNullOrWhiteSpace(errorMessage.InnerText))
-                    {
-                        resultCreateModel.ErrorMessage = errorMessage.InnerText;
-                    }
-
-                    // stack trace
-                    if ((errorStackTrace = resultNode.SelectSingleNode("./Output/ErrorInfo/StackTrace")) != null && !string.IsNullOrWhiteSpace(errorStackTrace.InnerText))
-                    {
-                        resultCreateModel.StackTrace = errorStackTrace.InnerText;
-                    }
-
-                    // console log
-                    if ((consoleLog = resultNode.SelectSingleNode("./Output/StdOut")) != null && !string.IsNullOrWhiteSpace(consoleLog.InnerText))
-                    {
-                        resultCreateModel.AttachmentData.ConsoleLog = consoleLog.InnerText;
-                    }
-
-                    // standard error
-                    if ((standardError = resultNode.SelectSingleNode("./Output/StdErr")) != null && !string.IsNullOrWhiteSpace(standardError.InnerText))
-                    {
-                        resultCreateModel.AttachmentData.StandardError = standardError.InnerText;
-                    }
-                }
+                AddVariousLogsForResultIfOutcomeIsFailed(resultCreateModel, resultNode);
 
                 XmlNode innerResults = resultNode.SelectSingleNode("InnerResults");
                 if (innerResults != null)
@@ -577,33 +551,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
 
                 resultCreateModel.AttachmentData = new AttachmentData() { AttachmentsFilePathList = resulLeveltAttachments.ToArray() };
 
-                if (resultCreateModel.Outcome.Equals("Failed"))
-                {
-                    XmlNode errorMessage, errorStackTrace, consoleLog, standardError;
-
-                    if ((errorMessage = resultNode.SelectSingleNode("./Output/ErrorInfo/Message")) != null && !string.IsNullOrWhiteSpace(errorMessage.InnerText))
-                    {
-                        resultCreateModel.ErrorMessage = errorMessage.InnerText;
-                    }
-
-                    // stack trace
-                    if ((errorStackTrace = resultNode.SelectSingleNode("./Output/ErrorInfo/StackTrace")) != null && !string.IsNullOrWhiteSpace(errorStackTrace.InnerText))
-                    {
-                        resultCreateModel.StackTrace = errorStackTrace.InnerText;
-                    }
-
-                    // console log
-                    if ((consoleLog = resultNode.SelectSingleNode("./Output/StdOut")) != null && !string.IsNullOrWhiteSpace(consoleLog.InnerText))
-                    {
-                        resultCreateModel.AttachmentData.ConsoleLog = consoleLog.InnerText;
-                    }
-
-                    // standard error
-                    if ((standardError = resultNode.SelectSingleNode("./Output/StdErr")) != null && !string.IsNullOrWhiteSpace(standardError.InnerText))
-                    {
-                        resultCreateModel.AttachmentData.StandardError = standardError.InnerText;
-                    }
-                }
+                AddVariousLogsForSubresultIfOutcomeIsFailed(resultCreateModel, resultNode);
 
                 XmlNode innerResults = resultNode.SelectSingleNode("InnerResults");
                 if (innerResults != null)
@@ -625,6 +573,72 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             }
 
             return results;
+        }
+
+        private void AddVariousLogsForResultIfOutcomeIsFailed(TestCaseResultData resultCreateModel, XmlNode resultNode)
+        {
+            if (!resultCreateModel.Outcome.Equals("Failed")) return;
+            XmlNode errorMessage, errorStackTrace, consoleLog, standardError;
+
+            if ((errorMessage = resultNode.SelectSingleNode("./Output/ErrorInfo/Message")) != null
+                && !string.IsNullOrWhiteSpace(errorMessage.InnerText))
+            {
+                resultCreateModel.ErrorMessage = errorMessage.InnerText;
+            }
+
+            // stack trace
+            if ((errorStackTrace = resultNode.SelectSingleNode("./Output/ErrorInfo/StackTrace")) != null
+                && !string.IsNullOrWhiteSpace(errorStackTrace.InnerText))
+            {
+                resultCreateModel.StackTrace = errorStackTrace.InnerText;
+            }
+
+            // console log
+            if ((consoleLog = resultNode.SelectSingleNode("./Output/StdOut")) != null
+                && !string.IsNullOrWhiteSpace(consoleLog.InnerText))
+            {
+                resultCreateModel.AttachmentData.ConsoleLog = consoleLog.InnerText;
+            }
+
+            // standard error
+            if ((standardError = resultNode.SelectSingleNode("./Output/StdErr")) != null
+                && !string.IsNullOrWhiteSpace(standardError.InnerText))
+            {
+                resultCreateModel.AttachmentData.StandardError = standardError.InnerText;
+            }
+        }
+
+        private void AddVariousLogsForSubresultIfOutcomeIsFailed(TestCaseSubResultData resultCreateModel, XmlNode resultNode)
+        {
+            if (!resultCreateModel.Outcome.Equals("Failed")) return;
+            XmlNode errorMessage, errorStackTrace, consoleLog, standardError;
+
+            if ((errorMessage = resultNode.SelectSingleNode("./Output/ErrorInfo/Message")) != null
+                && !string.IsNullOrWhiteSpace(errorMessage.InnerText))
+            {
+                resultCreateModel.ErrorMessage = errorMessage.InnerText;
+            }
+
+            // stack trace
+            if ((errorStackTrace = resultNode.SelectSingleNode("./Output/ErrorInfo/StackTrace")) != null
+                && !string.IsNullOrWhiteSpace(errorStackTrace.InnerText))
+            {
+                resultCreateModel.StackTrace = errorStackTrace.InnerText;
+            }
+
+            // console log
+            if ((consoleLog = resultNode.SelectSingleNode("./Output/StdOut")) != null
+                && !string.IsNullOrWhiteSpace(consoleLog.InnerText))
+            {
+                resultCreateModel.AttachmentData.ConsoleLog = consoleLog.InnerText;
+            }
+
+            // standard error
+            if ((standardError = resultNode.SelectSingleNode("./Output/StdErr")) != null
+                && !string.IsNullOrWhiteSpace(standardError.InnerText))
+            {
+                resultCreateModel.AttachmentData.StandardError = standardError.InnerText;
+            }
         }
 
         private ResultGroupType GetResultGroupType(XmlNode resultNode, TestType testType)
