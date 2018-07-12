@@ -483,7 +483,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             List<TestCaseSubResultData> results = new List<TestCaseSubResultData>();
 
             object sync = new object();
-            Parallel.ForEach<XmlNode>(resultsNodes.Cast<XmlNode>(), resultNode =>
+            var resultXmlNodes = resultsNodes.Cast<XmlNode>();
+            
+            foreach (var resultNode in resultXmlNodes)
             {
                 TestCaseSubResultData resultCreateModel = new TestCaseSubResultData();
 
@@ -619,11 +621,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                     resultCreateModel.SubResultData.AddRange(ReadActualSubResults(orderedTestResultNodes, TestType.OrderedTest, level + 1));
                 }
 
-                lock (sync)
-                {
-                    results.Add(resultCreateModel);
-                }
-            });
+                results.Add(resultCreateModel);
+            }
 
             return results;
         }
