@@ -398,7 +398,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                 {
                     foreach (XmlNode resultAttachmentNode in resultAttachmentNodes)
                     {
-                        if (resultAttachmentNode.Attributes["href"] != null && resultAttachmentNode.Attributes["href"].Value != null)
+                        if (resultAttachmentNode.Attributes["href"]?.Value != null)
                         {
                             resulLeveltAttachments.Add(Path.Combine(_attachmentLocation, executionId, resultAttachmentNode.Attributes["href"].Value));
                         }
@@ -411,7 +411,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
                 {
                     foreach (XmlNode resultFileNode in resultFileNodes)
                     {
-                        if (resultFileNode.Attributes["path"] != null && resultFileNode.Attributes["path"].Value != null)
+                        if (resultFileNode.Attributes["path"]?.Value != null)
                         {
                             resulLeveltAttachments.Add(Path.Combine(_attachmentLocation, executionId, resultFileNode.Attributes["path"].Value));
                         }
