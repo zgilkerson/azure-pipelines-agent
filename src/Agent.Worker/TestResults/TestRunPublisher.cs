@@ -76,7 +76,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
 
                 for (int testResultsIndex = 0; testResultsIndex < noOfResultsToBePublished; testResultsIndex++){
                     testResultsBatch[testResultsIndex] = new TestCaseResult();
-                    new TestCaseResultDataConverter().Convert(currentBatch[testResultsIndex], testResultsBatch[testResultsIndex]);
+                    TestCaseResultDataConverter.Convert(currentBatch[testResultsIndex], testResultsBatch[testResultsIndex]);
                 }
 
                 List<TestCaseResult> testresults = await _testResultsServer.AddTestResultsToTestRunAsync(testResultsBatch, _projectName, testRun.Id, cancellationToken);

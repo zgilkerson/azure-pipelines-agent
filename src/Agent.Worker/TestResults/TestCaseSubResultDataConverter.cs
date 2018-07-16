@@ -4,9 +4,9 @@ using Microsoft.TeamFoundation.TestManagement.WebApi;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
 {
-    public class TestCaseSubResultDataConverter : IConverter<TestCaseSubResultData, TestSubResult>
+    public static class TestCaseSubResultDataConverter
     {
-        public void Convert(TestCaseSubResultData testCaseSubResultData, TestSubResult testSubResultWebApi)
+        public static void Convert(TestCaseSubResultData testCaseSubResultData, TestSubResult testSubResultWebApi)
         {
             testSubResultWebApi.CompletedDate = testCaseSubResultData.CompletedDate;
             testSubResultWebApi.Comment = testCaseSubResultData.Comment;
@@ -29,7 +29,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             ConvertSubResults(testCaseSubResultData, testSubResultWebApi);
         }
 
-        private void ConvertSubResults(TestCaseSubResultData testCaseSubResultData, TestSubResult testSubResultWebApi)
+        private static void ConvertSubResults(TestCaseSubResultData testCaseSubResultData, TestSubResult testSubResultWebApi)
         {
             if (testCaseSubResultData.SubResultData == null || !testCaseSubResultData.SubResultData.Any())
             {
@@ -40,7 +40,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             foreach (var subResultData in testCaseSubResultData.SubResultData)
             {
                 var subResultWebApi = new TestSubResult();
-                new TestCaseSubResultDataConverter().Convert(subResultData, subResultWebApi);
+                TestCaseSubResultDataConverter.Convert(subResultData, subResultWebApi);
                 testSubResultWebApi.SubResults.Add(subResultWebApi);
             }
         }

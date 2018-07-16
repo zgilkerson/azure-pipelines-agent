@@ -4,9 +4,9 @@ using Microsoft.TeamFoundation.TestManagement.WebApi;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
 {
-    public class TestCaseResultDataConverter : IConverter<TestCaseResultData, TestCaseResult>
+    public static class TestCaseResultDataConverter
     {
-        public void Convert(TestCaseResultData testCaseResultData, TestCaseResult testCaseResultWebApi)
+        public static void Convert(TestCaseResultData testCaseResultData, TestCaseResult testCaseResultWebApi)
         {
             testCaseResultWebApi.Area = testCaseResultData.Area;
             testCaseResultWebApi.AssociatedBugs = testCaseResultData.AssociatedBugs;
@@ -57,7 +57,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             ConvertSubResults(testCaseResultData, testCaseResultWebApi);
         }
 
-        private void ConvertSubResults(TestCaseResultData testCaseResultData, TestCaseResult testCaseResultWebApi)
+        private static void ConvertSubResults(TestCaseResultData testCaseResultData, TestCaseResult testCaseResultWebApi)
         {
             if (testCaseResultData.TestCaseSubResultData == null || !testCaseResultData.TestCaseSubResultData.Any())
             {
@@ -68,7 +68,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             foreach (var subResultData in testCaseResultData.TestCaseSubResultData)
             {
                 var subResultWebApi = new TestSubResult();
-                new TestCaseSubResultDataConverter().Convert(subResultData, subResultWebApi);
+                TestCaseSubResultDataConverter.Convert(subResultData, subResultWebApi);
                 testCaseResultWebApi.SubResults.Add(subResultWebApi);
             }
         }
