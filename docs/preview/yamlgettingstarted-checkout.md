@@ -29,4 +29,6 @@ steps:
 clean: true | false
 fetchDepth: number
 lfs: true | false
+submodules: true | recursive
+persistCredentials: true | false
 ```
