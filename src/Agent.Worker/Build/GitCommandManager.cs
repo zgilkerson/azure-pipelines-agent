@@ -18,6 +18,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
         bool EnsureGitLFSVersion(Version requiredVersion, bool throwOnNotMatch);
 
         // setup git execution info, git location, version, useragent, execpath
+        Task LoadGitExecutionInfo(ITerminal context, bool useBuiltInGit);
+
         Task LoadGitExecutionInfo(IExecutionContext context, bool useBuiltInGit);
 
         // git init <LocalDir>
@@ -93,6 +95,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
         Task<int> GitCountObjects(IExecutionContext context, string repositoryPath);
 
         // git version
+        Task<Version> GitVersion(ITerminal context);
         Task<Version> GitVersion(IExecutionContext context);
     }
 
@@ -135,7 +138,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             return _gitLfsVersion >= requiredVersion;
         }
 
-        public async Task LoadGitExecutionInfo(IExecutionContext context, bool useBuiltInGit)
+        public async Task LoadGitExecutionInfo(ITerminal context, bool useBuiltInGit)
         {
             // Resolve the location of git.
             if (useBuiltInGit)
@@ -144,9 +147,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 _gitPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Externals), "git", "cmd", $"git{IOUtil.ExeExtension}");
 
                 // Prepend the PATH.
-                context.Output(StringUtil.Loc("Prepending0WithDirectoryContaining1", Constants.PathVariable, Path.GetFileName(_gitPath)));
-                PathUtil.PrependPath(Path.GetDirectoryName(_gitPath));
-                context.Debug($"{Constants.PathVariable}: '{Environment.GetEnvironmentVariable(Constants.PathVariable)}'");
+                // context.WriteLine(StringUtil.Loc("Prepending0WithDirectoryContaining1", Constants.PathVariable, Path.GetFileName(_gitPath)));
+                // PathUtil.PrependPath(Path.GetDirectoryName(_gitPath));
+                // context.WriteLine($"{Constants.PathVariable}: '{Environment.GetEnvironmentVariable(Constants.PathVariable)}'");
 #else
                 // There is no built-in git for OSX/Linux
                 _gitPath = null;
@@ -162,7 +165,64 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             // Get the Git version.    
             _gitVersion = await GitVersion(context);
             ArgUtil.NotNull(_gitVersion, nameof(_gitVersion));
-            context.Debug($"Detect git version: {_gitVersion.ToString()}.");
+            context.WriteLine($"Detect git version: {_gitVersion.ToString()}.");
+
+            // // Resolve the location of git-lfs.
+            // // This should be best effort since checkout lfs objects is an option.
+            // // We will check and ensure git-lfs version later
+            // _gitLfsPath = WhichUtil.Which("git-lfs", require: false, trace: Trace);
+
+            // // Get the Git-LFS version if git-lfs exist in %PATH%.
+            // if (!string.IsNullOrEmpty(_gitLfsPath))
+            // {
+            //     _gitLfsVersion = await GitLfsVersion(context);
+            //     context.WriteLine($"Detect git-lfs version: '{_gitLfsVersion?.ToString() ?? string.Empty}'.");
+            // }
+
+            // required 2.0, all git operation commandline args need min git version 2.0
+            // Version minRequiredGitVersion = new Version(2, 0);
+            // EnsureGitVersion(minRequiredGitVersion, throwOnNotMatch: true);
+
+            // // suggest user upgrade to 2.9 for better git experience
+            // Version recommendGitVersion = new Version(2, 9);
+            // if (!EnsureGitVersion(recommendGitVersion, throwOnNotMatch: false))
+            // {
+            //     context.WriteLine(StringUtil.Loc("UpgradeToLatestGit", recommendGitVersion, _gitVersion));
+            // }
+
+            // // Set the user agent.
+            // _gitHttpUserAgentEnv = $"git/{_gitVersion.ToString()} (vsts-agent-git/{Constants.Agent.Version})";
+            // context.WriteLine($"Set git useragent to: {_gitHttpUserAgentEnv}.");
+        }
+
+        public async Task LoadGitExecutionInfo(IExecutionContext context, bool useBuiltInGit)
+        {
+            // Resolve the location of git.
+            if (useBuiltInGit)
+            {
+#if OS_WINDOWS
+                _gitPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Externals), "git", "cmd", $"git{IOUtil.ExeExtension}");
+
+                // Prepend the PATH.
+                context.Output(StringUtil.Loc("Prepending0WithDirectoryContaining1", Constants.PathVariable, Path.GetFileName(_gitPath)));
+                PathUtil.PrependPath(Path.GetDirectoryName(_gitPath));
+                context.Output($"{Constants.PathVariable}: '{Environment.GetEnvironmentVariable(Constants.PathVariable)}'");
+#else
+                // There is no built-in git for OSX/Linux
+                _gitPath = null;
+#endif
+            }
+            else
+            {
+                _gitPath = WhichUtil.Which("git", require: true, trace: Trace);
+            }
+
+            ArgUtil.File(_gitPath, nameof(_gitPath));
+
+            // Get the Git version.    
+            _gitVersion = await GitVersion(context);
+            ArgUtil.NotNull(_gitVersion, nameof(_gitVersion));
+            context.Output($"Detect git version: {_gitVersion.ToString()}.");
 
             // Resolve the location of git-lfs.
             // This should be best effort since checkout lfs objects is an option.
@@ -173,7 +233,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             if (!string.IsNullOrEmpty(_gitLfsPath))
             {
                 _gitLfsVersion = await GitLfsVersion(context);
-                context.Debug($"Detect git-lfs version: '{_gitLfsVersion?.ToString() ?? string.Empty}'.");
+                context.Output($"Detect git-lfs version: '{_gitLfsVersion?.ToString() ?? string.Empty}'.");
             }
 
             // required 2.0, all git operation commandline args need min git version 2.0
@@ -189,7 +249,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 
             // Set the user agent.
             _gitHttpUserAgentEnv = $"git/{_gitVersion.ToString()} (vsts-agent-git/{Constants.Agent.Version})";
-            context.Debug($"Set git useragent to: {_gitHttpUserAgentEnv}.");
+            context.Output($"Set git useragent to: {_gitHttpUserAgentEnv}.");
         }
 
         // git init <LocalDir>
@@ -471,9 +531,38 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
         }
 
         // git version
+        public async Task<Version> GitVersion(ITerminal context)
+        {
+            Version version = null;
+            List<string> outputStrings = new List<string>();
+            int exitCode = await ExecuteGitCommandAsync(context, HostContext.GetDirectory(WellKnownDirectory.Root), "version", null, outputStrings);
+            context.WriteLine($"{string.Join(Environment.NewLine, outputStrings)}");
+            if (exitCode == 0)
+            {
+                // remove any empty line.
+                outputStrings = outputStrings.Where(o => !string.IsNullOrEmpty(o)).ToList();
+                if (outputStrings.Count == 1 && !string.IsNullOrEmpty(outputStrings.First()))
+                {
+                    string verString = outputStrings.First();
+                    // we interested about major.minor.patch version
+                    Regex verRegex = new Regex("\\d+\\.\\d+(\\.\\d+)?", RegexOptions.IgnoreCase);
+                    var matchResult = verRegex.Match(verString);
+                    if (matchResult.Success && !string.IsNullOrEmpty(matchResult.Value))
+                    {
+                        if (!Version.TryParse(matchResult.Value, out version))
+                        {
+                            version = null;
+                        }
+                    }
+                }
+            }
+
+            return version;
+        }
+
         public async Task<Version> GitVersion(IExecutionContext context)
         {
-            context.Debug("Get git version.");
+            context.Output("Get git version.");
             Version version = null;
             List<string> outputStrings = new List<string>();
             int exitCode = await ExecuteGitCommandAsync(context, HostContext.GetDirectory(WellKnownDirectory.Work), "version", null, outputStrings);
@@ -555,6 +644,44 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 requireExitCodeZero: false,
                 outputEncoding: s_encoding,
                 cancellationToken: cancellationToken);
+        }
+
+        private async Task<int> ExecuteGitCommandAsync(ITerminal context, string repoRoot, string command, string options, IList<string> output)
+        {
+            string arg = StringUtil.Format($"{command} {options}").Trim();
+            context.WriteLine($"git {arg}");
+
+            if (output == null)
+            {
+                output = new List<string>();
+            }
+
+            object outputLock = new object();
+            var processInvoker = HostContext.CreateService<IProcessInvoker>();
+            processInvoker.OutputDataReceived += delegate (object sender, ProcessDataReceivedEventArgs message)
+            {
+                lock (outputLock)
+                {
+                    output.Add(message.Data);
+                }
+            };
+
+            processInvoker.ErrorDataReceived += delegate (object sender, ProcessDataReceivedEventArgs message)
+            {
+                lock (outputLock)
+                {
+                    output.Add(message.Data);
+                }
+            };
+
+            return await processInvoker.ExecuteAsync(
+                workingDirectory: repoRoot,
+                fileName: _gitPath,
+                arguments: arg,
+                environment: null,
+                requireExitCodeZero: false,
+                outputEncoding: s_encoding,
+                cancellationToken: default(CancellationToken));
         }
 
         private async Task<int> ExecuteGitCommandAsync(IExecutionContext context, string repoRoot, string command, string options, IList<string> output)

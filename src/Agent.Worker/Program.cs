@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualStudio.Services.Agent.Util;
+using Microsoft.VisualStudio.Services.Agent.Worker.Build;
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -28,19 +29,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 trace.Info($"Culture: {CultureInfo.CurrentCulture.Name}");
                 trace.Info($"UI Culture: {CultureInfo.CurrentUICulture.Name}");
 
-                // Validate args.
-                ArgUtil.NotNull(args, nameof(args));
-                ArgUtil.Equal(3, args.Length, nameof(args.Length));
-                ArgUtil.NotNullOrEmpty(args[0], $"{nameof(args)}[0]");
-                ArgUtil.Equal("spawnclient", args[0].ToLowerInvariant(), $"{nameof(args)}[0]");
-                ArgUtil.NotNullOrEmpty(args[1], $"{nameof(args)}[1]");
-                ArgUtil.NotNullOrEmpty(args[2], $"{nameof(args)}[2]");
-                var worker = context.GetService<IWorker>();
+                var git = context.GetService<IGitCommandManager>();
 
-                // Run the worker.
-                return await worker.RunAsync(
-                    pipeIn: args[1],
-                    pipeOut: args[2]);
+                while (true)
+                {
+                    await git.LoadGitExecutionInfo(term, true);
+                    await Task.Delay(500);
+                }
             }
             catch (Exception ex)
             {
