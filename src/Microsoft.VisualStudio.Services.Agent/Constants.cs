@@ -151,6 +151,13 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string DeploymentAgentConfiguration = "DeploymentAgentConfiguration";
                 public static readonly string SharedDeploymentAgentConfiguration = "SharedDeploymentAgentConfiguration";
             }
+
+            public static class Path
+            {
+                public static readonly string JobRootMappingDirectory = "JobRootMapping";
+                public static readonly string TopLevelTrackingConfigFile = "Mappings.json";
+                public static readonly string TrackingConfigFile = "JobFolder.json";
+            }
         }
 
         public static class Build
@@ -166,9 +173,19 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string LegacyStagingDirectory = "staging";
                 public static readonly string SourceRootMappingDirectory = "SourceRootMapping";
                 public static readonly string SourcesDirectory = "s";
+                public static readonly string DropsDirectory = "d";
                 public static readonly string TestResultsDirectory = "TestResults";
                 public static readonly string TopLevelTrackingConfigFile = "Mappings.json";
                 public static readonly string TrackingConfigFile = "SourceFolder.json";
+            }
+        }
+
+        public static class Resource
+        {
+            public static class Path
+            {
+                public static readonly string SourcesDirectory = "s";
+                public static readonly string DropsDirectory = "d";
             }
         }
 
@@ -254,6 +271,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string Diagnostic = "agent.diagnostic";
                 public static readonly string HomeDirectory = "agent.homedirectory";
                 public static readonly string Id = "agent.id";
+                public static readonly string GitUseSChannel = "agent.gituseschannel";
                 public static readonly string JobName = "agent.jobname";
                 public static readonly string JobStatus = "agent.jobstatus";
                 public static readonly string MachineName = "agent.machinename";

@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -13,7 +14,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
     {
         string RepositoryType { get; }
 
-        string GetBuildDirectoryHashKey(IExecutionContext executionContext, ServiceEndpoint endpoint);
+        void MigrateSourceDirectory(IExecutionContext executionContext, string currentSourceDir, string targetSourceDir);
+
+        void DestroySourceDirectory(IExecutionContext executionContext, string sourceDir);
+
+        string GetBuildDirectoryHashKey(IExecutionContext executionContext, Uri repositoryUrl);
 
         Task GetSourceAsync(IExecutionContext executionContext, ServiceEndpoint endpoint, CancellationToken cancellationToken);
 
@@ -34,14 +39,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 
         public abstract string RepositoryType { get; }
 
-        public string GetBuildDirectoryHashKey(IExecutionContext executionContext, ServiceEndpoint endpoint)
+        public string GetBuildDirectoryHashKey(IExecutionContext executionContext, Uri repositoryUrl)
         {
             // Validate parameters.
             Trace.Entering();
             ArgUtil.NotNull(executionContext, nameof(executionContext));
             ArgUtil.NotNull(executionContext.Variables, nameof(executionContext.Variables));
-            ArgUtil.NotNull(endpoint, nameof(endpoint));
-            ArgUtil.NotNull(endpoint.Url, nameof(endpoint.Url));
+            ArgUtil.NotNull(repositoryUrl, nameof(repositoryUrl));
 
             // Calculate the hash key.
             const string Format = "{{{{ \r\n    \"system\" : \"build\", \r\n    \"collectionId\" = \"{0}\", \r\n    \"definitionId\" = \"{1}\", \r\n    \"repositoryUrl\" = \"{2}\", \r\n    \"sourceFolder\" = \"{{0}}\",\r\n    \"hashKey\" = \"{{1}}\"\r\n}}}}";
@@ -50,7 +54,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 Format,
                 executionContext.Variables.System_CollectionId,
                 executionContext.Variables.System_DefinitionId,
-                endpoint.Url.AbsoluteUri);
+                repositoryUrl.AbsoluteUri);
             using (SHA1 sha1Hash = SHA1.Create())
             {
                 byte[] data = sha1Hash.ComputeHash(Encoding.UTF8.GetBytes(hashInput));
@@ -67,6 +71,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
         public virtual string GetLocalPath(IExecutionContext executionContext, ServiceEndpoint endpoint, string path)
         {
             return path;
+        }
+
+        public virtual void MigrateSourceDirectory(IExecutionContext executionContext, string currentSourceDir, string targetSourceDir)
+        {
+            
+        }
+
+        public virtual void DestroySourceDirectory(IExecutionContext executionContext, string sourceDir)
+        {
+            executionContext.Debug($"Destroy current {this.RepositoryType} source directory under '{sourceDir}'.");
+            IOUtil.DeleteDirectory(sourceDir, CancellationToken.None);
         }
 
         public virtual void SetVariablesInEndpoint(IExecutionContext executionContext, ServiceEndpoint endpoint)
@@ -88,7 +103,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             trace.Info($"Get '{name}' (not found)");
             return null;
         }
-        
+
         public virtual Task RunMaintenanceOperations(IExecutionContext executionContext, string repositoryPath)
         {
             return Task.CompletedTask;

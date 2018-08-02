@@ -1,4 +1,5 @@
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
+using Pipelines = Microsoft.TeamFoundation.DistributedTask.Pipelines;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using System;
 using System.IO;
@@ -8,288 +9,209 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
+using System.Security.Cryptography;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 {
     [ServiceLocator(Default = typeof(BuildDirectoryManager))]
-    public interface IBuildDirectoryManager : IAgentService
+    public interface IBuildDirectoryManager : IDirectoryManager
     {
-        TrackingConfig PrepareDirectory(
-            IExecutionContext executionContext,
-            ServiceEndpoint endpoint,
-            ISourceProvider sourceProvider);
-
-        void CreateDirectory(
-            IExecutionContext executionContext,
-            string description, string path,
-            bool deleteExisting);
     }
 
-    public sealed class BuildDirectoryManager : AgentService, IBuildDirectoryManager, IMaintenanceServiceProvider
+    public sealed class BuildDirectoryManager : DirectoryManager, IBuildDirectoryManager
     {
-        public string MaintenanceDescription => StringUtil.Loc("DeleteUnusedBuildDir");
-        public Type ExtensionType => typeof(IMaintenanceServiceProvider);
+        public override string MaintenanceDescription => StringUtil.Loc("ConvertLegacyTrackingConfig");
 
-        public TrackingConfig PrepareDirectory(
-            IExecutionContext executionContext,
-            ServiceEndpoint endpoint,
-            ISourceProvider sourceProvider)
+        public override TrackingConfig ConvertLegacyTrackingConfig(IExecutionContext executionContext)
         {
-            // Validate parameters.
-            Trace.Entering();
-            ArgUtil.NotNull(executionContext, nameof(executionContext));
-            ArgUtil.NotNull(executionContext.Variables, nameof(executionContext.Variables));
-            ArgUtil.NotNull(endpoint, nameof(endpoint));
-            ArgUtil.NotNull(sourceProvider, nameof(sourceProvider));
-            var trackingManager = HostContext.GetService<ITrackingManager>();
-
-            // Defer to the source provider to calculate the hash key.
-            Trace.Verbose("Calculating build directory hash key.");
-            string hashKey = sourceProvider.GetBuildDirectoryHashKey(executionContext, endpoint);
-            Trace.Verbose($"Hash key: {hashKey}");
-
-            // Load the existing tracking file if one already exists.
-            string trackingFile = Path.Combine(
+            // Convert build single repository tracking file into the system tracking file that support tracking multiple resources.
+            // Step 1. convert 1.x agent tracking file to 2.x agent version
+            // Step 2. convert single repo tracking file to multi-resources tracking file.
+            string legacyTrackingFile = Path.Combine(
                 IOUtil.GetWorkPath(HostContext),
                 Constants.Build.Path.SourceRootMappingDirectory,
                 executionContext.Variables.System_CollectionId,
                 executionContext.Variables.System_DefinitionId,
                 Constants.Build.Path.TrackingConfigFile);
-            Trace.Verbose($"Loading tracking config if exists: {trackingFile}");
-            TrackingConfigBase existingConfig = trackingManager.LoadIfExists(executionContext, trackingFile);
+            Trace.Verbose($"Loading tracking config if exists: {legacyTrackingFile}");
 
-            // Check if the build needs to be garbage collected. If the hash key
-            // has changed, then the existing build directory cannot be reused.
-            TrackingConfigBase garbageConfig = null;
-            if (existingConfig != null
-                && !string.Equals(existingConfig.HashKey, hashKey, StringComparison.OrdinalIgnoreCase))
+            var legacyTrackingManager = HostContext.GetService<ILegacyTrackingManager>();
+            LegacyTrackingConfigBase existingLegacyConfig = legacyTrackingManager.LoadIfExists(executionContext, legacyTrackingFile);
+            if (existingLegacyConfig != null)
             {
-                // Just store a reference to the config for now. It can safely be
-                // marked for garbage collection only after the new build directory
-                // config has been created.
-                Trace.Verbose($"Hash key from existing tracking config does not match. Existing key: {existingConfig.HashKey}");
-                garbageConfig = existingConfig;
-                existingConfig = null;
-            }
+                // Convert legacy format to the new format if required. (1.x agent -> 2.x agent)
+                LegacyTrackingConfig2 legacyConfig = ConvertToNewFormat(executionContext, existingLegacyConfig);
 
-            // Create a new tracking config if required.
-            TrackingConfig newConfig;
-            if (existingConfig == null)
-            {
-                Trace.Verbose("Creating a new tracking config file.");
-                newConfig = trackingManager.Create(
-                    executionContext,
-                    endpoint,
-                    hashKey,
-                    trackingFile,
-                    sourceProvider.TestOverrideBuildDirectory());
-                ArgUtil.NotNull(newConfig, nameof(newConfig));
+                // Convert to new format that support multi-repositories
+                var trackingConfig = new TrackingConfig();
+
+                // Set basic properties
+                trackingConfig.System = legacyConfig.System;
+                trackingConfig.CollectionId = legacyConfig.CollectionId;
+                trackingConfig.CollectionUrl = executionContext.Variables.System_TFCollectionUrl;
+                trackingConfig.DefinitionId = executionContext.Variables.System_DefinitionId;
+                switch (executionContext.Variables.System_HostType)
+                {
+                    case HostTypes.Build:
+                        trackingConfig.DefinitionName = executionContext.Variables.Build_DefinitionName;
+                        break;
+                    case HostTypes.Release | HostTypes.Deployment:
+                        trackingConfig.DefinitionName = executionContext.Variables.Get(Constants.Variables.Release.ReleaseDefinitionName);
+                        break;
+                    default:
+                        break;
+                }
+                trackingConfig.LastRunOn = DateTimeOffset.Now;
+
+                // populate the self repo into the tracking file.
+                trackingConfig.JobDirectory = legacyConfig.BuildDirectory;
+                trackingConfig.Resources = new ResourceTrackingConfig();
+                trackingConfig.Resources.RepositoriesDirectory = legacyConfig.SourcesDirectory;
+                trackingConfig.Resources.Repositories["self"] = new RepositoryTrackingConfig()
+                {
+                    RepositoryType = legacyConfig.RepositoryType,
+                    RepositoryUrl = legacyConfig.RepositoryUrl,
+                    SourceDirectory = legacyConfig.SourcesDirectory,
+                    LastMaintenanceAttemptedOn = legacyConfig.LastMaintenanceAttemptedOn,
+                    LastMaintenanceCompletedOn = legacyConfig.LastMaintenanceCompletedOn
+                };
+
+                IOUtil.DeleteFile(legacyTrackingFile);
+                return trackingConfig;
             }
             else
             {
-                // Convert legacy format to the new format if required.
-                newConfig = ConvertToNewFormat(executionContext, endpoint, existingConfig);
-
-                // Fill out repository type if it's not there.
-                // repository type is a new property introduced for maintenance job
-                if (string.IsNullOrEmpty(newConfig.RepositoryType))
-                {
-                    newConfig.RepositoryType = endpoint.Type;
-                }
-
-                // For existing tracking config files, update the job run properties.
-                Trace.Verbose("Updating job run properties.");
-                trackingManager.UpdateJobRunProperties(executionContext, newConfig, trackingFile);
+                return null;
             }
+        }
 
-            // Mark the old configuration for garbage collection.
-            if (garbageConfig != null)
-            {
-                Trace.Verbose("Marking existing config for garbage collection.");
-                trackingManager.MarkForGarbageCollection(executionContext, garbageConfig);
-            }
+        public override void PrepareDirectory(IExecutionContext executionContext, TrackingConfig trackingConfig)
+        {
+            // Validate parameters.
+            Trace.Entering();
+            ArgUtil.NotNull(executionContext, nameof(executionContext));
+            ArgUtil.NotNull(trackingConfig, nameof(trackingConfig));
 
-            // Prepare the build directory.
-            // There are 2 ways to provide build directory clean policy.
-            //     1> set definition variable build.clean or agent.clean.buildDirectory. (on-prem user need to use this, since there is no Web UI in TFS 2016)
-            //     2> select source clean option in definition repository tab. (VSTS will have this option in definition designer UI)
-            BuildCleanOption cleanOption = GetBuildDirectoryCleanOption(executionContext, endpoint);
-
+            // Prepare additional build directory.
+            WorkspaceCleanOption? workspaceCleanOption = EnumUtil.TryParse<WorkspaceCleanOption>(executionContext.Variables.Get("system.workspace.cleanoption"));
+            string binaryDir = Path.Combine(IOUtil.GetWorkPath(HostContext), Path.Combine(trackingConfig.JobDirectory, Constants.Build.Path.BinariesDirectory));
+            string artifactDir = Path.Combine(IOUtil.GetWorkPath(HostContext), Path.Combine(trackingConfig.JobDirectory, Constants.Build.Path.ArtifactsDirectory));
+            string testResultDir = Path.Combine(IOUtil.GetWorkPath(HostContext), Path.Combine(trackingConfig.JobDirectory, Constants.Build.Path.TestResultsDirectory));
             CreateDirectory(
                 executionContext,
-                description: "build directory",
-                path: Path.Combine(IOUtil.GetWorkPath(HostContext), newConfig.BuildDirectory),
-                deleteExisting: cleanOption == BuildCleanOption.All);
+                description: "binaries directory",
+                path: binaryDir,
+                deleteExisting: workspaceCleanOption == WorkspaceCleanOption.Binary);
             CreateDirectory(
                 executionContext,
                 description: "artifacts directory",
-                path: Path.Combine(IOUtil.GetWorkPath(HostContext), newConfig.ArtifactsDirectory),
+                path: artifactDir,
                 deleteExisting: true);
             CreateDirectory(
                 executionContext,
                 description: "test results directory",
-                path: Path.Combine(IOUtil.GetWorkPath(HostContext), newConfig.TestResultsDirectory),
+                path: testResultDir,
                 deleteExisting: true);
-            CreateDirectory(
-                executionContext,
-                description: "binaries directory",
-                path: Path.Combine(IOUtil.GetWorkPath(HostContext), newConfig.BuildDirectory, Constants.Build.Path.BinariesDirectory),
-                deleteExisting: cleanOption == BuildCleanOption.Binary);
-            CreateDirectory(
-                executionContext,
-                description: "source directory",
-                path: Path.Combine(IOUtil.GetWorkPath(HostContext), newConfig.BuildDirectory, Constants.Build.Path.SourcesDirectory),
-                deleteExisting: cleanOption == BuildCleanOption.Source);
 
-            return newConfig;
+            executionContext.Variables.Set(Constants.Variables.System.ArtifactsDirectory, artifactDir);
+            executionContext.Variables.Set(Constants.Variables.Build.StagingDirectory, artifactDir);
+            executionContext.Variables.Set(Constants.Variables.Build.ArtifactStagingDirectory, artifactDir);
+            executionContext.Variables.Set(Constants.Variables.Common.TestResultsDirectory, testResultDir);
+            executionContext.Variables.Set(Constants.Variables.Build.BinariesDirectory, binaryDir);
         }
 
-        public async Task RunMaintenanceOperation(IExecutionContext executionContext)
+        public override Task RunMaintenanceOperation(IExecutionContext executionContext)
         {
             Trace.Entering();
             ArgUtil.NotNull(executionContext, nameof(executionContext));
 
-            // this might be not accurate when the agent is configured for old TFS server
-            int totalAvailableTimeInMinutes = executionContext.Variables.GetInt("maintenance.jobtimeoutinminutes") ?? 60;
-
-            // start a timer to track how much time we used
-            Stopwatch totalTimeSpent = Stopwatch.StartNew();
-
-            var trackingManager = HostContext.GetService<ITrackingManager>();
+            var legacyTrackingManager = HostContext.GetService<ILegacyTrackingManager>();
             int staleBuildDirThreshold = executionContext.Variables.GetInt("maintenance.deleteworkingdirectory.daysthreshold") ?? 0;
             if (staleBuildDirThreshold > 0)
             {
-                // scan unused build directories
+                // scan and delete unused build directories
                 executionContext.Output(StringUtil.Loc("DiscoverBuildDir", staleBuildDirThreshold));
-                trackingManager.MarkExpiredForGarbageCollection(executionContext, TimeSpan.FromDays(staleBuildDirThreshold));
+
+                Trace.Info("Scan all SourceFolder tracking files.");
+                string searchRoot = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Work), Constants.Build.Path.SourceRootMappingDirectory);
+                if (!Directory.Exists(searchRoot))
+                {
+                    executionContext.Output(StringUtil.Loc("GCDirNotExist", searchRoot));
+                    return Task.CompletedTask;
+                }
+
+                var allTrackingFiles = Directory.EnumerateFiles(searchRoot, Constants.Build.Path.TrackingConfigFile, SearchOption.AllDirectories);
+                Trace.Verbose($"Find {allTrackingFiles.Count()} tracking files.");
+
+                executionContext.Output(StringUtil.Loc("DirExpireLimit", staleBuildDirThreshold));
+                executionContext.Output(StringUtil.Loc("CurrentUTC", DateTime.UtcNow.ToString("o")));
+
+                // scan all sourcefolder tracking file, find which folder has never been used since UTC-expiration
+                // the scan and garbage discovery should be best effort.
+                // if the tracking file is in old format, just delete the folder since the first time the folder been use we will convert the tracking file to new format.
+                foreach (var trackingFile in allTrackingFiles)
+                {
+                    try
+                    {
+                        executionContext.Output(StringUtil.Loc("EvaluateTrackingFile", trackingFile));
+                        LegacyTrackingConfigBase tracking = legacyTrackingManager.LoadIfExists(executionContext, trackingFile);
+
+                        // detect whether the tracking file is in new format.
+                        LegacyTrackingConfig2 newTracking = tracking as LegacyTrackingConfig2;
+                        if (newTracking == null)
+                        {
+                            LegacyTrackingConfig legacyConfig = tracking as LegacyTrackingConfig;
+                            ArgUtil.NotNull(legacyConfig, nameof(LegacyTrackingConfig));
+
+                            Trace.Verbose($"{trackingFile} is a old format tracking file.");
+                            string fullPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Work), legacyConfig.BuildDirectory);
+                            executionContext.Output(StringUtil.Loc("Deleting", fullPath));
+                            IOUtil.DeleteDirectory(fullPath, executionContext.CancellationToken);
+                            IOUtil.DeleteFile(trackingFile);
+                        }
+                        else
+                        {
+                            Trace.Verbose($"{trackingFile} is a new format tracking file.");
+                            ArgUtil.NotNull(newTracking.LastRunOn, nameof(newTracking.LastRunOn));
+                            executionContext.Output(StringUtil.Loc("BuildDirLastUseTIme", Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Work), newTracking.BuildDirectory), newTracking.LastRunOnString));
+                            if (DateTime.UtcNow - TimeSpan.FromDays(staleBuildDirThreshold) > newTracking.LastRunOn)
+                            {
+                                executionContext.Output(StringUtil.Loc("GCUnusedTrackingFile", trackingFile, staleBuildDirThreshold));
+                                string fullPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Work), newTracking.BuildDirectory);
+                                executionContext.Output(StringUtil.Loc("Deleting", fullPath));
+                                IOUtil.DeleteDirectory(fullPath, executionContext.CancellationToken);
+
+                                executionContext.Output(StringUtil.Loc("DeleteGCTrackingFile", fullPath));
+                                IOUtil.DeleteFile(trackingFile);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        executionContext.Error(StringUtil.Loc("ErrorDuringBuildGC", trackingFile));
+                        executionContext.Error(ex);
+                    }
+                }
+
+                return Task.CompletedTask;
             }
             else
             {
                 executionContext.Output(StringUtil.Loc("GCBuildDirNotEnabled"));
-                return;
-            }
-
-            executionContext.Output(StringUtil.Loc("GCBuildDir"));
-
-            // delete unused build directories
-            trackingManager.DisposeCollectedGarbage(executionContext);
-
-            // give source provider a chance to run maintenance operation
-            Trace.Info("Scan all SourceFolder tracking files.");
-            string searchRoot = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Work), Constants.Build.Path.SourceRootMappingDirectory);
-            if (!Directory.Exists(searchRoot))
-            {
-                executionContext.Output(StringUtil.Loc("GCDirNotExist", searchRoot));
-                return;
-            }
-
-            // <tracking config, tracking file path>
-            List<Tuple<TrackingConfig, string>> optimizeTrackingFiles = new List<Tuple<TrackingConfig, string>>();
-            var allTrackingFiles = Directory.EnumerateFiles(searchRoot, Constants.Build.Path.TrackingConfigFile, SearchOption.AllDirectories);
-            Trace.Verbose($"Find {allTrackingFiles.Count()} tracking files.");
-            foreach (var trackingFile in allTrackingFiles)
-            {
-                executionContext.Output(StringUtil.Loc("EvaluateTrackingFile", trackingFile));
-                TrackingConfigBase tracking = trackingManager.LoadIfExists(executionContext, trackingFile);
-
-                // detect whether the tracking file is in new format.
-                TrackingConfig newTracking = tracking as TrackingConfig;
-                if (newTracking == null)
-                {
-                    executionContext.Output(StringUtil.Loc("GCOldFormatTrackingFile", trackingFile));
-                }
-                else if (string.IsNullOrEmpty(newTracking.RepositoryType))
-                {
-                    // repository not been set.
-                    executionContext.Output(StringUtil.Loc("SkipTrackingFileWithoutRepoType", trackingFile));
-                }
-                else
-                {
-                    optimizeTrackingFiles.Add(new Tuple<TrackingConfig, string>(newTracking, trackingFile));
-                }
-            }
-
-            // Sort the all tracking file ASC by last maintenance attempted time
-            foreach (var trackingInfo in optimizeTrackingFiles.OrderBy(x => x.Item1.LastMaintenanceAttemptedOn))
-            {
-                // maintenance has been cancelled.
-                executionContext.CancellationToken.ThrowIfCancellationRequested();
-
-                bool runMainenance = false;
-                TrackingConfig trackingConfig = trackingInfo.Item1;
-                string trackingFile = trackingInfo.Item2;
-                if (trackingConfig.LastMaintenanceAttemptedOn == null)
-                {
-                    // this folder never run maintenance before, we will do maintenance if there is more than half of the time remains.
-                    if (totalTimeSpent.Elapsed.TotalMinutes < totalAvailableTimeInMinutes / 2)  // 50% time left
-                    {
-                        runMainenance = true;
-                    }
-                    else
-                    {
-                        executionContext.Output($"Working directory '{trackingConfig.BuildDirectory}' has never run maintenance before. Skip since we may not have enough time.");
-                    }
-                }
-                else if (trackingConfig.LastMaintenanceCompletedOn == null)
-                {
-                    // this folder did finish maintenance last time, this might indicate we need more time for this working directory
-                    if (totalTimeSpent.Elapsed.TotalMinutes < totalAvailableTimeInMinutes / 4)  // 75% time left
-                    {
-                        runMainenance = true;
-                    }
-                    else
-                    {
-                        executionContext.Output($"Working directory '{trackingConfig.BuildDirectory}' didn't finish maintenance last time. Skip since we may not have enough time.");
-                    }
-                }
-                else
-                {
-                    // estimate time for running maintenance
-                    TimeSpan estimateTime = trackingConfig.LastMaintenanceCompletedOn.Value - trackingConfig.LastMaintenanceAttemptedOn.Value;
-
-                    // there is more than 10 mins left after we run maintenance on this repository directory
-                    if (totalAvailableTimeInMinutes > totalTimeSpent.Elapsed.TotalMinutes + estimateTime.TotalMinutes + 10)
-                    {
-                        runMainenance = true;
-                    }
-                    else
-                    {
-                        executionContext.Output($"Working directory '{trackingConfig.BuildDirectory}' may take about '{estimateTime.TotalMinutes}' mins to finish maintenance. It's too risky since we only have '{totalAvailableTimeInMinutes - totalTimeSpent.Elapsed.TotalMinutes}' mins left for maintenance.");
-                    }
-                }
-
-                if (runMainenance)
-                {
-                    var extensionManager = HostContext.GetService<IExtensionManager>();
-                    ISourceProvider sourceProvider = extensionManager.GetExtensions<ISourceProvider>().FirstOrDefault(x => string.Equals(x.RepositoryType, trackingConfig.RepositoryType, StringComparison.OrdinalIgnoreCase));
-                    if (sourceProvider != null)
-                    {
-                        try
-                        {
-                            trackingManager.MaintenanceStarted(trackingConfig, trackingFile);
-                            string repositoryPath = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.Work), trackingConfig.SourcesDirectory);
-                            await sourceProvider.RunMaintenanceOperations(executionContext, repositoryPath);
-                            trackingManager.MaintenanceCompleted(trackingConfig, trackingFile);
-                        }
-                        catch (Exception ex)
-                        {
-                            executionContext.Error(StringUtil.Loc("ErrorDuringBuildGC", trackingFile));
-                            executionContext.Error(ex);
-                        }
-                    }
-                }
+                return Task.CompletedTask;
             }
         }
 
-        private TrackingConfig ConvertToNewFormat(
+        private LegacyTrackingConfig2 ConvertToNewFormat(
             IExecutionContext executionContext,
-            ServiceEndpoint endpoint,
-            TrackingConfigBase config)
+            LegacyTrackingConfigBase config)
         {
             Trace.Entering();
 
             // If it's already in the new format, return it.
-            TrackingConfig newConfig = config as TrackingConfig;
+            LegacyTrackingConfig2 newConfig = config as LegacyTrackingConfig2;
             if (newConfig != null)
             {
                 return newConfig;
@@ -306,112 +228,31 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 description: "legacy staging directory",
                 path: Path.Combine(legacyConfig.BuildDirectory, Constants.Build.Path.LegacyStagingDirectory));
 
+            var selfRepoName = executionContext.Repositories.Single(x => x.Alias == "self").Properties.Get<string>("name");
             // Determine the source directory name. Check if the directory is named "s" already.
             // Convert the source directory to be named "s" if there is a problem with the old name.
             string sourcesDirectoryNameOnly = Constants.Build.Path.SourcesDirectory;
             if (!Directory.Exists(Path.Combine(legacyConfig.BuildDirectory, sourcesDirectoryNameOnly))
-                && !String.Equals(endpoint.Name, Constants.Build.Path.ArtifactsDirectory, StringComparison.OrdinalIgnoreCase)
-                && !String.Equals(endpoint.Name, Constants.Build.Path.LegacyArtifactsDirectory, StringComparison.OrdinalIgnoreCase)
-                && !String.Equals(endpoint.Name, Constants.Build.Path.LegacyStagingDirectory, StringComparison.OrdinalIgnoreCase)
-                && !String.Equals(endpoint.Name, Constants.Build.Path.TestResultsDirectory, StringComparison.OrdinalIgnoreCase)
-                && !endpoint.Name.Contains("\\")
-                && !endpoint.Name.Contains("/")
-                && Directory.Exists(Path.Combine(legacyConfig.BuildDirectory, endpoint.Name)))
+                && !String.Equals(selfRepoName, Constants.Build.Path.ArtifactsDirectory, StringComparison.OrdinalIgnoreCase)
+                && !String.Equals(selfRepoName, Constants.Build.Path.LegacyArtifactsDirectory, StringComparison.OrdinalIgnoreCase)
+                && !String.Equals(selfRepoName, Constants.Build.Path.LegacyStagingDirectory, StringComparison.OrdinalIgnoreCase)
+                && !String.Equals(selfRepoName, Constants.Build.Path.TestResultsDirectory, StringComparison.OrdinalIgnoreCase)
+                && !selfRepoName.Contains("\\")
+                && !selfRepoName.Contains("/")
+                && Directory.Exists(Path.Combine(legacyConfig.BuildDirectory, selfRepoName)))
             {
-                sourcesDirectoryNameOnly = endpoint.Name;
+                sourcesDirectoryNameOnly = selfRepoName;
             }
 
             // Convert to the new format.
-            newConfig = new TrackingConfig(
+            newConfig = new LegacyTrackingConfig2(
                 executionContext,
                 legacyConfig,
                 sourcesDirectoryNameOnly,
-                endpoint.Type,
                 // The legacy artifacts directory has been deleted at this point - see above - so
                 // switch the configuration to using the new naming scheme.
                 useNewArtifactsDirectoryName: true);
             return newConfig;
         }
-
-        public void CreateDirectory(IExecutionContext executionContext, string description, string path, bool deleteExisting)
-        {
-            // Delete.
-            if (deleteExisting)
-            {
-                executionContext.Debug($"Delete existing {description}: '{path}'");
-                DeleteDirectory(executionContext, description, path);
-            }
-
-            // Create.
-            if (!Directory.Exists(path))
-            {
-                executionContext.Debug($"Creating {description}: '{path}'");
-                Trace.Info($"Creating {description}.");
-                Directory.CreateDirectory(path);
-            }
-        }
-
-        private void DeleteDirectory(IExecutionContext executionContext, string description, string path)
-        {
-            Trace.Info($"Checking if {description} exists: '{path}'");
-            if (Directory.Exists(path))
-            {
-                executionContext.Debug($"Deleting {description}: '{path}'");
-                IOUtil.DeleteDirectory(path, executionContext.CancellationToken);
-            }
-        }
-
-        // Prefer variable over endpoint data when get build directory clean option.
-        // Prefer agent.clean.builddirectory over build.clean when use variable
-        // available value for build.clean or agent.clean.builddirectory:
-        //      Delete entire build directory if build.clean=all is set.
-        //      Recreate binaries dir if clean=binary is set.
-        //      Recreate source dir if clean=src is set.
-        private BuildCleanOption GetBuildDirectoryCleanOption(IExecutionContext executionContext, ServiceEndpoint endpoint)
-        {
-            BuildCleanOption? cleanOption = executionContext.Variables.Build_Clean;
-            if (cleanOption != null)
-            {
-                return cleanOption.Value;
-            }
-
-            bool clean = false;
-            if (endpoint.Data.ContainsKey(EndpointData.Clean))
-            {
-                clean = StringUtil.ConvertToBoolean(endpoint.Data[EndpointData.Clean]);
-            }
-
-            if (clean && endpoint.Data.ContainsKey("cleanOptions"))
-            {
-                RepositoryCleanOptions? cleanOptionFromEndpoint = EnumUtil.TryParse<RepositoryCleanOptions>(endpoint.Data["cleanOptions"]);
-                if (cleanOptionFromEndpoint != null)
-                {
-                    if (cleanOptionFromEndpoint == RepositoryCleanOptions.AllBuildDir)
-                    {
-                        return BuildCleanOption.All;
-                    }
-                    else if (cleanOptionFromEndpoint == RepositoryCleanOptions.SourceDir)
-                    {
-                        return BuildCleanOption.Source;
-                    }
-                    else if (cleanOptionFromEndpoint == RepositoryCleanOptions.SourceAndOutput)
-                    {
-                        return BuildCleanOption.Binary;
-                    }
-                }
-            }
-
-            return BuildCleanOption.None;
-        }
-    }
-
-
-    // TODO: use enum defined in build2.webapi when it's available.
-    public enum RepositoryCleanOptions
-    {
-        Source,
-        SourceAndOutput,
-        SourceDir,
-        AllBuildDir,
     }
 }

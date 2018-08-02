@@ -1,26 +1,29 @@
 ﻿using Microsoft.TeamFoundation.DistributedTask.WebApi;
+using Pipelines = Microsoft.TeamFoundation.DistributedTask.Pipelines;
 using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 {
-    public sealed class TrackingConfig : TrackingConfigBase
+    public sealed class LegacyTrackingConfig2 : LegacyTrackingConfigBase
     {
         public const string FileFormatVersionJsonProperty = "fileFormatVersion";
 
         // The parameterless constructor is required for deserialization.
-        public TrackingConfig()
+        public LegacyTrackingConfig2()
         {
         }
 
-        public TrackingConfig(
+        // Convert 1.x Legacy tracking file
+        public LegacyTrackingConfig2(
             IExecutionContext executionContext,
             LegacyTrackingConfig copy,
             string sourcesDirectoryNameOnly,
-            string repositoryType,
             bool useNewArtifactsDirectoryName = false)
         {
             // Set the directories.
@@ -36,27 +39,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             CollectionUrl = executionContext.Variables.System_TFCollectionUrl;
             DefinitionId = copy.DefinitionId;
             HashKey = copy.HashKey;
-            RepositoryType = repositoryType;
-            RepositoryUrl = copy.RepositoryUrl;
             System = copy.System;
-        }
-
-        public TrackingConfig(IExecutionContext executionContext, ServiceEndpoint endpoint, int buildDirectory, string hashKey)
-        {
-            // Set the directories.
-            BuildDirectory = buildDirectory.ToString(CultureInfo.InvariantCulture);
-            ArtifactsDirectory = Path.Combine(BuildDirectory, Constants.Build.Path.ArtifactsDirectory);
-            SourcesDirectory = Path.Combine(BuildDirectory, Constants.Build.Path.SourcesDirectory);
-            TestResultsDirectory = Path.Combine(BuildDirectory, Constants.Build.Path.TestResultsDirectory);
-
-            // Set the other properties.
-            CollectionId = executionContext.Variables.System_CollectionId;
-            DefinitionId = executionContext.Variables.System_DefinitionId;
-            HashKey = hashKey;
-            RepositoryUrl = endpoint.Url.AbsoluteUri;
-            RepositoryType = endpoint.Type;
-            System = BuildSystem;
-            UpdateJobRunProperties(executionContext);
         }
 
         [JsonProperty("build_artifactstagingdirectory")]
@@ -173,12 +156,5 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 
         [JsonProperty("common_testresultsdirectory")]
         public string TestResultsDirectory { get; set; }
-
-        public void UpdateJobRunProperties(IExecutionContext executionContext)
-        {
-            CollectionUrl = executionContext.Variables.System_TFCollectionUrl;
-            DefinitionName = executionContext.Variables.Build_DefinitionName;
-            LastRunOn = DateTimeOffset.Now;
-        }
     }
 }
