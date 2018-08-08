@@ -419,7 +419,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
         {
             Task.Run(() =>
             {
-                if(read.EndOfStream)
+                if(reader.EndOfStream)
                 {
                     Trace.Info($"Stream already close.");
                 }
