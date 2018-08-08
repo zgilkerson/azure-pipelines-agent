@@ -270,6 +270,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
                 // Just in case there was some pending output when the process shut down go ahead and check the
                 // data buffers one last time before returning
                 ProcessOutput();
+                Trace.Info("Another try!");
+                ProcessOutput();
+                Trace.Info("Another try after 100 ms!");
+                await Task.Delay(100);
+                ProcessOutput();
 
                 Trace.Info($"Finished process {_proc.Id} with exit code {_proc.ExitCode}, and elapsed time {_stopWatch.Elapsed}.");
             }
