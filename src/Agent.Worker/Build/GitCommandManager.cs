@@ -555,6 +555,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                         }
                     }
                 }
+                else
+                {
+                    context.WriteLine(outputStrings.Count.ToString());
+                }
             }
 
             return version;
@@ -616,6 +620,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                         }
                     }
                 }
+                else
+                {
+                    context.Output(outputStrings.Count.ToString());
+                }
             }
 
             return version;
@@ -662,6 +670,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             {
                 lock (outputLock)
                 {
+                    context.WriteLine($"STDOUT: {message.Data}");
                     output.Add(message.Data);
                 }
             };
@@ -670,6 +679,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             {
                 lock (outputLock)
                 {
+                    context.WriteLine($"STDERR: {message.Data}");
                     output.Add(message.Data);
                 }
             };

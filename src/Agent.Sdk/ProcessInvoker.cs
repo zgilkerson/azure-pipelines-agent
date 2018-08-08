@@ -419,6 +419,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
                     string line = reader.ReadLine();
                     if (line != null)
                     {
+                        Trace.Info($"Get a line: {line}");        
                         dataBuffer.Enqueue(line);
                         _outputProcessEvent.Set();
                     }
