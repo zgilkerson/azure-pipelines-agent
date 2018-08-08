@@ -419,6 +419,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
         {
             Task.Run(() =>
             {
+                if(read.EndOfStream)
+                {
+                    Trace.Info($"Stream already close.");
+                }
+
                 while (!reader.EndOfStream)
                 {
                     string line = reader.ReadLine();
@@ -427,6 +432,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
                         Trace.Info($"Get a line: {line}");        
                         dataBuffer.Enqueue(line);
                         _outputProcessEvent.Set();
+                    }
+                    else
+                    {
+                        Trace.Info($"Get a empty line");        
                     }
                 }
 
