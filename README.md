@@ -15,14 +15,14 @@ Supported on Windows, OSX, Ubuntu and Red Hat.  Written for the .NET Core CLR as
 |![macOS](docs/res/apple_med.png) **macOS**|[![Build & Test][macOS-build-badge]][macOS-build]| 
 |![Linux](docs/res/linux_med.png) **Linux**|[![Build & Test][linux-build-badge]][linux-build]|
 
-[win-build-badge]: https://mseng.visualstudio.com/pipelinetools/_apis/build/status/azure-pipelines-agent.ci-?branchName=master
-[win-build]: https://mseng.visualstudio.com/PipelineTools/_build?_a=completed&definitionId=6916
+[win-build-badge]: https://dev.azure.com/mseng/pipelinetools/_apis/build/status/azure-pipelines-agent.ci-windows?branchName=master
+[win-build]: https://dev.azure.com/mseng/pipelinetools/_build?_a=completed&definitionId=6916
 
-[macOS-build-badge]: https://mseng.visualstudio.com/pipelinetools/_apis/build/status/azure-pipelines-agent.ci-macos?branchName=master
-[macOS-build]: https://mseng.visualstudio.com/PipelineTools/_build?_a=completed&definitionId=6917
+[macOS-build-badge]: https://dev.azure.com/mseng/pipelinetools/_apis/build/status/azure-pipelines-agent.ci-macos?branchName=master
+[macOS-build]: https://dev.azure.com/mseng/pipelinetools/_build?_a=completed&definitionId=6917
 
-[linux-build-badge]: https://mseng.visualstudio.com/pipelinetools/_apis/build/status/azure-pipelines-agent.ci-linux?branchName=master
-[linux-build]: https://mseng.visualstudio.com/PipelineTools/_build?_a=completed&definitionId=6915
+[linux-build-badge]: https://dev.azure.com/mseng/pipelinetools/_apis/build/status/azure-pipelines-agent.ci-linux?branchName=master
+[linux-build]: https://dev.azure.com/mseng/pipelinetools/_build?_a=completed&definitionId=6915
 
 ## System Pre-Requisites
 
