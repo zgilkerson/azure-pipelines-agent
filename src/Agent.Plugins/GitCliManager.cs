@@ -119,7 +119,7 @@ namespace Agent.Plugins.Repository
         }
 
         // git fetch --tags --prune --progress --no-recurse-submodules [--depth=15] origin [+refs/pull/*:refs/remote/pull/*]
-        public async Task<int> GitFetch(AgentTaskPluginExecutionContext context, string repositoryPath, string remoteName, int fetchDepth, List<string> refSpec, string additionalCommandLine, CancellationToken cancellationToken)
+        public async Task<int> GitFetch(AgentTaskPluginExecutionContext context, string repositoryPath, string remoteName, int fetchDepth, List<string> refSpec, string additionalCommandLine, bool fetchSingleCommit, CancellationToken cancellationToken)
         {
             context.Debug($"Fetch git repository at: {repositoryPath} remote: {remoteName}.");
             if (refSpec != null && refSpec.Count > 0)
@@ -127,21 +127,29 @@ namespace Agent.Plugins.Repository
                 refSpec = refSpec.Where(r => !string.IsNullOrEmpty(r)).ToList();
             }
 
-            // default options for git fetch.
-            string options = StringUtil.Format($"--tags --prune --progress --no-recurse-submodules {remoteName} {string.Join(" ", refSpec)}");
-
-            // If shallow fetch add --depth arg
-            // If the local repository is shallowed but there is no fetch depth provide for this build,
-            // add --unshallow to convert the shallow repository to a complete repository
-            if (fetchDepth > 0)
+            string options;
+            if (fetchSingleCommit)
             {
-                options = StringUtil.Format($"--tags --prune --progress --no-recurse-submodules --depth={fetchDepth} {remoteName} {string.Join(" ", refSpec)}");
+                options = StringUtil.Format($"--no-tags --prune --progress --no-recurse-submodules {remoteName} {string.Join(" ", refSpec)}");
             }
             else
             {
-                if (File.Exists(Path.Combine(repositoryPath, ".git", "shallow")))
+                // default options for git fetch.
+                options = StringUtil.Format($"--tags --prune --progress --no-recurse-submodules {remoteName} {string.Join(" ", refSpec)}");
+
+                // If shallow fetch add --depth arg
+                // If the local repository is shallowed but there is no fetch depth provide for this build,
+                // add --unshallow to convert the shallow repository to a complete repository
+                if (fetchDepth > 0)
                 {
-                    options = StringUtil.Format($"--tags --prune --progress --no-recurse-submodules --unshallow {remoteName} {string.Join(" ", refSpec)}");
+                    options = StringUtil.Format($"--tags --prune --progress --no-recurse-submodules --depth={fetchDepth} {remoteName} {string.Join(" ", refSpec)}");
+                }
+                else
+                {
+                    if (File.Exists(Path.Combine(repositoryPath, ".git", "shallow")))
+                    {
+                        options = StringUtil.Format($"--tags --prune --progress --no-recurse-submodules --unshallow {remoteName} {string.Join(" ", refSpec)}");
+                    }
                 }
             }
 

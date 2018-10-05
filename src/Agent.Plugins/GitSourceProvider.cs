@@ -260,6 +260,7 @@ namespace Agent.Plugins.Repository
 
             bool exposeCred = StringUtil.ConvertToBoolean(executionContext.GetInput(Pipelines.PipelineConstants.CheckoutTaskInputs.PersistCredentials));
 
+            bool lightWeight = true;
             executionContext.Debug($"repository url={repositoryUrl}");
             executionContext.Debug($"targetPath={targetPath}");
             executionContext.Debug($"sourceBranch={sourceBranch}");
@@ -271,6 +272,7 @@ namespace Agent.Plugins.Repository
             executionContext.Debug($"fetchDepth={fetchDepth}");
             executionContext.Debug($"gitLfsSupport={gitLfsSupport}");
             executionContext.Debug($"acceptUntrustedCerts={acceptUntrustedCerts}");
+            executionContext.Debug($"lightWeight={lightWeight}");
 
             bool preferGitFromPath;
 #if OS_WINDOWS
@@ -725,13 +727,24 @@ namespace Agent.Plugins.Repository
             // If this is a build for a pull request, then include
             // the pull request reference as an additional ref.
             List<string> additionalFetchSpecs = new List<string>();
+            bool fetchSingleCommit = false;
             if (IsPullRequest(sourceBranch))
             {
-                additionalFetchSpecs.Add("+refs/heads/*:refs/remotes/origin/*");
+                if (!lightWeight)
+                {
+                    additionalFetchSpecs.Add("+refs/heads/*:refs/remotes/origin/*");
+                }
+
                 additionalFetchSpecs.Add(StringUtil.Format("+{0}:{1}", sourceBranch, GetRemoteRefName(sourceBranch)));
             }
+            else if (!string.IsNullOrEmpty(sourceVersion) && lightWeight)
+            {
+                string tempRemoteRef = $"refs/remotes/origin/{Guid.NewGuid().ToString("N")}";
+                additionalFetchSpecs.Add(StringUtil.Format("{0}:{1}", sourceVersion, tempRemoteRef));
+                fetchSingleCommit = true;
+            }
 
-            int exitCode_fetch = await gitCommandManager.GitFetch(executionContext, targetPath, "origin", fetchDepth, additionalFetchSpecs, string.Join(" ", additionalFetchArgs), cancellationToken);
+            int exitCode_fetch = await gitCommandManager.GitFetch(executionContext, targetPath, "origin", fetchDepth, additionalFetchSpecs, string.Join(" ", additionalFetchArgs), fetchSingleCommit, cancellationToken);
             if (exitCode_fetch != 0)
             {
                 throw new InvalidOperationException($"Git fetch failed with exit code: {exitCode_fetch}");
