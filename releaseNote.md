@@ -2,7 +2,7 @@
   - Consume dotnet core 2.1, add win-x86 and linux-arm agent. #1844
   
 ## Bugs
-  - N/A
+  - Adding logic for handling an agent oauth token being revoked #1881
 
 ## Misc
   - N/A
