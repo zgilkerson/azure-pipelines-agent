@@ -129,6 +129,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string Password = "password";
                     public static readonly string ProxyPassword = "proxypassword";
                     public static readonly string Token = "token";
+                    public static readonly string Account = "account";
                     public static readonly string WindowsLogonPassword = "windowslogonpassword";
                     public static string[] Secrets => new[]
                     {
@@ -211,6 +212,7 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         public static class Configuration
         {
+            public static readonly string AAD = "AAD";
             public static readonly string PAT = "PAT";
             public static readonly string Alternate = "ALT";
             public static readonly string Negotiate = "Negotiate";

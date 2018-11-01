@@ -226,6 +226,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener
         //
         // Args.
         //
+        public string GetAccount()
+        {
+            return GetArgOrPrompt(
+                name: Constants.Agent.CommandLine.Args.Account,
+                description: StringUtil.Loc("AadDeviceCodeAccessToken"),
+                defaultValue: string.Empty,
+                validator: Validators.NonEmptyValidator);
+        }
+
         public string GetAgentName()
         {
             return GetArgOrPrompt(

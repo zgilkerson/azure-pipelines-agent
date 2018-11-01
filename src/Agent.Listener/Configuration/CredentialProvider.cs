@@ -1,6 +1,10 @@
+using System;
+using System.Net.Mail;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.Client;
 using Microsoft.VisualStudio.Services.Common;
+using Microsoft.VisualStudio.Services.OAuth;
 
 namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 {
@@ -23,6 +27,60 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
         public abstract VssCredentials GetVssCredentials(IHostContext context);
         public abstract void EnsureCredential(IHostContext context, CommandSettings command, string serverUrl);
+    }
+
+    public sealed class AadDeviceCodeAccessToken : CredentialProvider
+    {
+        public AadDeviceCodeAccessToken() : base(Constants.Configuration.AAD) { }
+
+        public override VssCredentials GetVssCredentials(IHostContext context)
+        {
+            ArgUtil.NotNull(context, nameof(context));
+            Tracing trace = context.GetTrace(nameof(AadDeviceCodeAccessToken));
+            trace.Info(nameof(GetVssCredentials));
+            ArgUtil.NotNull(CredentialData, nameof(CredentialData));
+            string account;
+            if (!CredentialData.Data.TryGetValue(Constants.Agent.CommandLine.Args.Account, out account))
+            {
+                account = null;
+            }
+
+            ArgUtil.NotNullOrEmpty(account, nameof(account));
+
+            trace.Info("AAD account: {account}");
+            MailAddress email = new MailAddress(account);
+            AuthenticationContext ctx = new AuthenticationContext($"https://login.microsoftonline.com/{email.Host}");
+            AuthenticationResult result = null;
+            DeviceCodeResult codeResult = null;
+            var term = context.GetService<ITerminal>();
+            try
+            {
+                codeResult = ctx.AcquireDeviceCodeAsync("https://graph.microsoft.com", "872cd9fa-d31f-45e0-9eab-6e460a02d1f1").GetAwaiter().GetResult();
+                term.WriteLine($"You need to finish AAD device login flow. {codeResult.Message}");
+                result = ctx.AcquireTokenByDeviceCodeAsync(codeResult).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                trace.Error(ex);
+                term.WriteError(ex);
+            }
+
+            term.WriteLine($"Token: {result.AccessToken}");
+            var aadCred = new VssAadCredential(new VssAadToken(result));
+            VssCredentials creds = new VssCredentials(null, aadCred, CredentialPromptType.DoNotPrompt);
+            trace.Info("cred created");
+
+            return creds;
+        }
+
+        public override void EnsureCredential(IHostContext context, CommandSettings command, string serverUrl)
+        {
+            ArgUtil.NotNull(context, nameof(context));
+            Tracing trace = context.GetTrace(nameof(AadDeviceCodeAccessToken));
+            trace.Info(nameof(EnsureCredential));
+            ArgUtil.NotNull(command, nameof(command));
+            CredentialData.Data[Constants.Agent.CommandLine.Args.Account] = command.GetAccount();
+        }
     }
 
     public sealed class PersonalAccessToken : CredentialProvider
