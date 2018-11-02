@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Net.Mail;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.Agent.Util;
@@ -49,14 +50,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
             trace.Info("AAD account: {account}");
             MailAddress email = new MailAddress(account);
+            LoggerCallbackHandler.UseDefaultLogging = false;
             AuthenticationContext ctx = new AuthenticationContext($"https://login.microsoftonline.com/{email.Host}");
             AuthenticationResult result = null;
             DeviceCodeResult codeResult = null;
             var term = context.GetService<ITerminal>();
             try
             {
-                codeResult = ctx.AcquireDeviceCodeAsync("https://graph.microsoft.com", "872cd9fa-d31f-45e0-9eab-6e460a02d1f1").GetAwaiter().GetResult();
-                term.WriteLine($"You need to finish AAD device login flow. {codeResult.Message}");
+                codeResult = ctx.AcquireDeviceCodeAsync("499b84ac-1321-427f-aa17-267ca6975798", "872cd9fa-d31f-45e0-9eab-6e460a02d1f1").GetAwaiter().GetResult();
+                term.WriteLine($"You need to finish AAD device login flow. {codeResult.UserCode}");
+                Process.Start(new ProcessStartInfo() { FileName = codeResult.VerificationUrl, UseShellExecute = true });
                 result = ctx.AcquireTokenByDeviceCodeAsync(codeResult).GetAwaiter().GetResult();
             }
             catch (Exception ex)
