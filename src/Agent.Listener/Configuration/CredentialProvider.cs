@@ -83,7 +83,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             DeviceCodeResult codeResult = null;
             var term = context.GetService<ITerminal>();
             codeResult = ctx.AcquireDeviceCodeAsync("499b84ac-1321-427f-aa17-267ca6975798", "872cd9fa-d31f-45e0-9eab-6e460a02d1f1").GetAwaiter().GetResult();
-            term.WriteLine($"You need to finish AAD device login flow. {codeResult.UserCode}");
+            term.WriteLine($"You need to finish AAD device login flow. {codeResult.Message}");
             Process.Start(new ProcessStartInfo() { FileName = codeResult.VerificationUrl, UseShellExecute = true });
             authResult = ctx.AcquireTokenByDeviceCodeAsync(codeResult).GetAwaiter().GetResult();
             var aadCred = new VssAadCredential(new VssAadToken(authResult));
