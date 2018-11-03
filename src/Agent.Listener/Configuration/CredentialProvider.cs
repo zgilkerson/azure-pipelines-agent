@@ -46,30 +46,47 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 account = null;
             }
 
+            string serverUrl;
+            if (!CredentialData.Data.TryGetValue(Constants.Agent.CommandLine.Args.Url, out serverUrl))
+            {
+                serverUrl = null;
+            }
+
             ArgUtil.NotNullOrEmpty(account, nameof(account));
+            ArgUtil.NotNullOrEmpty(serverUrl, nameof(serverUrl));
+
+            string aadAuthority;
+            string serverUrlHostName = new Uri(serverUrl).Host;
+            if (serverUrlHostName.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase) ||
+                serverUrlHostName.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase))
+            {
+                aadAuthority = "https://login.microsoftonline.com";
+            }
+            else if (serverUrlHostName.EndsWith(".vsts.io", StringComparison.OrdinalIgnoreCase) ||
+                     serverUrlHostName.Equals("codeapp.ms", StringComparison.OrdinalIgnoreCase) ||
+                     serverUrlHostName.EndsWith(".vsts.me", StringComparison.OrdinalIgnoreCase) ||
+                     serverUrlHostName.Equals("codedev.ms", StringComparison.OrdinalIgnoreCase))
+            {
+                aadAuthority = "https://login.windows-ppe.net";
+            }
+            else
+            {
+                throw new NotSupportedException($"Server url '{serverUrl}' is not support AAD login.");
+            }
 
             trace.Info("AAD account: {account}");
             MailAddress email = new MailAddress(account);
+            LoggerCallbackHandler.Callback = new AadTrace(trace);
             LoggerCallbackHandler.UseDefaultLogging = false;
-            AuthenticationContext ctx = new AuthenticationContext($"https://login.microsoftonline.com/{email.Host}");
-            AuthenticationResult result = null;
+            AuthenticationContext ctx = new AuthenticationContext($"{aadAuthority}/{email.Host}");
+            AuthenticationResult authResult = null;
             DeviceCodeResult codeResult = null;
             var term = context.GetService<ITerminal>();
-            try
-            {
-                codeResult = ctx.AcquireDeviceCodeAsync("499b84ac-1321-427f-aa17-267ca6975798", "872cd9fa-d31f-45e0-9eab-6e460a02d1f1").GetAwaiter().GetResult();
-                term.WriteLine($"You need to finish AAD device login flow. {codeResult.UserCode}");
-                Process.Start(new ProcessStartInfo() { FileName = codeResult.VerificationUrl, UseShellExecute = true });
-                result = ctx.AcquireTokenByDeviceCodeAsync(codeResult).GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                trace.Error(ex);
-                term.WriteError(ex);
-            }
-
-            term.WriteLine($"Token: {result.AccessToken}");
-            var aadCred = new VssAadCredential(new VssAadToken(result));
+            codeResult = ctx.AcquireDeviceCodeAsync("499b84ac-1321-427f-aa17-267ca6975798", "872cd9fa-d31f-45e0-9eab-6e460a02d1f1").GetAwaiter().GetResult();
+            term.WriteLine($"You need to finish AAD device login flow. {codeResult.UserCode}");
+            Process.Start(new ProcessStartInfo() { FileName = codeResult.VerificationUrl, UseShellExecute = true });
+            authResult = ctx.AcquireTokenByDeviceCodeAsync(codeResult).GetAwaiter().GetResult();
+            var aadCred = new VssAadCredential(new VssAadToken(authResult));
             VssCredentials creds = new VssCredentials(null, aadCred, CredentialPromptType.DoNotPrompt);
             trace.Info("cred created");
 
@@ -83,6 +100,38 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             trace.Info(nameof(EnsureCredential));
             ArgUtil.NotNull(command, nameof(command));
             CredentialData.Data[Constants.Agent.CommandLine.Args.Account] = command.GetAccount();
+            CredentialData.Data[Constants.Agent.CommandLine.Args.Url] = serverUrl;
+        }
+
+        private class AadTrace : IAdalLogCallback
+        {
+            private Tracing _trace;
+
+            public AadTrace(Tracing trace)
+            {
+                _trace = trace;
+            }
+
+            public void Log(LogLevel level, string message)
+            {
+                switch (level)
+                {
+                    case LogLevel.Information:
+                        _trace.Info(message);
+                        break;
+                    case LogLevel.Verbose:
+                        _trace.Verbose(message);
+                        break;
+                    case LogLevel.Error:
+                        _trace.Error(message);
+                        break;
+                    case LogLevel.Warning:
+                        _trace.Warning(message);
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
     }
 
