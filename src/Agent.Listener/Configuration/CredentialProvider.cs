@@ -1,5 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Mail;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.VisualStudio.Services.Agent.Util;
@@ -40,11 +43,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Tracing trace = context.GetTrace(nameof(AadDeviceCodeAccessToken));
             trace.Info(nameof(GetVssCredentials));
             ArgUtil.NotNull(CredentialData, nameof(CredentialData));
-            string account;
-            if (!CredentialData.Data.TryGetValue(Constants.Agent.CommandLine.Args.Account, out account))
-            {
-                account = null;
-            }
+            // string account;
+            // if (!CredentialData.Data.TryGetValue(Constants.Agent.CommandLine.Args.Account, out account))
+            // {
+            //     account = null;
+            // }
 
             string serverUrl;
             if (!CredentialData.Data.TryGetValue(Constants.Agent.CommandLine.Args.Url, out serverUrl))
@@ -52,33 +55,39 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 serverUrl = null;
             }
 
-            ArgUtil.NotNullOrEmpty(account, nameof(account));
+            // ArgUtil.NotNullOrEmpty(account, nameof(account));
             ArgUtil.NotNullOrEmpty(serverUrl, nameof(serverUrl));
 
-            string aadAuthority;
-            string serverUrlHostName = new Uri(serverUrl).Host;
-            if (serverUrlHostName.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase) ||
-                serverUrlHostName.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase))
-            {
-                aadAuthority = "https://login.microsoftonline.com";
-            }
-            else if (serverUrlHostName.EndsWith(".vsts.io", StringComparison.OrdinalIgnoreCase) ||
-                     serverUrlHostName.Equals("codeapp.ms", StringComparison.OrdinalIgnoreCase) ||
-                     serverUrlHostName.EndsWith(".vsts.me", StringComparison.OrdinalIgnoreCase) ||
-                     serverUrlHostName.Equals("codedev.ms", StringComparison.OrdinalIgnoreCase))
-            {
-                aadAuthority = "https://login.windows-ppe.net";
-            }
-            else
+            // string aadAuthority;
+            // string serverUrlHostName = new Uri(serverUrl).Host;
+            // if (serverUrlHostName.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase) ||
+            //     serverUrlHostName.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase))
+            // {
+            //     aadAuthority = "https://login.microsoftonline.com";
+            // }
+            // else if (serverUrlHostName.EndsWith(".vsts.io", StringComparison.OrdinalIgnoreCase) ||
+            //          serverUrlHostName.Equals("codeapp.ms", StringComparison.OrdinalIgnoreCase) ||
+            //          serverUrlHostName.EndsWith(".vsts.me", StringComparison.OrdinalIgnoreCase) ||
+            //          serverUrlHostName.Equals("codedev.ms", StringComparison.OrdinalIgnoreCase))
+            // {
+            //     aadAuthority = "https://login.windows-ppe.net";
+            // }
+            // else
+            // {
+            //     throw new NotSupportedException($"Server url '{serverUrl}' is not support AAD login.");
+            // }
+
+            // trace.Info("AAD account: {account}");
+            // MailAddress email = new MailAddress(account);
+            LoggerCallbackHandler.Callback = new AadTrace(trace);
+            LoggerCallbackHandler.UseDefaultLogging = false;
+            var tenantUrl = GetAccountTenantUrl(context, serverUrl);
+            if (tenantUrl == null)
             {
                 throw new NotSupportedException($"Server url '{serverUrl}' is not support AAD login.");
             }
 
-            trace.Info("AAD account: {account}");
-            MailAddress email = new MailAddress(account);
-            LoggerCallbackHandler.Callback = new AadTrace(trace);
-            LoggerCallbackHandler.UseDefaultLogging = false;
-            AuthenticationContext ctx = new AuthenticationContext($"{aadAuthority}/{email.Host}");
+            AuthenticationContext ctx = new AuthenticationContext(tenantUrl.AbsoluteUri);
             AuthenticationResult authResult = null;
             DeviceCodeResult codeResult = null;
             var term = context.GetService<ITerminal>();
@@ -105,8 +114,33 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Tracing trace = context.GetTrace(nameof(AadDeviceCodeAccessToken));
             trace.Info(nameof(EnsureCredential));
             ArgUtil.NotNull(command, nameof(command));
-            CredentialData.Data[Constants.Agent.CommandLine.Args.Account] = command.GetAccount();
+            // CredentialData.Data[Constants.Agent.CommandLine.Args.Account] = command.GetAccount();
             CredentialData.Data[Constants.Agent.CommandLine.Args.Url] = serverUrl;
+        }
+
+        // MSA backed accounts will return Guid.Empty
+        private Uri GetAccountTenantUrl(IHostContext context, string serverUrl)
+        {
+            using (var client = new HttpClient(context.CreateHttpClientHandler()))
+            {
+                client.DefaultRequestHeaders.Accept.Clear();
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.DefaultRequestHeaders.Add("X-TFS-FedAuthRedirect", "Suppress");
+                HttpResponseMessage response = client.GetAsync($"{serverUrl.Trim('/')}/_apis/connectiondata").GetAwaiter().GetResult();
+
+                // Get the tenant from the Login URL
+                var bearerResult = response.Headers.WwwAuthenticate.Where(p => p.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                if (bearerResult != null && bearerResult.Parameter.StartsWith("authorization_uri=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var authorizationUri = bearerResult.Parameter.Substring("authorization_uri=".Length);
+                    if (Uri.TryCreate(authorizationUri, UriKind.Absolute, out Uri aadTenantUrl))
+                    {
+                        return aadTenantUrl;
+                    }
+                }
+
+                return null;
+            }
         }
 
         private class AadTrace : IAdalLogCallback
