@@ -3,7 +3,7 @@
   
 ## Bugs
   - Adding logic for handling an agent oauth token being revoked #1881
-
+  - Fix pinvoke for NtQueryInformationProcess (process env read). #1919
 ## Misc
   - N/A
 
