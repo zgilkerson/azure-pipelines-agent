@@ -14,6 +14,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 {
     public interface ICredentialProvider
     {
+        Boolean RequireInteractive { get; }
         CredentialData CredentialData { get; set; }
         VssCredentials GetVssCredentials(IHostContext context);
         void EnsureCredential(IHostContext context, CommandSettings command, string serverUrl);
@@ -27,6 +28,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             CredentialData.Scheme = scheme;
         }
 
+        public virtual Boolean RequireInteractive => false;
         public CredentialData CredentialData { get; set; }
 
         public abstract VssCredentials GetVssCredentials(IHostContext context);
@@ -35,6 +37,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
 
     public sealed class AadDeviceCodeAccessToken : CredentialProvider
     {
+        private string _azureDevOpsResourceId = "499b84ac-1321-427f-aa17-267ca6975798";
+        private string _azurePipelineAgentClientId = "872cd9fa-d31f-45e0-9eab-6e460a02d1f1";
+
+        public override Boolean RequireInteractive => true;
+
         public AadDeviceCodeAccessToken() : base(Constants.Configuration.AAD) { }
 
         public override VssCredentials GetVssCredentials(IHostContext context)
@@ -43,11 +50,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Tracing trace = context.GetTrace(nameof(AadDeviceCodeAccessToken));
             trace.Info(nameof(GetVssCredentials));
             ArgUtil.NotNull(CredentialData, nameof(CredentialData));
-            // string account;
-            // if (!CredentialData.Data.TryGetValue(Constants.Agent.CommandLine.Args.Account, out account))
-            // {
-            //     account = null;
-            // }
 
             string serverUrl;
             if (!CredentialData.Data.TryGetValue(Constants.Agent.CommandLine.Args.Url, out serverUrl))
@@ -55,43 +57,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 serverUrl = null;
             }
 
-            // ArgUtil.NotNullOrEmpty(account, nameof(account));
             ArgUtil.NotNullOrEmpty(serverUrl, nameof(serverUrl));
 
-            // string aadAuthority;
-            // string serverUrlHostName = new Uri(serverUrl).Host;
-            // if (serverUrlHostName.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase) ||
-            //     serverUrlHostName.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase))
-            // {
-            //     aadAuthority = "https://login.microsoftonline.com";
-            // }
-            // else if (serverUrlHostName.EndsWith(".vsts.io", StringComparison.OrdinalIgnoreCase) ||
-            //          serverUrlHostName.Equals("codeapp.ms", StringComparison.OrdinalIgnoreCase) ||
-            //          serverUrlHostName.EndsWith(".vsts.me", StringComparison.OrdinalIgnoreCase) ||
-            //          serverUrlHostName.Equals("codedev.ms", StringComparison.OrdinalIgnoreCase))
-            // {
-            //     aadAuthority = "https://login.windows-ppe.net";
-            // }
-            // else
-            // {
-            //     throw new NotSupportedException($"Server url '{serverUrl}' is not support AAD login.");
-            // }
-
-            // trace.Info("AAD account: {account}");
-            // MailAddress email = new MailAddress(account);
-            LoggerCallbackHandler.Callback = new AadTrace(trace);
-            LoggerCallbackHandler.UseDefaultLogging = false;
             var tenantUrl = GetAccountTenantUrl(context, serverUrl);
             if (tenantUrl == null)
             {
-                throw new NotSupportedException($"Server url '{serverUrl}' is not support AAD login.");
+                throw new NotSupportedException($"Server url '{serverUrl}' is not backed by Azure Active Directory.");
             }
 
+            LoggerCallbackHandler.Callback = new AadTrace(trace);
+            LoggerCallbackHandler.UseDefaultLogging = false;
             AuthenticationContext ctx = new AuthenticationContext(tenantUrl.AbsoluteUri);
             AuthenticationResult authResult = null;
             DeviceCodeResult codeResult = null;
             var term = context.GetService<ITerminal>();
-            codeResult = ctx.AcquireDeviceCodeAsync("499b84ac-1321-427f-aa17-267ca6975798", "872cd9fa-d31f-45e0-9eab-6e460a02d1f1").GetAwaiter().GetResult();
+            codeResult = ctx.AcquireDeviceCodeAsync(_azureDevOpsResourceId, _azurePipelineAgentClientId).GetAwaiter().GetResult();
             term.WriteLine($"You need to finish AAD device login flow. {codeResult.Message}");
 #if OS_WINDOWS
             Process.Start(new ProcessStartInfo() { FileName = codeResult.VerificationUrl, UseShellExecute = true });
@@ -101,6 +81,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Process.Start(new ProcessStartInfo() { FileName = "open", Arguments = codeResult.VerificationUrl, UseShellExecute = true });
 #endif
             authResult = ctx.AcquireTokenByDeviceCodeAsync(codeResult).GetAwaiter().GetResult();
+            ArgUtil.NotNull(authResult, nameof(authResult));
+            trace.Info($"receive AAD auth result with {authResult.AccessTokenType} token");
+
             var aadCred = new VssAadCredential(new VssAadToken(authResult));
             VssCredentials creds = new VssCredentials(null, aadCred, CredentialPromptType.DoNotPrompt);
             trace.Info("cred created");
@@ -114,11 +97,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
             Tracing trace = context.GetTrace(nameof(AadDeviceCodeAccessToken));
             trace.Info(nameof(EnsureCredential));
             ArgUtil.NotNull(command, nameof(command));
-            // CredentialData.Data[Constants.Agent.CommandLine.Args.Account] = command.GetAccount();
             CredentialData.Data[Constants.Agent.CommandLine.Args.Url] = serverUrl;
         }
 
-        // MSA backed accounts will return Guid.Empty
+        // MSA backed accounts will not return `Bearer` www-authenticate header.
         private Uri GetAccountTenantUrl(IHostContext context, string serverUrl)
         {
             using (var client = new HttpClient(context.CreateHttpClientHandler()))
@@ -126,7 +108,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Listener.Configuration
                 client.DefaultRequestHeaders.Accept.Clear();
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.DefaultRequestHeaders.Add("X-TFS-FedAuthRedirect", "Suppress");
-                HttpResponseMessage response = client.GetAsync($"{serverUrl.Trim('/')}/_apis/connectiondata").GetAwaiter().GetResult();
+                var requestMessage = new HttpRequestMessage(HttpMethod.Head, $"{serverUrl.Trim('/')}/_apis/connectiondata");
+                var response = client.SendAsync(requestMessage).GetAwaiter().GetResult();
 
                 // Get the tenant from the Login URL
                 var bearerResult = response.Headers.WwwAuthenticate.Where(p => p.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
