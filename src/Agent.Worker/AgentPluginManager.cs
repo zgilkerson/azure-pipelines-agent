@@ -33,7 +33,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             "Agent.Plugins.Repository.CheckoutTask, Agent.Plugins",
             "Agent.Plugins.Repository.CleanupTask, Agent.Plugins",
             "Agent.Plugins.PipelineArtifact.DownloadPipelineArtifactTask, Agent.Plugins",
-            "Agent.Plugins.PipelineArtifact.PublishPipelineArtifactTask, Agent.Plugins"
+            "Agent.Plugins.PipelineArtifact.PublishPipelineArtifactTask, Agent.Plugins",
+            "Agent.Plugins.TestResults.TestResultsPublisherPlugin, Agent.Plugins"
         };
 
         private readonly HashSet<string> _commandPlugins = new HashSet<string>();
