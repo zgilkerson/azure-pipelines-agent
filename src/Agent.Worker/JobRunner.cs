@@ -281,20 +281,23 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
 #if OS_WINDOWS
             bool retainDefaultEncoding = jobContext.Variables.GetBoolean(Constants.Variables.Agent.RetainDefaultEncoding) ?? false;
-            if (!retainDefaultEncoding) {
-                using (var p = HostContext.CreateService<IProcessInvoker>()) {
-                    int exitCode = p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Root),
+            if (!retainDefaultEncoding)
+            {
+                using (var p = HostContext.CreateService<IProcessInvoker>())
+                {
+                    int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
                                              fileName: WhichUtil.Which("chcp", true, Trace),
                                              arguments: "65001",
                                              environment: null,
-                                             cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
-                    if (exitCode == 0) {
+                                             cancellationToken: CancellationToken.None);
+                    if (exitCode == 0)
+                    {
                         Trace.Info("Successfully changed to code page 65001 (UTF8)");
                         Console.OutputEncoding = Encoding.UTF8;
                     }
                     else
                     {
-                        throw new InvalidOperationException($"'chcp 65001' failed with exit code {exitCode}");
+                        Trace.Warning($"'chcp 65001' failed with exit code {exitCode}");
                     }
                 }
             }
