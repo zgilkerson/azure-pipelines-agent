@@ -53,30 +53,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             ServiceEndpoint systemConnection = message.Resources.Endpoints.Single(x => string.Equals(x.Name, WellKnownServiceEndpointNames.SystemVssConnection, StringComparison.OrdinalIgnoreCase));
 
-#if OS_WINDOWS
-            // Agent.RetainDefaultEncoding
-            if (!message.Variables.ContainsKey(Constants.Variables.Agent.RetainDefaultEncoding) ||
-                !StringUtil.ConvertToBoolean(message.Variables[Constants.Variables.Agent.RetainDefaultEncoding].Value)) {
-                var cmd = new Process
-                {
-                    StartInfo =
-                    {
-                        FileName = "cmd.exe",
-                        RedirectStandardInput = true,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true,
-                        UseShellExecute = false
-                    }
-                };
-                cmd.Start();
-
-                cmd.StandardInput.WriteLine("chcp 65001");
-                cmd.StandardInput.Flush();
-                cmd.StandardInput.Close();
-                Console.OutputEncoding = Encoding.UTF8;
-            }
-#endif
-
             // System.AccessToken
             if (message.Variables.ContainsKey(Constants.Variables.System.EnableAccessToken) &&
                 StringUtil.ConvertToBoolean(message.Variables[Constants.Variables.System.EnableAccessToken].Value))
@@ -302,6 +278,27 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                         existingProcesses.Add($"{proc.Key}_{proc.Value.ProcessName}");
                     }
                 }
+
+#if OS_WINDOWS
+            bool retainDefaultEncoding = jobContext.Variables.GetBoolean(Constants.Variables.Agent.RetainDefaultEncoding) ?? false;
+            if (!retainDefaultEncoding) {
+                using (var p = HostContext.CreateService<IProcessInvoker>()) {
+                    int exitCode = p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Root),
+                                             fileName: WhichUtil.Which("chcp", true, Trace),
+                                             arguments: "65001",
+                                             environment: null,
+                                             cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
+                    if (exitCode == 0) {
+                        Trace.Info("Successfully changed to code page 65001 (UTF8)");
+                        Console.OutputEncoding = Encoding.UTF8;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"'chcp 65001' failed with exit code {exitCode}");
+                    }
+                }
+            }
+#endif
 
                 // Run all job steps
                 Trace.Info("Run all job steps.");
