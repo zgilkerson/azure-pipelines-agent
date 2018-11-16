@@ -280,7 +280,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 }
 
 #if OS_WINDOWS
-            bool retainDefaultEncoding = jobContext.Variables.GetBoolean(Constants.Variables.Agent.RetainDefaultEncoding) ?? true;
+            bool retainDefaultEncoding = jobContext.Variables.GetBoolean(Constants.Variables.Agent.RetainDefaultEncoding) ?? false;
             if (!retainDefaultEncoding)
             {
                 using (var p = HostContext.CreateService<IProcessInvoker>())

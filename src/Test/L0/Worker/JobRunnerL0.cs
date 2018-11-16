@@ -171,6 +171,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             using (TestHostContext hc = CreateTestContext())
             {
                 _message.Variables[Constants.Variables.Agent.Diagnostic] = "true";
+                _message.Variables[Constants.Variables.Agent.RetainDefaultEncoding] = "true";
 
                 await _jobRunner.RunAsync(_message, _tokenSource.Token);
 
@@ -189,6 +190,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             using (TestHostContext hc = CreateTestContext())
             {
                 _message.Variables[Constants.Variables.Agent.Diagnostic] = "false";
+                _message.Variables[Constants.Variables.Agent.RetainDefaultEncoding] = "true";
 
                 await _jobRunner.RunAsync(_message, _tokenSource.Token);
 
@@ -206,6 +208,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         {
             using (TestHostContext hc = CreateTestContext())
             {
+                _message.Variables[Constants.Variables.Agent.RetainDefaultEncoding] = "true";
+
                 await _jobRunner.RunAsync(_message, _tokenSource.Token);
 
                 _diagnosticLogManager.Verify(x => x.UploadDiagnosticLogsAsync(It.IsAny<IExecutionContext>(),
