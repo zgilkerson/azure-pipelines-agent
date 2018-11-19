@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Services.WebApi;
@@ -176,6 +177,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             ArgUtil.NotNull(ExecutionContext, nameof(ExecutionContext));
             ArgUtil.NotNull(Inputs, nameof(Inputs));
             ArgUtil.Directory(TaskDirectory, nameof(TaskDirectory));
+
+#if OS_WINDOWS
+            if (ExecutionContext.Variables.Retain_Default_Encoding != true)
+            {
+                Console.OutputEncoding = Encoding.GetEncoding(437);
+            }
+#endif
 
             // Resolve the target script.
             string target = GetTarget();
