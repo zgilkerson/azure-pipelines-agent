@@ -27,6 +27,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                Encoding outputEncoding,
                                bool killProcessOnCancel,
                                CancellationToken cancellationToken);
+
+        Task<int> ExecuteAsync(string workingDirectory,
+                               string fileName,
+                               string arguments,
+                               IDictionary<string, string> environment,
+                               bool requireExitCodeZero,
+                               Encoding outputEncoding,
+                               bool killProcessOnCancel,
+                               CancellationToken cancellationToken,
+                               bool persistChcp);
     }
 
     [ServiceLocator(Default = typeof(ContainerStepHost))]
@@ -50,7 +60,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             return path;
         }
 
-        public async Task<int> ExecuteAsync(string workingDirectory,
+        public Task<int> ExecuteAsync(string workingDirectory,
                                             string fileName,
                                             string arguments,
                                             IDictionary<string, string> environment,
@@ -58,6 +68,27 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                             Encoding outputEncoding,
                                             bool killProcessOnCancel,
                                             CancellationToken cancellationToken)
+        {
+            return ExecuteAsync(workingDirectory: workingDirectory,
+                                fileName: fileName,
+                                arguments: arguments,
+                                environment: environment,
+                                requireExitCodeZero: requireExitCodeZero,
+                                outputEncoding: outputEncoding,
+                                killProcessOnCancel: killProcessOnCancel,
+                                cancellationToken: cancellationToken,
+                                persistChcp: false);
+        }
+
+        public async Task<int> ExecuteAsync(string workingDirectory,
+                                            string fileName,
+                                            string arguments,
+                                            IDictionary<string, string> environment,
+                                            bool requireExitCodeZero,
+                                            Encoding outputEncoding,
+                                            bool killProcessOnCancel,
+                                            CancellationToken cancellationToken,
+                                            bool persistChcp)
         {
             using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
             {
@@ -71,7 +102,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                          requireExitCodeZero: requireExitCodeZero,
                                                          outputEncoding: outputEncoding,
                                                          killProcessOnCancel: killProcessOnCancel,
-                                                         cancellationToken: cancellationToken);
+                                                         contentsToStandardIn: null,
+                                                         cancellationToken: cancellationToken,
+                                                         persistChcp: persistChcp);
             }
         }
     }
@@ -115,7 +148,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             }
         }
 
-        public async Task<int> ExecuteAsync(string workingDirectory,
+        public Task<int> ExecuteAsync(string workingDirectory,
                                             string fileName,
                                             string arguments,
                                             IDictionary<string, string> environment,
@@ -123,6 +156,28 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                             Encoding outputEncoding,
                                             bool killProcessOnCancel,
                                             CancellationToken cancellationToken)
+        {
+            return ExecuteAsync(
+                workingDirectory: workingDirectory,
+                fileName: fileName,
+                arguments: arguments,
+                environment: environment,
+                requireExitCodeZero: requireExitCodeZero,
+                outputEncoding: outputEncoding,
+                killProcessOnCancel: killProcessOnCancel,
+                cancellationToken: cancellationToken,
+                persistChcp: false);
+        }
+
+        public async Task<int> ExecuteAsync(string workingDirectory,
+                                            string fileName,
+                                            string arguments,
+                                            IDictionary<string, string> environment,
+                                            bool requireExitCodeZero,
+                                            Encoding outputEncoding,
+                                            bool killProcessOnCancel,
+                                            CancellationToken cancellationToken,
+                                            bool persistChcp)
         {
             // make sure container exist.
             ArgUtil.NotNull(Container, nameof(Container));
@@ -180,7 +235,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                          outputEncoding: outputEncoding,
                                                          killProcessOnCancel: killProcessOnCancel,
                                                          contentsToStandardIn: new List<string>() { JsonUtility.ToString(payload) },
-                                                         cancellationToken: cancellationToken);
+                                                         cancellationToken: cancellationToken,
+                                                         persistChcp: persistChcp);
             }
         }
 

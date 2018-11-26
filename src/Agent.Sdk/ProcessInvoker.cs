@@ -142,7 +142,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
                 cancellationToken: cancellationToken);
         }
 
-        public async Task<int> ExecuteAsync(
+        public Task<int> ExecuteAsync(
             string workingDirectory,
             string fileName,
             string arguments,
@@ -152,6 +152,31 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
             bool killProcessOnCancel,
             IList<string> contentsToStandardIn,
             CancellationToken cancellationToken)
+        {
+            return ExecuteAsync(
+                workingDirectory: workingDirectory,
+                fileName: fileName,
+                arguments: arguments,
+                environment: environment,
+                requireExitCodeZero: requireExitCodeZero,
+                outputEncoding: outputEncoding,
+                killProcessOnCancel: killProcessOnCancel,
+                contentsToStandardIn: contentsToStandardIn,
+                cancellationToken: cancellationToken,
+                persistChcp: false);
+        }
+
+        public async Task<int> ExecuteAsync(
+            string workingDirectory,
+            string fileName,
+            string arguments,
+            IDictionary<string, string> environment,
+            bool requireExitCodeZero,
+            Encoding outputEncoding,
+            bool killProcessOnCancel,
+            IList<string> contentsToStandardIn,
+            CancellationToken cancellationToken,
+            bool persistChcp)
         {
             ArgUtil.Null(_proc, nameof(_proc));
             ArgUtil.NotNullOrEmpty(fileName, nameof(fileName));
@@ -164,13 +189,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
             Trace.Info($"  Encoding web name: {outputEncoding?.WebName} ; code page: '{outputEncoding?.CodePage}'");
             Trace.Info($"  Force kill process on cancellation: '{killProcessOnCancel}'");
             Trace.Info($"  Lines to send through STDIN: '{contentsToStandardIn?.Count ?? 0}'");
+            Trace.Info($"  Persist Chcp: '{persistChcp}'");
 
             _proc = new Process();
             _proc.StartInfo.FileName = fileName;
             _proc.StartInfo.Arguments = arguments;
             _proc.StartInfo.WorkingDirectory = workingDirectory;
             _proc.StartInfo.UseShellExecute = false;
-            _proc.StartInfo.CreateNoWindow = true;
+            _proc.StartInfo.CreateNoWindow = !persistChcp;
+
             _proc.StartInfo.RedirectStandardInput = true;
             _proc.StartInfo.RedirectStandardError = true;
             _proc.StartInfo.RedirectStandardOutput = true;

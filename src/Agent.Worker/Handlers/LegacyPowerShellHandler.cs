@@ -178,12 +178,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             ArgUtil.NotNull(Inputs, nameof(Inputs));
             ArgUtil.Directory(TaskDirectory, nameof(TaskDirectory));
 
-#if OS_WINDOWS
-            if (ExecutionContext.Variables.Retain_Default_Encoding != true)
-            {
-                Console.OutputEncoding = Encoding.GetEncoding(437);
-            }
-#endif
+// #if OS_WINDOWS
+//             if (ExecutionContext.Variables.Retain_Default_Encoding != true)
+//             {
+//                 Console.OutputEncoding = Encoding.GetEncoding(437);
+//             }
+// #endif
 
             // Resolve the target script.
             string target = GetTarget();
@@ -230,6 +230,36 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 processInvoker.OutputDataReceived += OnDataReceived;
                 processInvoker.ErrorDataReceived += OnDataReceived;
 
+                bool persistChcp = false;
+#if OS_WINDOWS
+                if (ExecutionContext.Variables.Retain_Default_Encoding != true)
+                {
+                    // Make sure code page is UTF8 so that special characters in Linuxy things are caught.
+                    using (var p = HostContext.CreateService<IProcessInvoker>())
+                    {
+                        int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
+                                                fileName: WhichUtil.Which("chcp", true, Trace),
+                                                arguments: "65001",
+                                                environment: null,
+                                                requireExitCodeZero: false,
+                                                outputEncoding: null,
+                                                killProcessOnCancel: false,
+                                                contentsToStandardIn: null,
+                                                cancellationToken: ExecutionContext.CancellationToken,
+                                                persistChcp: true);
+                        if (exitCode == 0)
+                        {
+                            Trace.Info("Successfully changed to code page 65001 (UTF8)");
+                            persistChcp = true;
+                        }
+                        else
+                        {
+                            Trace.Warning($"'chcp 65001' failed with exit code {exitCode}");
+                        }
+                    }
+                }
+#endif
+
                 try
                 {
                     String vstsPSHostExe = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.LegacyPSHost), "LegacyVSTSPowerShellHost.exe");
@@ -240,7 +270,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                                        requireExitCodeZero: false,
                                                                        outputEncoding: null,
                                                                        killProcessOnCancel: false,
-                                                                       cancellationToken: ExecutionContext.CancellationToken);
+                                                                       contentsToStandardIn: null,
+                                                                       cancellationToken: ExecutionContext.CancellationToken,
+                                                                       persistChcp: persistChcp);
 
                     // the exit code from vstsPSHost.exe indicate how many error record we get during execution
                     // -1 exit code means infrastructure failure of Host itself.
@@ -269,6 +301,33 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 {
                     processInvoker.OutputDataReceived -= OnDataReceived;
                     processInvoker.ErrorDataReceived -= OnDataReceived;
+#if OS_WINDOWS
+                    if (ExecutionContext.Variables.Retain_Default_Encoding != true)
+                    {
+                        // Return to default code page
+                        using (var p = HostContext.CreateService<IProcessInvoker>())
+                        {
+                            int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
+                                                    fileName: WhichUtil.Which("chcp", true, Trace),
+                                                    arguments: "437",
+                                                    environment: null,
+                                                    requireExitCodeZero: false,
+                                                    outputEncoding: null,
+                                                    killProcessOnCancel: false,
+                                                    contentsToStandardIn: null,
+                                                    cancellationToken: ExecutionContext.CancellationToken,
+                                                    persistChcp: true);
+                            if (exitCode == 0)
+                            {
+                                Trace.Info("Successfully returned to code page 437 (UTF8)");
+                            }
+                            else
+                            {
+                                Trace.Warning($"'chcp 437' failed with exit code {exitCode}");
+                            }
+                        }
+                    }
+#endif
                 }
             }
         }
