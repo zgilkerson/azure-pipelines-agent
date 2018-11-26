@@ -1,9 +1,6 @@
 ﻿using Microsoft.VisualStudio.Services.Agent.Util;
-using System;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
-using System.Diagnostics;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 {
@@ -25,7 +22,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             ArgUtil.NotNull(ExecutionContext, nameof(ExecutionContext));
             ArgUtil.NotNull(Inputs, nameof(Inputs));
             ArgUtil.Directory(TaskDirectory, nameof(TaskDirectory));
-
 
             // Update the env dictionary.
             AddInputsToEnvironment();
@@ -59,6 +55,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             // Invoke the process.
             StepHost.OutputDataReceived += OnDataReceived;
             StepHost.ErrorDataReceived += OnDataReceived;
+
             bool persistChcp = false;
 #if OS_WINDOWS
             if (ExecutionContext.Variables.Retain_Default_Encoding != true)
@@ -88,6 +85,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 }
             }
 #endif
+
             // Execute the process. Exit code 0 should always be returned.
             // A non-zero exit code indicates infrastructural failure.
             // Task failure should be communicated over STDOUT using ## commands.

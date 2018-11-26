@@ -34,13 +34,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             ArgUtil.NotNull(Inputs, nameof(Inputs));
             ArgUtil.Directory(TaskDirectory, nameof(TaskDirectory));
 
-// #if OS_WINDOWS
-//             if (ExecutionContext.Variables.Retain_Default_Encoding != true)
-//             {
-//                 Console.OutputEncoding = Encoding.GetEncoding(437);
-//             }
-// #endif
-
             // Update the env dictionary.
             AddVariablesToEnvironment(excludeNames: true, excludeSecrets: true);
             AddPrependPathToEnvironment();
