@@ -50,6 +50,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
             // Get the script file.
             string scriptFile = null;
+            int currentCodePage = Console.InputEncoding.CodePage;
             try
             {
                 if (string.Equals(Data.ScriptType, InlineScriptType, StringComparison.OrdinalIgnoreCase))
@@ -135,7 +136,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 ExecutionContext.Debug($"{powerShellExe} {powerShellExeArgs}");
                 ExecutionContext.Command(nestedExpression);
 
-                bool persistChcp = false;
+                bool inheritConsoleHandler = false;
 #if OS_WINDOWS
                 if (ExecutionContext.Variables.Retain_Default_Encoding != true)
                 {
@@ -151,11 +152,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                 killProcessOnCancel: false,
                                                 contentsToStandardIn: null,
                                                 cancellationToken: ExecutionContext.CancellationToken,
-                                                persistChcp: true);
+                                                inheritConsoleHandler: true);
                         if (exitCode == 0)
                         {
                             Trace.Info("Successfully changed to code page 65001 (UTF8)");
-                            persistChcp = true;
+                            inheritConsoleHandler = true;
                         }
                         else
                         {
@@ -179,7 +180,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                         killProcessOnCancel: false,
                         contentsToStandardIn: null,
                         cancellationToken: ExecutionContext.CancellationToken,
-                        persistChcp: persistChcp);
+                        inheritConsoleHandler: inheritConsoleHandler);
                     FlushErrorData();
 
                     // Fail on error count.
@@ -226,14 +227,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                     {
                         int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
                                                 fileName: WhichUtil.Which("chcp", true, Trace),
-                                                arguments: "437",
+                                                arguments: currentCodePage.ToString(),
                                                 environment: null,
                                                 requireExitCodeZero: false,
                                                 outputEncoding: null,
                                                 killProcessOnCancel: false,
                                                 contentsToStandardIn: null,
                                                 cancellationToken: ExecutionContext.CancellationToken,
-                                                persistChcp: true);
+                                                inheritConsoleHandler: true);
                         if (exitCode == 0)
                         {
                             Trace.Info("Successfully returned to code page 437 (UTF8)");

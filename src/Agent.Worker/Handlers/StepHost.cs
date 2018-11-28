@@ -36,7 +36,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                Encoding outputEncoding,
                                bool killProcessOnCancel,
                                CancellationToken cancellationToken,
-                               bool persistChcp);
+                               bool inheritConsoleHandler);
     }
 
     [ServiceLocator(Default = typeof(ContainerStepHost))]
@@ -77,7 +77,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                 outputEncoding: outputEncoding,
                                 killProcessOnCancel: killProcessOnCancel,
                                 cancellationToken: cancellationToken,
-                                persistChcp: false);
+                                inheritConsoleHandler: false);
         }
 
         public async Task<int> ExecuteAsync(string workingDirectory,
@@ -88,7 +88,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                             Encoding outputEncoding,
                                             bool killProcessOnCancel,
                                             CancellationToken cancellationToken,
-                                            bool persistChcp)
+                                            bool inheritConsoleHandler)
         {
             using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
             {
@@ -104,7 +104,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                          killProcessOnCancel: killProcessOnCancel,
                                                          contentsToStandardIn: null,
                                                          cancellationToken: cancellationToken,
-                                                         persistChcp: persistChcp);
+                                                         inheritConsoleHandler: inheritConsoleHandler);
             }
         }
     }
@@ -166,7 +166,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 outputEncoding: outputEncoding,
                 killProcessOnCancel: killProcessOnCancel,
                 cancellationToken: cancellationToken,
-                persistChcp: false);
+                inheritConsoleHandler: false);
         }
 
         public async Task<int> ExecuteAsync(string workingDirectory,
@@ -177,7 +177,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                             Encoding outputEncoding,
                                             bool killProcessOnCancel,
                                             CancellationToken cancellationToken,
-                                            bool persistChcp)
+                                            bool inheritConsoleHandler)
         {
             // make sure container exist.
             ArgUtil.NotNull(Container, nameof(Container));
@@ -236,7 +236,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                          killProcessOnCancel: killProcessOnCancel,
                                                          contentsToStandardIn: new List<string>() { JsonUtility.ToString(payload) },
                                                          cancellationToken: cancellationToken,
-                                                         persistChcp: persistChcp);
+                                                         inheritConsoleHandler: inheritConsoleHandler);
             }
         }
 

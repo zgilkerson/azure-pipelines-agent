@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualStudio.Services.Agent.Util;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -56,7 +57,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             StepHost.OutputDataReceived += OnDataReceived;
             StepHost.ErrorDataReceived += OnDataReceived;
 
-            bool persistChcp = false;
+            bool inheritConsoleHandler = false;
+            int currentCodePage = Console.InputEncoding.CodePage;
 #if OS_WINDOWS
             if (ExecutionContext.Variables.Retain_Default_Encoding != true)
             {
@@ -72,11 +74,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                              killProcessOnCancel: false,
                                              contentsToStandardIn: null,
                                              cancellationToken: ExecutionContext.CancellationToken,
-                                             persistChcp: true);
+                                             inheritConsoleHandler: true);
                     if (exitCode == 0)
                     {
                         Trace.Info("Successfully changed to code page 65001 (UTF8)");
-                        persistChcp = true;
+                        inheritConsoleHandler = true;
                     }
                     else
                     {
@@ -97,7 +99,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                         outputEncoding: null,
                                         killProcessOnCancel: false,
                                         cancellationToken: ExecutionContext.CancellationToken,
-                                        persistChcp: persistChcp);
+                                        inheritConsoleHandler: inheritConsoleHandler);
 
 #if OS_WINDOWS
             if (ExecutionContext.Variables.Retain_Default_Encoding != true)
@@ -107,14 +109,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                     // Return to default code page
                     int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
                                              fileName: WhichUtil.Which("chcp", true, Trace),
-                                             arguments: "437",
+                                             arguments: currentCodePage.ToString(),
                                              environment: null,
                                              requireExitCodeZero: false,
                                              outputEncoding: null,
                                              killProcessOnCancel: false,
                                              contentsToStandardIn: null,
                                              cancellationToken: ExecutionContext.CancellationToken,
-                                             persistChcp: true);
+                                             inheritConsoleHandler: true);
                     if (exitCode == 0)
                     {
                         Trace.Info("Successfully returned to code page 437 (UTF8)");

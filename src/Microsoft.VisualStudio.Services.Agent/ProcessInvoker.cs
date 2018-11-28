@@ -68,7 +68,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             bool killProcessOnCancel,
             IList<string> contentsToStandardIn,
             CancellationToken cancellationToken,
-            bool persistChcp);
+            bool inheritConsoleHandler);
     }
 
     // The implementation of the process invoker does not hook up DataReceivedEvent and ErrorReceivedEvent of Process,
@@ -189,7 +189,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 killProcessOnCancel: killProcessOnCancel,
                 contentsToStandardIn: contentsToStandardIn,
                 cancellationToken: cancellationToken,
-                persistChcp: false
+                inheritConsoleHandler: false
             );
         }
 
@@ -203,7 +203,7 @@ namespace Microsoft.VisualStudio.Services.Agent
             bool killProcessOnCancel,
             IList<string> contentsToStandardIn,
             CancellationToken cancellationToken,
-            bool persistChcp)
+            bool inheritConsoleHandler)
         {
             _invoker.ErrorDataReceived += this.ErrorDataReceived;
             _invoker.OutputDataReceived += this.OutputDataReceived;
@@ -217,7 +217,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 killProcessOnCancel,
                 contentsToStandardIn,
                 cancellationToken,
-                persistChcp);
+                inheritConsoleHandler);
         }
 
         public void Dispose()

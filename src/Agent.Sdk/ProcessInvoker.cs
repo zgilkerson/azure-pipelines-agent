@@ -163,7 +163,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
                 killProcessOnCancel: killProcessOnCancel,
                 contentsToStandardIn: contentsToStandardIn,
                 cancellationToken: cancellationToken,
-                persistChcp: false);
+                inheritConsoleHandler: false);
         }
 
         public async Task<int> ExecuteAsync(
@@ -176,7 +176,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
             bool killProcessOnCancel,
             IList<string> contentsToStandardIn,
             CancellationToken cancellationToken,
-            bool persistChcp)
+            bool inheritConsoleHandler)
         {
             ArgUtil.Null(_proc, nameof(_proc));
             ArgUtil.NotNullOrEmpty(fileName, nameof(fileName));
@@ -189,14 +189,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
             Trace.Info($"  Encoding web name: {outputEncoding?.WebName} ; code page: '{outputEncoding?.CodePage}'");
             Trace.Info($"  Force kill process on cancellation: '{killProcessOnCancel}'");
             Trace.Info($"  Lines to send through STDIN: '{contentsToStandardIn?.Count ?? 0}'");
-            Trace.Info($"  Persist Chcp: '{persistChcp}'");
+            Trace.Info($"  Persist Chcp: '{inheritConsoleHandler}'");
 
             _proc = new Process();
             _proc.StartInfo.FileName = fileName;
             _proc.StartInfo.Arguments = arguments;
             _proc.StartInfo.WorkingDirectory = workingDirectory;
             _proc.StartInfo.UseShellExecute = false;
-            _proc.StartInfo.CreateNoWindow = !persistChcp;
+            _proc.StartInfo.CreateNoWindow = !inheritConsoleHandler;
 
             _proc.StartInfo.RedirectStandardInput = true;
             _proc.StartInfo.RedirectStandardError = true;

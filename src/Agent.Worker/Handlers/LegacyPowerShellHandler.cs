@@ -177,7 +177,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             ArgUtil.NotNull(Inputs, nameof(Inputs));
             ArgUtil.Directory(TaskDirectory, nameof(TaskDirectory));
 
-
             // Resolve the target script.
             string target = GetTarget();
             ArgUtil.NotNullOrEmpty(target, nameof(target));
@@ -223,7 +222,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 processInvoker.OutputDataReceived += OnDataReceived;
                 processInvoker.ErrorDataReceived += OnDataReceived;
 
-                bool persistChcp = false;
+                bool inheritConsoleHandler = false;
+                int currentCodePage = Console.InputEncoding.CodePage;
 #if OS_WINDOWS
                 if (ExecutionContext.Variables.Retain_Default_Encoding != true)
                 {
@@ -239,11 +239,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                 killProcessOnCancel: false,
                                                 contentsToStandardIn: null,
                                                 cancellationToken: ExecutionContext.CancellationToken,
-                                                persistChcp: true);
+                                                inheritConsoleHandler: true);
                         if (exitCode == 0)
                         {
                             Trace.Info("Successfully changed to code page 65001 (UTF8)");
-                            persistChcp = true;
+                            inheritConsoleHandler = true;
                         }
                         else
                         {
@@ -265,7 +265,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                                        killProcessOnCancel: false,
                                                                        contentsToStandardIn: null,
                                                                        cancellationToken: ExecutionContext.CancellationToken,
-                                                                       persistChcp: persistChcp);
+                                                                       inheritConsoleHandler: inheritConsoleHandler);
 
                     // the exit code from vstsPSHost.exe indicate how many error record we get during execution
                     // -1 exit code means infrastructure failure of Host itself.
@@ -302,14 +302,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                         {
                             int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
                                                     fileName: WhichUtil.Which("chcp", true, Trace),
-                                                    arguments: "437",
+                                                    arguments: currentCodePage.ToString(),
                                                     environment: null,
                                                     requireExitCodeZero: false,
                                                     outputEncoding: null,
                                                     killProcessOnCancel: false,
                                                     contentsToStandardIn: null,
                                                     cancellationToken: ExecutionContext.CancellationToken,
-                                                    persistChcp: true);
+                                                    inheritConsoleHandler: true);
                             if (exitCode == 0)
                             {
                                 Trace.Info("Successfully returned to code page 437 (UTF8)");
