@@ -50,7 +50,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
             // Get the script file.
             string scriptFile = null;
-            int currentCodePage = Console.InputEncoding.CodePage;
             try
             {
                 if (string.Equals(Data.ScriptType, InlineScriptType, StringComparison.OrdinalIgnoreCase))

@@ -370,7 +370,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
  #if OS_WINDOWS
                     if (jobContext.Variables.Retain_Default_Encoding != true && defaultCodePage != Console.InputEncoding.CodePage)
                     {
-                        // Make sure code page is UTF8 so that special characters in Linuxy things are caught.
+                        // Return to default code page for future jobs
                         using (var p = HostContext.CreateService<IProcessInvoker>())
                         {
                             int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
