@@ -26,15 +26,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                bool requireExitCodeZero,
                                Encoding outputEncoding,
                                bool killProcessOnCancel,
-                               CancellationToken cancellationToken);
-
-        Task<int> ExecuteAsync(string workingDirectory,
-                               string fileName,
-                               string arguments,
-                               IDictionary<string, string> environment,
-                               bool requireExitCodeZero,
-                               Encoding outputEncoding,
-                               bool killProcessOnCancel,
                                CancellationToken cancellationToken,
                                bool inheritConsoleHandler);
     }
@@ -58,26 +49,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
         public string ResolvePathForStepHost(string path)
         {
             return path;
-        }
-
-        public Task<int> ExecuteAsync(string workingDirectory,
-                                            string fileName,
-                                            string arguments,
-                                            IDictionary<string, string> environment,
-                                            bool requireExitCodeZero,
-                                            Encoding outputEncoding,
-                                            bool killProcessOnCancel,
-                                            CancellationToken cancellationToken)
-        {
-            return ExecuteAsync(workingDirectory: workingDirectory,
-                                fileName: fileName,
-                                arguments: arguments,
-                                environment: environment,
-                                requireExitCodeZero: requireExitCodeZero,
-                                outputEncoding: outputEncoding,
-                                killProcessOnCancel: killProcessOnCancel,
-                                cancellationToken: cancellationToken,
-                                inheritConsoleHandler: false);
         }
 
         public async Task<int> ExecuteAsync(string workingDirectory,
@@ -146,27 +117,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             {
                 return Path.GetFileName(path);
             }
-        }
-
-        public Task<int> ExecuteAsync(string workingDirectory,
-                                            string fileName,
-                                            string arguments,
-                                            IDictionary<string, string> environment,
-                                            bool requireExitCodeZero,
-                                            Encoding outputEncoding,
-                                            bool killProcessOnCancel,
-                                            CancellationToken cancellationToken)
-        {
-            return ExecuteAsync(
-                workingDirectory: workingDirectory,
-                fileName: fileName,
-                arguments: arguments,
-                environment: environment,
-                requireExitCodeZero: requireExitCodeZero,
-                outputEncoding: outputEncoding,
-                killProcessOnCancel: killProcessOnCancel,
-                cancellationToken: cancellationToken,
-                inheritConsoleHandler: false);
         }
 
         public async Task<int> ExecuteAsync(string workingDirectory,
