@@ -115,6 +115,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             Encoding outputEncoding = null;
 #endif
 
+                bool inheritConsoleHandler = false;
+#if OS_WINDOWS
+                if (ExecutionContext.Variables.Retain_Default_Encoding != true)
+                {
+                    inheritConsoleHandler = true;
+                }
+#endif
+
             // Execute the process. Exit code 0 should always be returned.
             // A non-zero exit code indicates infrastructural failure.
             // Task failure should be communicated over STDOUT using ## commands.
@@ -125,7 +133,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                               requireExitCodeZero: true,
                                               outputEncoding: outputEncoding,
                                               killProcessOnCancel: false,
-                                              cancellationToken: ExecutionContext.CancellationToken);
+                                              cancellationToken: ExecutionContext.CancellationToken,
+                                              inheritConsoleHandler: inheritConsoleHandler);
 
             // Wait for either the node exit or force finish through ##vso command
             await System.Threading.Tasks.Task.WhenAny(step, ExecutionContext.ForceCompleted);

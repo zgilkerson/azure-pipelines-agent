@@ -57,35 +57,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             StepHost.OutputDataReceived += OnDataReceived;
             StepHost.ErrorDataReceived += OnDataReceived;
 
-            bool inheritConsoleHandler = false;
-            int currentCodePage = Console.InputEncoding.CodePage;
+                bool inheritConsoleHandler = false;
 #if OS_WINDOWS
-            if (ExecutionContext.Variables.Retain_Default_Encoding != true)
-            {
-                // Make sure code page is UTF8 so that special characters in Linuxy things are caught.
-                using (var p = HostContext.CreateService<IProcessInvoker>())
+                if (ExecutionContext.Variables.Retain_Default_Encoding != true)
                 {
-                    int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
-                                             fileName: WhichUtil.Which("chcp", true, Trace),
-                                             arguments: "65001",
-                                             environment: null,
-                                             requireExitCodeZero: false,
-                                             outputEncoding: null,
-                                             killProcessOnCancel: false,
-                                             contentsToStandardIn: null,
-                                             cancellationToken: ExecutionContext.CancellationToken,
-                                             inheritConsoleHandler: true);
-                    if (exitCode == 0)
-                    {
-                        Trace.Info("Successfully changed to code page 65001 (UTF8)");
-                        inheritConsoleHandler = true;
-                    }
-                    else
-                    {
-                        Trace.Warning($"'chcp 65001' failed with exit code {exitCode}");
-                    }
+                    inheritConsoleHandler = true;
                 }
-            }
 #endif
 
             // Execute the process. Exit code 0 should always be returned.
@@ -100,34 +77,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                         killProcessOnCancel: false,
                                         cancellationToken: ExecutionContext.CancellationToken,
                                         inheritConsoleHandler: inheritConsoleHandler);
-
-#if OS_WINDOWS
-            if (ExecutionContext.Variables.Retain_Default_Encoding != true)
-            {
-                using (var p = HostContext.CreateService<IProcessInvoker>())
-                {
-                    // Return to default code page
-                    int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
-                                             fileName: WhichUtil.Which("chcp", true, Trace),
-                                             arguments: currentCodePage.ToString(),
-                                             environment: null,
-                                             requireExitCodeZero: false,
-                                             outputEncoding: null,
-                                             killProcessOnCancel: false,
-                                             contentsToStandardIn: null,
-                                             cancellationToken: ExecutionContext.CancellationToken,
-                                             inheritConsoleHandler: true);
-                    if (exitCode == 0)
-                    {
-                        Trace.Info("Successfully returned to code page 437 (UTF8)");
-                    }
-                    else
-                    {
-                        Trace.Warning($"'chcp 437' failed with exit code {exitCode}");
-                    }
-                }
-            }
-#endif
         }
 
         private void OnDataReceived(object sender, ProcessDataReceivedEventArgs e)
