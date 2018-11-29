@@ -337,7 +337,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                                 }
                             }
                         }
-                    }              
+                    }
                 }
 
                 Trace.Info($"Job result after all job steps finish: {jobContext.Result ?? TaskResult.Succeeded}");

@@ -206,7 +206,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             {
                 using (var p = HostContext.CreateService<IProcessInvoker>())
                 {
-                    // Return to UTF8 code page
+                    // Use UTF8 code page
                     int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
                                             fileName: WhichUtil.Which("chcp", true, Trace),
                                             arguments: "65001",

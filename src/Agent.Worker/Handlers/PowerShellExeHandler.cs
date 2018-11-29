@@ -134,7 +134,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 // Invoke the process.
                 ExecutionContext.Debug($"{powerShellExe} {powerShellExeArgs}");
                 ExecutionContext.Command(nestedExpression);
-
                 using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
                 {
                     processInvoker.OutputDataReceived += OnOutputDataReceived;
