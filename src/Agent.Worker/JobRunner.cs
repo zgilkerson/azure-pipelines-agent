@@ -279,35 +279,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     }
                 }
 
-#if OS_WINDOWS
-                int defaultCodePage = Console.InputEncoding.CodePage;
-                if (jobContext.Variables.Retain_Default_Encoding != true)
-                {
-                    // Make sure code page is UTF8 so that special characters in Linuxy things are caught.
-                    using (var p = HostContext.CreateService<IProcessInvoker>())
-                    {
-                        int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
-                                                fileName: WhichUtil.Which("chcp", true, Trace),
-                                                arguments: "65001",
-                                                environment: null,
-                                                requireExitCodeZero: false,
-                                                outputEncoding: null,
-                                                killProcessOnCancel: false,
-                                                contentsToStandardIn: null,
-                                                cancellationToken: jobContext.CancellationToken,
-                                                inheritConsoleHandler: true);
-                        if (exitCode == 0)
-                        {
-                            Trace.Info("Successfully changed to code page 65001 (UTF8)");
-                        }
-                        else
-                        {
-                            Trace.Warning($"'chcp 65001' failed with exit code {exitCode}");
-                        }
-                    }
-                }
-#endif
-
                 // Run all job steps
                 Trace.Info("Run all job steps.");
                 var stepsRunner = HostContext.GetService<IStepsRunner>();
@@ -366,34 +337,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                                 }
                             }
                         }
-                    }
- #if OS_WINDOWS
-                    if (jobContext.Variables.Retain_Default_Encoding != true && defaultCodePage != Console.InputEncoding.CodePage)
-                    {
-                        // Return to default code page for future jobs
-                        using (var p = HostContext.CreateService<IProcessInvoker>())
-                        {
-                            int exitCode = await p.ExecuteAsync(workingDirectory: HostContext.GetDirectory(WellKnownDirectory.Work),
-                                                    fileName: WhichUtil.Which("chcp", true, Trace),
-                                                    arguments: defaultCodePage.ToString(),
-                                                    environment: null,
-                                                    requireExitCodeZero: false,
-                                                    outputEncoding: null,
-                                                    killProcessOnCancel: false,
-                                                    contentsToStandardIn: null,
-                                                    cancellationToken: jobContext.CancellationToken,
-                                                    inheritConsoleHandler: true);
-                            if (exitCode == 0)
-                            {
-                                Trace.Info("Successfully returned code page to default");
-                            }
-                            else
-                            {
-                                Trace.Warning($"chcp failed to return code page to default with exit code {exitCode}. This could impact other jobs on this agent.");
-                            }
-                        }
-                    }
-#endif                   
+                    }              
                 }
 
                 Trace.Info($"Job result after all job steps finish: {jobContext.Result ?? TaskResult.Succeeded}");

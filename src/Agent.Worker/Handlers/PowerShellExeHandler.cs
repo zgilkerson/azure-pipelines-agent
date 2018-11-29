@@ -135,14 +135,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 ExecutionContext.Debug($"{powerShellExe} {powerShellExeArgs}");
                 ExecutionContext.Command(nestedExpression);
 
-                bool inheritConsoleHandler = false;
-#if OS_WINDOWS
-                if (ExecutionContext.Variables.Retain_Default_Encoding != true)
-                {
-                    inheritConsoleHandler = true;
-                }
-#endif
-
                 using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
                 {
                     processInvoker.OutputDataReceived += OnOutputDataReceived;
@@ -156,8 +148,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                         outputEncoding: null,
                         killProcessOnCancel: false,
                         contentsToStandardIn: null,
-                        cancellationToken: ExecutionContext.CancellationToken,
-                        inheritConsoleHandler: inheritConsoleHandler);
+                        inheritConsoleHandler: !ExecutionContext.Variables.Retain_Default_Encoding,
+                        cancellationToken: ExecutionContext.CancellationToken);
                     FlushErrorData();
 
                     // Fail on error count.

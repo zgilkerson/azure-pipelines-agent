@@ -117,53 +117,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
                 outputEncoding: outputEncoding,
                 killProcessOnCancel: false,
                 contentsToStandardIn: null,
+                inheritConsoleHandler: false,
                 cancellationToken: cancellationToken);
-        }
-
-        public Task<int> ExecuteAsync(
-            string workingDirectory,
-            string fileName,
-            string arguments,
-            IDictionary<string, string> environment,
-            bool requireExitCodeZero,
-            Encoding outputEncoding,
-            bool killProcessOnCancel,
-            CancellationToken cancellationToken)
-        {
-            return ExecuteAsync(
-                workingDirectory: workingDirectory,
-                fileName: fileName,
-                arguments: arguments,
-                environment: environment,
-                requireExitCodeZero: requireExitCodeZero,
-                outputEncoding: outputEncoding,
-                killProcessOnCancel: killProcessOnCancel,
-                contentsToStandardIn: null,
-                cancellationToken: cancellationToken);
-        }
-
-        public Task<int> ExecuteAsync(
-            string workingDirectory,
-            string fileName,
-            string arguments,
-            IDictionary<string, string> environment,
-            bool requireExitCodeZero,
-            Encoding outputEncoding,
-            bool killProcessOnCancel,
-            IList<string> contentsToStandardIn,
-            CancellationToken cancellationToken)
-        {
-            return ExecuteAsync(
-                workingDirectory: workingDirectory,
-                fileName: fileName,
-                arguments: arguments,
-                environment: environment,
-                requireExitCodeZero: requireExitCodeZero,
-                outputEncoding: outputEncoding,
-                killProcessOnCancel: killProcessOnCancel,
-                contentsToStandardIn: contentsToStandardIn,
-                cancellationToken: cancellationToken,
-                inheritConsoleHandler: false);
         }
 
         public async Task<int> ExecuteAsync(
@@ -175,8 +130,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
             Encoding outputEncoding,
             bool killProcessOnCancel,
             IList<string> contentsToStandardIn,
-            CancellationToken cancellationToken,
-            bool inheritConsoleHandler)
+            bool inheritConsoleHandler,
+            CancellationToken cancellationToken)
         {
             ArgUtil.Null(_proc, nameof(_proc));
             ArgUtil.NotNullOrEmpty(fileName, nameof(fileName));
@@ -189,7 +144,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
             Trace.Info($"  Encoding web name: {outputEncoding?.WebName} ; code page: '{outputEncoding?.CodePage}'");
             Trace.Info($"  Force kill process on cancellation: '{killProcessOnCancel}'");
             Trace.Info($"  Lines to send through STDIN: '{contentsToStandardIn?.Count ?? 0}'");
-            Trace.Info($"  Persist Chcp: '{inheritConsoleHandler}'");
+            Trace.Info($"  Persist current code page: '{inheritConsoleHandler}'");
 
             _proc = new Process();
             _proc.StartInfo.FileName = fileName;
@@ -197,7 +152,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Util
             _proc.StartInfo.WorkingDirectory = workingDirectory;
             _proc.StartInfo.UseShellExecute = false;
             _proc.StartInfo.CreateNoWindow = !inheritConsoleHandler;
-
             _proc.StartInfo.RedirectStandardInput = true;
             _proc.StartInfo.RedirectStandardError = true;
             _proc.StartInfo.RedirectStandardOutput = true;

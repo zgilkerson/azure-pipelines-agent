@@ -67,8 +67,8 @@ namespace Microsoft.VisualStudio.Services.Agent
             Encoding outputEncoding,
             bool killProcessOnCancel,
             IList<string> contentsToStandardIn,
-            CancellationToken cancellationToken,
-            bool inheritConsoleHandler);
+            bool inheritConsoleHandler,
+            CancellationToken cancellationToken);
     }
 
     // The implementation of the process invoker does not hook up DataReceivedEvent and ErrorReceivedEvent of Process,
@@ -165,6 +165,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                 outputEncoding: outputEncoding,
                 killProcessOnCancel: killProcessOnCancel,
                 contentsToStandardIn: null,
+                inheritConsoleHandler: false,
                 cancellationToken: cancellationToken);
         }
 
@@ -188,8 +189,8 @@ namespace Microsoft.VisualStudio.Services.Agent
                 outputEncoding: outputEncoding,
                 killProcessOnCancel: killProcessOnCancel,
                 contentsToStandardIn: contentsToStandardIn,
-                cancellationToken: cancellationToken,
-                inheritConsoleHandler: false
+                inheritConsoleHandler: false,
+                cancellationToken: cancellationToken
             );
         }
 
@@ -202,8 +203,8 @@ namespace Microsoft.VisualStudio.Services.Agent
             Encoding outputEncoding,
             bool killProcessOnCancel,
             IList<string> contentsToStandardIn,
-            CancellationToken cancellationToken,
-            bool inheritConsoleHandler)
+            bool inheritConsoleHandler,
+            CancellationToken cancellationToken)
         {
             _invoker.ErrorDataReceived += this.ErrorDataReceived;
             _invoker.OutputDataReceived += this.OutputDataReceived;
@@ -216,8 +217,8 @@ namespace Microsoft.VisualStudio.Services.Agent
                 outputEncoding,
                 killProcessOnCancel,
                 contentsToStandardIn,
-                cancellationToken,
-                inheritConsoleHandler);
+                inheritConsoleHandler,
+                cancellationToken);
         }
 
         public void Dispose()

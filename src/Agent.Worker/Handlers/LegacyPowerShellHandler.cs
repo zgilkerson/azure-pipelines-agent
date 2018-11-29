@@ -222,14 +222,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 processInvoker.OutputDataReceived += OnDataReceived;
                 processInvoker.ErrorDataReceived += OnDataReceived;
 
-                bool inheritConsoleHandler = false;
-#if OS_WINDOWS
-                if (ExecutionContext.Variables.Retain_Default_Encoding != true)
-                {
-                    inheritConsoleHandler = true;
-                }
-#endif
-
                 try
                 {
                     String vstsPSHostExe = Path.Combine(HostContext.GetDirectory(WellKnownDirectory.LegacyPSHost), "LegacyVSTSPowerShellHost.exe");
@@ -241,8 +233,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                                        outputEncoding: null,
                                                                        killProcessOnCancel: false,
                                                                        contentsToStandardIn: null,
-                                                                       cancellationToken: ExecutionContext.CancellationToken,
-                                                                       inheritConsoleHandler: inheritConsoleHandler);
+                                                                       inheritConsoleHandler: !ExecutionContext.Variables.Retain_Default_Encoding,
+                                                                       cancellationToken: ExecutionContext.CancellationToken);
 
                     // the exit code from vstsPSHost.exe indicate how many error record we get during execution
                     // -1 exit code means infrastructure failure of Host itself.

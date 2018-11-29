@@ -56,14 +56,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             StepHost.OutputDataReceived += OnDataReceived;
             StepHost.ErrorDataReceived += OnDataReceived;
 
-                bool inheritConsoleHandler = false;
-#if OS_WINDOWS
-                if (ExecutionContext.Variables.Retain_Default_Encoding != true)
-                {
-                    inheritConsoleHandler = true;
-                }
-#endif
-
             // Execute the process. Exit code 0 should always be returned.
             // A non-zero exit code indicates infrastructural failure.
             // Task failure should be communicated over STDOUT using ## commands.
@@ -74,8 +66,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                         requireExitCodeZero: true,
                                         outputEncoding: null,
                                         killProcessOnCancel: false,
-                                        cancellationToken: ExecutionContext.CancellationToken,
-                                        inheritConsoleHandler: inheritConsoleHandler);
+                                        inheritConsoleHandler: !ExecutionContext.Variables.Retain_Default_Encoding,
+                                        cancellationToken: ExecutionContext.CancellationToken);
         }
 
         private void OnDataReceived(object sender, ProcessDataReceivedEventArgs e)
