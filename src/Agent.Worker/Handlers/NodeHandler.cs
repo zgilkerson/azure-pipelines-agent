@@ -133,8 +133,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                               requireExitCodeZero: true,
                                               outputEncoding: outputEncoding,
                                               killProcessOnCancel: false,
-                                              cancellationToken: ExecutionContext.CancellationToken,
-                                              inheritConsoleHandler: inheritConsoleHandler);
+                                              inheritConsoleHandler: inheritConsoleHandler,
+                                              cancellationToken: ExecutionContext.CancellationToken);
 
             // Wait for either the node exit or force finish through ##vso command
             await System.Threading.Tasks.Task.WhenAny(step, ExecutionContext.ForceCompleted);

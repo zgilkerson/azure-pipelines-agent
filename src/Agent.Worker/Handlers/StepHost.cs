@@ -185,8 +185,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                          outputEncoding: outputEncoding,
                                                          killProcessOnCancel: killProcessOnCancel,
                                                          contentsToStandardIn: new List<string>() { JsonUtility.ToString(payload) },
-                                                         cancellationToken: cancellationToken,
-                                                         inheritConsoleHandler: inheritConsoleHandler);
+                                                         inheritConsoleHandler: inheritConsoleHandler,
+                                                         cancellationToken: cancellationToken);
             }
         }
 
