@@ -26,8 +26,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                bool requireExitCodeZero,
                                Encoding outputEncoding,
                                bool killProcessOnCancel,
-                               CancellationToken cancellationToken,
-                               bool inheritConsoleHandler);
+                               bool inheritConsoleHandler,
+                               CancellationToken cancellationToken);
     }
 
     [ServiceLocator(Default = typeof(ContainerStepHost))]
@@ -58,8 +58,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                             bool requireExitCodeZero,
                                             Encoding outputEncoding,
                                             bool killProcessOnCancel,
-                                            CancellationToken cancellationToken,
-                                            bool inheritConsoleHandler)
+                                            bool inheritConsoleHandler,
+                                            CancellationToken cancellationToken)
         {
             using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
             {
@@ -74,8 +74,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                                          outputEncoding: outputEncoding,
                                                          killProcessOnCancel: killProcessOnCancel,
                                                          contentsToStandardIn: null,
-                                                         cancellationToken: cancellationToken,
-                                                         inheritConsoleHandler: inheritConsoleHandler);
+                                                         inheritConsoleHandler: inheritConsoleHandler,
+                                                         cancellationToken: cancellationToken);
             }
         }
     }
@@ -126,8 +126,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                             bool requireExitCodeZero,
                                             Encoding outputEncoding,
                                             bool killProcessOnCancel,
-                                            CancellationToken cancellationToken,
-                                            bool inheritConsoleHandler)
+                                            bool inheritConsoleHandler,
+                                            CancellationToken cancellationToken)
         {
             // make sure container exist.
             ArgUtil.NotNull(Container, nameof(Container));
