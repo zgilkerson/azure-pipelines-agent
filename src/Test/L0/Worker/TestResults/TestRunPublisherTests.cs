@@ -300,6 +300,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.TestResults
             }
             _publisher.AddResultsAsync(testRun, new TestCaseResultData[] { result }).Wait();
 
+            // validate
             foreach (TestCaseResult resultCreateModel in _resultCreateModels)
             {
                 Assert.Equal(resultCreateModel.SubResults.Count, 1000);
