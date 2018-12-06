@@ -76,7 +76,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
 
                 for (int testResultsIndex = 0; testResultsIndex < noOfResultsToBePublished; testResultsIndex++){
 
-                    if (HierarchicalSubresultPreProcessing(currentBatch[testResultsIndex].AutomatedTestName, currentBatch[testResultsIndex].TestCaseSubResultData) == false)
+                    if (IsMaxLimitReachedForSubresultPreProcessing(currentBatch[testResultsIndex].AutomatedTestName, currentBatch[testResultsIndex].TestCaseSubResultData) == false)
                     {
                         _executionContext.Warning(StringUtil.Loc("MaxHierarchyLevelReached", TestManagementConstants.maxHierarchyLevelForSubresults));
                         currentBatch[testResultsIndex].TestCaseSubResultData = null;
@@ -160,11 +160,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
         }
         #endregion
 
-        private bool HierarchicalSubresultPreProcessing(string automatedTestName, List<TestCaseSubResultData> subResults, int level = 1)
+        private bool IsMaxLimitReachedForSubresultPreProcessing(string automatedTestName, List<TestCaseSubResultData> subResults, int level = 1)
         {
             int maxSubResultHierarchyLevel = TestManagementConstants.maxHierarchyLevelForSubresults;
             int maxSubResultIterationCount = TestManagementConstants.maxSubResultPerLevel;
-            if (subResults == null || !subResults.Any())
+            if (subResults == null || subResults.Count == 0)
             {
                 return true;
             }
@@ -179,7 +179,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.TestResults
             }
             foreach (var subresult in subResults)
             {
-                if (HierarchicalSubresultPreProcessing(automatedTestName, subresult.SubResultData, level + 1) == false)
+                if (IsMaxLimitReachedForSubresultPreProcessing(automatedTestName, subresult.SubResultData, level + 1) == false)
                 {
                     _executionContext.Warning(StringUtil.Loc("MaxHierarchyLevelReached", maxSubResultHierarchyLevel));
                     subresult.SubResultData = null;

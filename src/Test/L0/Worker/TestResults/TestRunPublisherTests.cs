@@ -298,7 +298,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.TestResults
             {
                 result.TestCaseSubResultData.Add(mockSubResult);
             }
-            Debugger.Launch();
             _publisher.AddResultsAsync(testRun, new TestCaseResultData[] { result }).Wait();
 
             foreach (TestCaseResult resultCreateModel in _resultCreateModels)
