@@ -1,8 +1,27 @@
 # BYOS: Bring Your Own Subscription Agent Pools
 
-BYOS pairs the convenience and elastic capacity of the hosted pool with the control and flexibility of private agents.
-VSTS will manage a set of build and release agents to the customer's specification, completely automated, in the customer's Azure subscription.  
+Hosted agents are extremely convenient: low/no cost, no infrastructure to maintain, and elastic with demand.
+In return, customers must give up control over tools, capacity, and speed.
+On the other end of the spectrum, private agents offer the exact opposite set of trade-offs: full control over everything, at the expense of maintaining and paying for infrastructure.
+With private agents, elasticity is difficult to achieve.
+
+Bring Your Own Subscription (BYOS) represents a middle ground:
+it pairs the convenience and elastic capacity of the hosted pool with the control and flexibility of private agents.
+Azure Pipelines will manage a set of build/release agents to the customer's specification, completely automated, in the customer's Azure subscription.
 BYOS will be in the middle of the cost vs. convenience spectrum between hosted and private.
+
+## Customer scenarios
+
+The theme throughout these scenarios is that the customer wants our notion of elasticity but a some customization beyond what Hosted offers.
+
+### Custom image
+
+* Customer wants Windows 2016 with VS 2019 Preview. (We only offer certain combos like Win2016 + VS2017 and Win2019 + VS2019.)
+* ...
+
+### Custom SKU
+
+* ...
 
 ## State
 
