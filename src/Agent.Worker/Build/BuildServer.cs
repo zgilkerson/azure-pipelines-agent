@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Build2 = Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
+using Microsoft.VisualStudio.Services.Common;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
 {
@@ -42,7 +43,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 }
             };
 
-            return await _buildHttpClient.CreateArtifactAsync(artifact, _projectId, buildId, cancellationToken: cancellationToken);
+            return await ExecuteAsync(async () => await _buildHttpClient.CreateArtifactAsync(artifact, _projectId, buildId, cancellationToken: cancellationToken), 3, cancellationToken: cancellationToken);
         }
 
         public async Task<Build2.Build> UpdateBuildNumber(
@@ -60,7 +61,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
                 },
             };
 
-            return await _buildHttpClient.UpdateBuildAsync(build, cancellationToken: cancellationToken);
+            return await ExecuteAsync(async () => await _buildHttpClient.UpdateBuildAsync(build, cancellationToken: cancellationToken), 3, cancellationToken: cancellationToken);
         }
 
         public async Task<IEnumerable<string>> AddBuildTag(
@@ -68,7 +69,43 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             string buildTag,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            return await _buildHttpClient.AddBuildTagAsync(_projectId, buildId, buildTag, cancellationToken: cancellationToken);
+            return await ExecuteAsync(async () => await _buildHttpClient.AddBuildTagAsync(_projectId, buildId, buildTag, cancellationToken: cancellationToken), 3, cancellationToken: cancellationToken);
+        }
+
+        public async Task<T> ExecuteAsync<T>(
+            Func<Task<T>> action,
+            Int32 maxAttempts = 5,
+            Action<Exception> traceException = null,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            while (maxAttempts-- > 0)
+            {
+                try
+                {
+                    return await action();
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    if (traceException != null)
+                    {
+                        traceException(ex);
+                    }
+
+                    if (maxAttempts == 0)
+                    {
+                        throw;
+                    }
+                }
+
+                var backOff = BackoffTimerHelper.GetRandomBackoff(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30));
+                await Task.Delay(backOff);
+            }
+
+            throw new InvalidOperationException("Should never get here");
         }
     }
 }
