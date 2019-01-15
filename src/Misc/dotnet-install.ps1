@@ -468,17 +468,23 @@ function Extract-Dotnet-Package([string]$ZipPath, [string]$OutPath) {
     }
 }
 
-function DownloadFile([Uri]$Uri, [string]$OutPath) {
-    if ($Uri -notlike "http*") {
-        Say-Verbose "Copying file from $Uri to $OutPath"
-        Copy-Item $Uri.AbsolutePath $OutPath
+function DownloadFile($Source, [string]$OutPath) {
+    if ($Source -notlike "http*") {
+        #  Using System.IO.Path.GetFullPath to get the current directory
+        #    does not work in this context - $pwd gives the current directory
+        if (![System.IO.Path]::IsPathRooted($Source)) {
+            $Source = $(Join-Path -Path $pwd -ChildPath $Source)
+        }
+        $Source = Get-Absolute-Path $Source
+        Say "Copying file from $Source to $OutPath"
+        Copy-Item $Source $OutPath
         return
     }
 
     $Stream = $null
 
     try {
-        $Response = GetHTTPResponse -Uri $Uri
+        $Response = GetHTTPResponse -Uri $Source
         $Stream = $Response.Content.ReadAsStreamAsync().Result
         $File = [System.IO.File]::Create($OutPath)
         $Stream.CopyTo($File)
@@ -494,8 +500,13 @@ function DownloadFile([Uri]$Uri, [string]$OutPath) {
 function Prepend-Sdk-InstallRoot-To-Path([string]$InstallRoot, [string]$BinFolderRelativePath) {
     $BinPath = Get-Absolute-Path $(Join-Path -Path $InstallRoot -ChildPath $BinFolderRelativePath)
     if (-Not $NoPath) {
-        Say "Adding to current process PATH: `"$BinPath`". Note: This change will not be visible if PowerShell was run as a child process."
-        $env:path = "$BinPath;" + $env:path
+        $SuffixedBinPath = "$BinPath;"
+        if (-Not $env:path.Contains($SuffixedBinPath)) {
+            Say "Adding to current process PATH: `"$BinPath`". Note: This change will not be visible if PowerShell was run as a child process."
+            $env:path = $SuffixedBinPath + $env:path
+        } else {
+            Say-Verbose "Current process PATH already contains `"$BinPath`""
+        }
     }
     else {
         Say "Binaries of dotnet can be found in $BinPath"
@@ -559,7 +570,7 @@ Say-Verbose "Zip path: $ZipPath"
 $DownloadFailed = $false
 Say "Downloading link: $DownloadLink"
 try {
-    DownloadFile -Uri $DownloadLink -OutPath $ZipPath
+    DownloadFile -Source $DownloadLink -OutPath $ZipPath
 }
 catch {
     Say "Cannot download: $DownloadLink"
@@ -569,7 +580,7 @@ catch {
         Say-Verbose "Legacy zip path: $ZipPath"
         Say "Downloading legacy link: $DownloadLink"
         try {
-            DownloadFile -Uri $DownloadLink -OutPath $ZipPath
+            DownloadFile -Source $DownloadLink -OutPath $ZipPath
         }
         catch {
             Say "Cannot download: $DownloadLink"
