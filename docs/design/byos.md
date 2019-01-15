@@ -22,6 +22,7 @@ The theme throughout these scenarios is that the customer wants our notion of el
 ### Custom SKU
 
 * [Customer](https://github.com/MicrosoftDocs/vsts-docs/issues/2985) wants an NCv2 VM with particular instruction sets for something like machine learning. (It's niche enough that we won't stand up dedicated hosted pools, but broad enough to be very interesting for our business.)
+* Customer needs additional storage attached to the VM. *(Real scenario from a medium-sized customer)*
 * ...
 
 ## State
