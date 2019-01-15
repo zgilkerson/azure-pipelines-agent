@@ -1,10 +1,9 @@
 ## Features
-  - N/A
-  
+  - Set code page to 65001 (UTF8) #1975
+  - Detect capability scan for VS2019. #2005
+
 ## Bugs
-  - Set code page to 65001 (UTF8) #1975  
   - Make task failure non fatal when hierarchy limit reached. #2000
-  - Fix capability scan for VS2019. #2005
 
 ## Misc
   - N/A
