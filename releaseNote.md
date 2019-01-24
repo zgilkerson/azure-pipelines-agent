@@ -1,18 +1,14 @@
 ## Features
-  - Allow the container to bring its own Node.js #1979
-  - Populate AzurePS demand if Az module is installed on Agent machine #1984
-  - Add agent support for the Node v10 runtime #1972
+  - Add yaml sidecar containers support. #1998
+  - Renaming Az.Profile to Az.Accounts as a reaction to Az Module name change #2028
   
 ## Bugs
-  - Fix null ref caused by build.syncsource=false. #1904
-  - Agent changes to use HTTP 1.1 on Linux and OSX #1970 
-  - Create container/network with label, best effort clean them up. #1915
-  - Add retry for task zip download. #1926
-  - Fix for Nested TestSuite in JunitResultReader #1978
-  - Let container job handle prepends path correctly. #1977
+  - Add TF_BUILD to container environment #2040
+  - Changed file share mode for attachment upload #2035
+  - Bug fix for junit xml by phpunit as no name in testsuite - Failed to publish results #2025
 
 ## Misc
-  - Update installdependencies.sh to install correct version of libcurl #1991
+  - N/A
 
 ## Agent Downloads  
 
