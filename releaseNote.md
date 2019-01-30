@@ -6,6 +6,7 @@
   - Add TF_BUILD to container environment #2040
   - Changed file share mode for attachment upload #2035
   - Bug fix for junit xml by phpunit as no name in testsuite - Failed to publish results #2025
+  - Fix null ref in process invoker. #2069
 
 ## Misc
   - N/A
