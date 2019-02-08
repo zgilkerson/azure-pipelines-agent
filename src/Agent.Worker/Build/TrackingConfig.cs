@@ -1,7 +1,9 @@
 ﻿using Microsoft.TeamFoundation.DistributedTask.Pipelines;
 using Microsoft.TeamFoundation.DistributedTask.WebApi;
+using Microsoft.VisualStudio.Services.Agent.Util;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -60,6 +62,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Build
             HashKey = hashKey;
             RepositoryUrl = repository.Url.AbsoluteUri;
             RepositoryType = repository.Type;
+            var path = repository.Properties.Get<string>(RepositoryPropertyNames.Path);
+            if (!string.IsNullOrEmpty(path))
+            {
+                SourcesDirectory = IOUtil.ResolvePath(BuildDirectory, path);
+            }
+
             System = BuildSystem;
             UpdateJobRunProperties(executionContext);
         }
