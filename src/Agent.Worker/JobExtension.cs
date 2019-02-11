@@ -189,30 +189,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                         }
                     }
 
-                    ///////////// Hard coding Test Job ////////////////////////
-                    Trace.Verbose($"Adding Post-Job publishing of automated test results.");
-                    var tr = HostContext.CreateService<ITaskRunner>();
-                    var stepData = @"{
-                        ""inputs"": {
-        ""repository"": ""__designer_repo""
-      },
-      ""type"": ""task"",
-      ""reference"": {
-        ""id"": ""8d637240-a8b0-42c6-9063-ecf00106c98f"",
-        ""name"": ""Publish Test Results"",
-        ""version"": ""1.0.0""
-      },
-      ""condition"": ""False"",
-      ""id"": ""d83a8317-b8e0-5823-f5fe-076d52430004"",
-      ""name"": ""Publish Test Results"",
-      ""displayName"": ""Publish Test Results""
-    }";
-                    var ptrstep = StringUtil.ConvertFromJson<Pipelines.TaskStep>(stepData);
-                    tr.Task = ptrstep;
-                    tr.Stage = JobRunStage.PostJob;
-                    tr.Condition = ExpressionManager.Always;
-                    postJobStepsBuilder.Push(tr);
-
                     // Add pre-job step from Extension
                     Trace.Info("Adding pre-job step from extension.");
                     var extensionPreJobStep = GetExtensionPreJobStep(jobContext);

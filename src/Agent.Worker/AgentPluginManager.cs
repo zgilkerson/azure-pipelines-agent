@@ -34,7 +34,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             "Agent.Plugins.Repository.CleanupTask, Agent.Plugins",
             "Agent.Plugins.PipelineArtifact.DownloadPipelineArtifactTask, Agent.Plugins",
             "Agent.Plugins.PipelineArtifact.PublishPipelineArtifactTask, Agent.Plugins",
-            "Agent.Plugins.TestResults.TestResultsPublisherPlugin, Agent.Plugins",
+            "Agent.Plugins.TestResults.AutoTestResultsPublisherPlugin, Agent.Plugins",
             "Agent.Plugins.PipelineArtifact.DownloadPipelineArtifactTaskV1, Agent.Plugins",
             "Agent.Plugins.PipelineArtifact.DownloadPipelineArtifactTaskV1_1_0, Agent.Plugins"
         };
