@@ -138,15 +138,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 {
                     processInvoker.OutputDataReceived += OnOutputDataReceived;
                     processInvoker.ErrorDataReceived += OnErrorDataReceived;
-                    int exitCode = await processInvoker.ExecuteAsync(
-                        workingDirectory: workingDirectory,
-                        fileName: powerShellExe,
-                        arguments: powerShellExeArgs,
-                        environment: Environment,
-                        requireExitCodeZero: false,
-                        outputEncoding: null,
-                        killProcessOnCancel: false,
-                        cancellationToken: ExecutionContext.CancellationToken);
+                    int exitCode = await processInvoker.ExecuteAsync(workingDirectory: workingDirectory,
+                                                                     fileName: powerShellExe,
+                                                                     arguments: powerShellExeArgs,
+                                                                     environment: Environment,
+                                                                     requireExitCodeZero: false,
+                                                                     outputEncoding: null,
+                                                                     killProcessOnCancel: false,
+                                                                     redirectStandardIn: null,
+                                                                     inheritConsoleHandler: !ExecutionContext.Variables.Retain_Default_Encoding,
+                                                                     cancellationToken: ExecutionContext.CancellationToken);
                     FlushErrorData();
 
                     // Fail on error count.

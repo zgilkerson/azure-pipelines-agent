@@ -5,12 +5,12 @@ using Microsoft.VisualStudio.Services.WebApi;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
+using Microsoft.TeamFoundation.Framework.Common;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker
 {
@@ -34,7 +34,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             "Agent.Plugins.Repository.CleanupTask, Agent.Plugins",
             "Agent.Plugins.PipelineArtifact.DownloadPipelineArtifactTask, Agent.Plugins",
             "Agent.Plugins.PipelineArtifact.PublishPipelineArtifactTask, Agent.Plugins",
-            "Agent.Plugins.TestResults.TestResultsPublisherPlugin, Agent.Plugins"
+            "Agent.Plugins.TestResults.TestResultsPublisherPlugin, Agent.Plugins",
+            "Agent.Plugins.PipelineArtifact.DownloadPipelineArtifactTaskV1, Agent.Plugins",
+            "Agent.Plugins.PipelineArtifact.DownloadPipelineArtifactTaskV1_1_0, Agent.Plugins"
         };
 
         private readonly HashSet<string> _commandPlugins = new HashSet<string>();
@@ -192,6 +194,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
             using (var processInvoker = HostContext.CreateService<IProcessInvoker>())
             {
+                var redirectStandardIn = new InputQueue<string>();
+                redirectStandardIn.Enqueue(JsonUtility.ToString(pluginContext));
+
                 processInvoker.OutputDataReceived += outputHandler;
                 processInvoker.ErrorDataReceived += outputHandler;
 
@@ -205,7 +210,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                                                   requireExitCodeZero: true,
                                                   outputEncoding: Encoding.UTF8,
                                                   killProcessOnCancel: false,
-                                                  contentsToStandardIn: new List<string>() { JsonUtility.ToString(pluginContext) },
+                                                  redirectStandardIn: redirectStandardIn,
                                                   cancellationToken: context.CancellationToken);
             }
         }
@@ -277,7 +282,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     {
                         stderr.Add(e.Data);
                     };
-                }; ;
+                };
+
+                var redirectStandardIn = new InputQueue<string>();
+                redirectStandardIn.Enqueue(JsonUtility.ToString(pluginContext));
 
                 int returnCode = await processInvoker.ExecuteAsync(workingDirectory: workingDirectory,
                                                                    fileName: file,
@@ -286,7 +294,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                                                                    requireExitCodeZero: false,
                                                                    outputEncoding: null,
                                                                    killProcessOnCancel: false,
-                                                                   contentsToStandardIn: new List<string>() { JsonUtility.ToString(pluginContext) },
+                                                                   redirectStandardIn: redirectStandardIn,
                                                                    cancellationToken: token);
 
                 if (returnCode != 0)

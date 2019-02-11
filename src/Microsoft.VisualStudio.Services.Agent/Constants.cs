@@ -49,6 +49,7 @@ namespace Microsoft.VisualStudio.Services.Agent
 #endif
         public static string TFBuild = "TF_BUILD";
         public static string ProcessLookupId = "VSTS_PROCESS_LOOKUP_ID";
+        public static string PluginTracePrefix = "##[plugin.trace]";
 
         // This enum is embedded within the Constants class to make it easier to reference and avoid
         // ambiguous type reference with System.Runtime.InteropServices.OSPlatform and System.Runtime.InteropServices.Architecture
@@ -69,7 +70,7 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         public static class Agent
         {
-            public static readonly string Version = "2.141.0";
+            public static readonly string Version = "2.147.0";
 
 #if OS_LINUX
             public static readonly OSPlatform Platform = OSPlatform.Linux;
@@ -165,6 +166,7 @@ namespace Microsoft.VisualStudio.Services.Agent
                     public static readonly string MachineGroup = "machinegroup";
                     public static readonly string Replace = "replace";
                     public static readonly string NoRestart = "norestart";
+                    public static readonly string LaunchBrowser = "launchbrowser";
                     public static readonly string RunAsAutoLogon = "runasautologon";
                     public static readonly string RunAsService = "runasservice";
                     public static readonly string SslSkipCertValidation = "sslskipcertvalidation";
@@ -211,6 +213,7 @@ namespace Microsoft.VisualStudio.Services.Agent
 
         public static class Configuration
         {
+            public static readonly string AAD = "AAD";
             public static readonly string PAT = "PAT";
             public static readonly string Alternate = "ALT";
             public static readonly string Negotiate = "Negotiate";
@@ -304,9 +307,11 @@ namespace Microsoft.VisualStudio.Services.Agent
                 public static readonly string ProxyUsername = "agent.proxyusername";
                 public static readonly string ProxyPassword = "agent.proxypassword";
                 public static readonly string ProxyBypassList = "agent.proxybypasslist";
+                public static readonly string RetainDefaultEncoding = "agent.retainDefaultEncoding";
                 public static readonly string RootDirectory = "agent.RootDirectory";
                 public static readonly string RunMode = "agent.runmode";
                 public static readonly string ServerOMDirectory = "agent.ServerOMDirectory";
+                public static readonly string ServicePortPrefix = "agent.services";
                 public static readonly string SslCAInfo = "agent.cainfo";
                 public static readonly string SslClientCert = "agent.clientcert";
                 public static readonly string SslClientCertKey = "agent.clientcertkey";
