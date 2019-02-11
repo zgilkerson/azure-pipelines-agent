@@ -3,7 +3,7 @@
   - Added multi download support to pipeline artifacts. #2072
   
 ## Bugs
-  - N/A
+  - Process invoker close STDIN after finish redirect first line by default. #2094
 
 ## Misc
   - Redirecting CC data to TFS/TCM depending on FF #2064
