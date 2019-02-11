@@ -94,33 +94,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 return checkoutTask;
             }
 
-            var guid = new Guid("8d637240-a8b0-42c6-9063-ecf00106c98f");
-            if (task.Reference.Id == guid && task.Reference.Version == Pipelines.PipelineConstants.CheckoutTask.Version)
-            {
-                var t = @"{
-    ""agentPlugin"" : {
-         ""target"": ""Agent.Plugins.TestResults.TestResultsPublisherPlugin, Agent.Plugins""
-    }
-}";
-                var p = StringUtil.ConvertToJson(Pipelines.PipelineConstants.CheckoutTask.PostJobExecution);
-
-                var checkoutTask = new Definition()
-                {
-                    Directory = HostContext.GetDirectory(WellKnownDirectory.Tasks),
-                    Data = new DefinitionData()
-                    {
-                        Author = Pipelines.PipelineConstants.CheckoutTask.Author,
-                        Description = Pipelines.PipelineConstants.CheckoutTask.Description,
-                        FriendlyName = Pipelines.PipelineConstants.CheckoutTask.FriendlyName,
-                        HelpMarkDown = Pipelines.PipelineConstants.CheckoutTask.HelpMarkDown,
-                        Inputs = Pipelines.PipelineConstants.CheckoutTask.Inputs.ToArray(),
-                        PostJobExecution = StringUtil.ConvertFromJson<ExecutionData>(t)
-                    }
-                };
-
-                return checkoutTask;
-            }
-
             // Initialize the definition wrapper object.
             var definition = new Definition() { Directory = GetDirectory(task.Reference) };
 
