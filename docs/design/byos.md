@@ -10,6 +10,10 @@ it pairs the convenience and elastic capacity of the hosted pool with the contro
 Azure Pipelines will manage a set of build/release agents to the customer's specification, completely automated, in the customer's Azure subscription.
 BYOS will be in the middle of the cost vs. convenience spectrum between hosted and private.
 
+## State
+
+This is in the early design phase and we are looking for feedback in the PR (or as issues in the repo).
+
 ## Customer scenarios
 
 The theme throughout these scenarios is that the customer wants hosted elasticity but customization beyond what Hosted offers.
@@ -25,16 +29,44 @@ The theme throughout these scenarios is that the customer wants hosted elasticit
 1. Customer wants more memory, more processor, or more IO than our native images.
 2. [Customer](https://github.com/MicrosoftDocs/vsts-docs/issues/2985) wants an NCv2 VM with particular instruction sets for machine learning. (It's niche enough that we won't stand up dedicated hosted pools, but broad enough to be very interesting for our business.)
 3. Customer wants additional storage attached to the VM. *(Real scenario from a medium-sized customer)*
-4. Customer wants their own network topology, 
+4. Customer wants their own network topology or Active Directory configuration.
 
 ### Custom elasticity
 
 1. Customer wants to run several consecutive jobs on an agent to take advantage of things like incremental source and machine-level package caches. But, they don't want to run unnecessary VMs overnight when there's no load. They want to specify minimum and maximum # of agents associated with time ranges.
 2. Customer wants to run additional configuration or cache warmup before an agent beings accepting jobs. As additional agents are spun up, the customer has an opportunity to run a prep script that doesn't impact "pipeline runtime".
 
-## State
+## Alternatives considered
 
-This is in the early design phase and we are looking for feedback in the PR (or as issues in the repo).
+### Custom / configurable SKU
+
+Offering additional Azure SKUs in Hosted will meet some of the above scenarios.
+Specifically, if all you need are additional resources (memory, compute, etc.), then a custom SKU works.
+
+Pros:
+- Easiest for the customer to understand
+- Potential business model around premium SKUs
+
+Cons:
+- Capacity planning and buildout becomes a lot more complex
+- If a customer wants a SKU we don't offer, they're out of luck until we add it
+- Does not offer custom elasticity, network environment, or image
+
+### Bring your own cloud (pool providers)
+
+Putting the entire agent alloc/release cycle in the hands of the customer offers them ultimate flexibility.
+
+Pros:
+- Maximum flexibility
+- Customer can select other infrastructure: on-prem, in a different hosting provider, etc.
+
+Cons:
+- Much heavier burden to understand, set up, and maintain
+- Customer has to swallow full complexity load to get any flexibility
+
+## Requirements
+
+TODO
 
 <!--
 ## Goals
