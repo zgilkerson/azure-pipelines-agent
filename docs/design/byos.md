@@ -7,10 +7,9 @@ With private agents, elasticity is difficult to achieve.
 
 Bring Your Own Subscription (BYOS) represents a middle ground:
 it pairs the convenience and elastic capacity of the hosted pool with the control and flexibility of private agents.
-Azure Pipelines will manage a set of build/release agents to the customer's specification, completely automated, in the customer's Azure subscription.
-BYOS will be in the middle of the cost vs. convenience spectrum between hosted and private.
+**Azure Pipelines will manage a set of build/release agents to the customer's specification, completely automated, in the customer's Azure subscription.**
 
-## State
+## State of this spec
 
 This is in the early design phase and we are looking for feedback in the PR (or as issues in the repo).
 
@@ -64,9 +63,27 @@ Cons:
 - Much heavier burden to understand, set up, and maintain
 - Customer has to swallow full complexity load to get any flexibility
 
-## Requirements
+## "Clickstops" along the way
 
-TODO
+Of course, we won't want to do a huge multi-month effort and then dump it on the community at once.
+We can deliver several intermediate levels of value on the way to a full solution.
+At every point, we can re-evaluate if the decisions we're making match customer needs at the time.
+
+**Stage 0**. Using a customer's Azure subscription, run pipelines against our native images using Hosted-like "throwaway" VMs.
+The customer tells us exactly how many agents to keep around.
+The benefits in this stage primarily go to us: we gain experience running a multi-tenant service against subscriptions we don't own.
+This would be a private preview rather than a generally available feature.
+
+**Stage 1**. Offer the ability to keep a Hosted-like agent alive for multiple consecutive runs.
+The customer gives us a set of rules: minimum and maximum agents available, times of day where those change, and how long a given agent is allowed to live before being recycled.
+This adds real value for customers, and from their perspective, is likely the minimum viable product.
+Think public preview.
+
+**Stage 2**. Customer can give us an ARM template describing the resources they want.
+This will include at least VM SKUs, VM images, and network config.
+There are likely to be lots of exclusions and gaps at this point, but we're clearly ready to GA the feature.
+
+**Beyond**. Additional goodies like warmup scripts (run once when the agent is spun up, not counted towards the time of the first pipeline that happens to run on a fresh agent), more flexible rules, and relaxing any restrictions we placed on ARM templates.
 
 <!--
 ## Goals
