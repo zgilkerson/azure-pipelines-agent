@@ -17,18 +17,23 @@ This is in the early design phase and we are looking for feedback in the PR (or 
 
 The theme throughout these scenarios is that the customer wants hosted elasticity but customization beyond what Hosted offers.
 
-### Custom image
+General themes are around:
+- VM specs (memory, CPU, disk) and network environment
+- Preinstalled software
+- Customizing elasticity
 
-1. Customer wants Windows 2016 with VS 2019 Preview. (We only offer certain combos like Win2016 + VS2017 and Win2019 + VS2019.)
-2. Customer wants to pin a specific set of tools and dependencies, preconfigured on the image.
-3. Customer wants to bring their own pre-configured image.
-
-### Custom SKU
+### VM specs and environment
 
 1. Customer wants more memory, more processor, or more IO than our native images.
 2. [Customer](https://github.com/MicrosoftDocs/vsts-docs/issues/2985) wants an NCv2 VM with particular instruction sets for machine learning. (It's niche enough that we won't stand up dedicated hosted pools, but broad enough to be very interesting for our business.)
 3. Customer wants additional storage attached to the VM. *(Real scenario from a medium-sized customer)*
 4. Customer wants their own network topology or Active Directory configuration.
+
+### Preinstalled software
+
+1. Customer wants Windows 2016 with VS 2019 Preview. (We only offer certain combos like Win2016 + VS2017 and Win2019 + VS2019.)
+2. Customer wants to pin a specific set of tools and dependencies, preconfigured on the image.
+3. Customer wants extreme control over the exact OS build, settings, versions, and so on.
 
 ### Custom elasticity
 
