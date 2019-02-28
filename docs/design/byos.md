@@ -31,7 +31,7 @@ By making our hosted images available in the Azure gallery, customers get an equ
 1. Customer wants more memory, more processor, or more IO than our native images.
 2. [Customer](https://github.com/MicrosoftDocs/vsts-docs/issues/2985) wants an NCv2 VM with particular instruction sets for machine learning. (It's niche enough that we won't stand up dedicated hosted pools, but broad enough to be very interesting for our business.)
 3. Customer wants additional storage attached to the VM. *(Real scenario from a medium-sized customer)*
-4. Customer wants their own network topology or Active Directory configuration.
+4. Customer wants to deploy to a private App Service. It's in a private VNET with no inbound connectivity. Today, this customer is forced to keep private agents standing by.
 
 ### Preinstalled software
 
