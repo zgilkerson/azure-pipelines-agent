@@ -22,6 +22,10 @@ General themes are around:
 - Preinstalled software
 - Custom elasticity
 
+Related, on-premises customers have often asked us for access to the Hosted pools.
+Pools using this feature should be available to Azure DevOps Server customers.
+By making our hosted images available in the Azure gallery, customers get an equivalent to the Hosted pools without having to worry about multi-tenancy, a new billing relationship, etc.
+
 ### VM specs and environment
 
 1. Customer wants more memory, more processor, or more IO than our native images.
@@ -39,6 +43,10 @@ General themes are around:
 
 1. Customer wants to run several consecutive jobs on an agent to take advantage of things like incremental source and machine-level package caches. But, they don't want to run unnecessary VMs overnight when there's no load. They want to specify minimum and maximum # of agents associated with time ranges.
 2. Customer wants to run additional configuration or cache warmup before an agent beings accepting jobs. As additional agents are spun up, the customer has an opportunity to run a prep script that doesn't impact "pipeline runtime".
+
+### On-premises customers
+
+1. Customer wants to use Azure DevOps Server with elastic agent pools.
 
 ## Solution
 
