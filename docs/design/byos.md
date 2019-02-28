@@ -105,6 +105,9 @@ Of course, we won't want to do a huge multi-month effort and then dump it on the
 We can deliver several intermediate levels of value on the way to a full solution.
 At every point, we can re-evaluate if the decisions we're making match customer needs at the time.
 
+_TODO_: add a new set of intermediate deliverables
+
+<!-- this generated more controversy than agreement, so needs to be re-thought
 **Stage 0**. Using a customer's Azure subscription, run pipelines against our native images using Hosted-like "throwaway" VMs.
 The customer tells us exactly how many agents to keep around.
 The benefits in this stage primarily go to us: we gain experience running a multi-tenant service against subscriptions we don't own.
@@ -120,6 +123,7 @@ This will include at least VM SKUs, VM images, and network config.
 There are likely to be lots of exclusions and gaps at this point, but we're clearly ready to GA the feature.
 
 **Beyond**. Additional goodies like warmup scripts (run once when the agent is spun up, not counted towards the time of the first pipeline that happens to run on a fresh agent), more flexible rules, and relaxing any restrictions we placed on ARM templates.
+-->
 
 <!--
 ## Goals
