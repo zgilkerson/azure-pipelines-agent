@@ -20,7 +20,7 @@ The theme throughout these scenarios is that the customer wants hosted elasticit
 General themes are around:
 - VM specs (memory, CPU, disk) and network environment
 - Preinstalled software
-- Customizing elasticity
+- Custom elasticity
 
 ### VM specs and environment
 
@@ -39,6 +39,29 @@ General themes are around:
 
 1. Customer wants to run several consecutive jobs on an agent to take advantage of things like incremental source and machine-level package caches. But, they don't want to run unnecessary VMs overnight when there's no load. They want to specify minimum and maximum # of agents associated with time ranges.
 2. Customer wants to run additional configuration or cache warmup before an agent beings accepting jobs. As additional agents are spun up, the customer has an opportunity to run a prep script that doesn't impact "pipeline runtime".
+
+## Solution
+
+Under the hood, we need an image, an ARM template, an Azure subscription, and instructions about how much capacity to provision.
+That doesn't require us to expose the full complexity of ARM templates and Azure subscriptions to every customer.
+
+### Setup
+
+For a lot of customers, it would be enough to have them
+- go to pool setup
+- create a new pool of type "Custom Azure-hosted" (name t.b.d.)
+- pick one of a few different Azure VM SKUs + a few different agent lifetime policies
+- pick their Azure subscription
+- have Azure Pipelines configure it all for them
+
+For the advanced customer who really needs all the customization available, they'll switch to actually giving us the ARM template and so on.
+
+_TODO_: draw pictures
+
+### Maintenance
+
+_TODO_: is there any on-going maintenance?
+How will we let the adminstrator know of any problems that occur?
 
 ## Alternatives considered
 
