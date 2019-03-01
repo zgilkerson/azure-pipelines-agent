@@ -48,6 +48,17 @@ By making our hosted images available in the Azure gallery, customers get an equ
 
 1. Customer wants to use Azure DevOps Server with elastic agent pools.
 
+## Industry review
+
+Similar problem spaces:
+- [Jenkins can use Azure agents](https://docs.microsoft.com/en-us/azure/jenkins/jenkins-azure-vm-agents) this way
+- [AppVeyor](https://www.appveyor.com/docs/enterprise/running-builds-on-azure/) offers instructions for solving a similar problem on several cloud providers
+- [GitLab CI/CD](https://gitlab.com/gitlab-org/gitlab-runner/blob/master/docs/configuration/autoscale.md) offers auto-scaling of builder containers using Docker Machine.
+
+Not offered:
+- [Travis CI](https://docs.travis-ci.com/user/enterprise/setting-up-travis-ci-enterprise/) offers an enterprise product that you can install on your own infrastructure. While you can choose what kind of VM to run it on, there's no elasticity.
+- [CircleCI](https://circleci.com/docs/2.0/aws/#nomad-clients) offers an on-your-infrastructure product. You must scale up and down the workers manually, there's no elasticity.
+
 ## Solution
 
 Under the hood, we need an image, an ARM template, an Azure subscription, and instructions about how much capacity to provision.
