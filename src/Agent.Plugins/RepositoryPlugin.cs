@@ -117,6 +117,8 @@ namespace Agent.Plugins.Repository
 
             ISourceProvider sourceProvider = SourceProviderFactory.GetSourceProvider(repo.Type);
             await sourceProvider.GetSourceAsync(executionContext, repo, token);
+
+            executionContext.UpdateRepository(repoAlias, new Dictionary<string, string>() { { "__VSTS_READY", "TRUE" } });
         }
     }
 
