@@ -20,7 +20,7 @@ The theme throughout these scenarios is that the customer wants hosted elasticit
 General themes are around:
 - VM specs (memory, CPU, disk) and network environment
 - Preinstalled software
-- Custom elasticity
+- Agent reuse
 
 Related, on-premises customers have often asked us for access to the Hosted pools.
 Pools using this feature should be available to Azure DevOps Server customers.
@@ -39,9 +39,9 @@ By making our hosted images available in the Azure gallery, customers get an equ
 2. Customer wants to pin a specific set of tools and dependencies, preconfigured on the image.
 3. Customer wants extreme control over the exact OS build, settings, versions, and so on.
 
-### Custom elasticity
+### Agent reuse
 
-1. Customer wants to run several consecutive jobs on an agent to take advantage of things like incremental source and machine-level package caches. But, they don't want to run unnecessary VMs overnight when there's no load. They want to specify minimum and maximum # of agents associated with time ranges.
+1. Customer wants to run several consecutive jobs on an agent to take advantage of things like incremental source and machine-level package caches. But, they don't want to run unnecessary VMs overnight when there's no load. They want to specify minimum and maximum # of agents associated with time ranges, but reuse agents within that span.
 2. Customer wants to run additional configuration or cache warmup before an agent beings accepting jobs. As additional agents are spun up, the customer has an opportunity to run a prep script that doesn't impact "pipeline runtime".
 
 ### On-premises customers
