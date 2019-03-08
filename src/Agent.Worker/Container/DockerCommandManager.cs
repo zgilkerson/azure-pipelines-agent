@@ -153,6 +153,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Container
                 }
                 dockerOptions.Add(volumeArg);
             }
+            dockerOptions.Add($"--user {container.ContainerUserId}:{container.ContainerGroupId}");
             // IMAGE
             dockerOptions.Add($"{container.ContainerImage}");
             // COMMAND

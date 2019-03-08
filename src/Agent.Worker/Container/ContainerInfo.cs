@@ -66,6 +66,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Container
             }
         }
 
+        public int ContainerUserId { get; set; }
+        public string ContainerGroupId { get; set; }
         public string ContainerId { get; set; }
         public string ContainerDisplayName { get; private set; }
         public string ContainerNetwork { get; set; }
@@ -104,6 +106,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Container
                 {
                     _userMountVolumes = new Dictionary<string, string>();
                 }
+
                 return _userMountVolumes;
             }
         }
