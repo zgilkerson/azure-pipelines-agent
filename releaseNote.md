@@ -11,7 +11,6 @@
 
 ## Misc
   - Add subscription id to deployment group telemetry #2070
-  - Bump up bundled node 6 version to 6.16.0 #2111
 
 ## Agent Downloads  
 
