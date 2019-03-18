@@ -1,16 +1,11 @@
 ## Features
-  - Enable AAD device auth flow for configure agent. #1924
-  - Integrate Test result log parser #2066
-  - Upload agent diag log as part of system.diagnostic=true. #2089
-  - Adding CTest XML Support in PublishTestResults #2092
-  - RHEL6 Agent support #2063
+  - N/A
 
 ## Bugs
-  - Don't fail if chcp not found #2087
-  - best effort on reset vssconnection. #2105
+  - Validate minimum required docker version based on docker engine API version instead of docker version. #2172
 
 ## Misc
-  - Add subscription id to deployment group telemetry #2070
+  - N/A
 
 ## Agent Downloads  
 
