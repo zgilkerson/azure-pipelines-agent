@@ -11,14 +11,15 @@ using Pipelines = Microsoft.TeamFoundation.DistributedTask.Pipelines;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 {
-    public sealed class HandlerOutputManager
+    public sealed class OutputManager
     {
+        private const int _maxAttempts = 3;
         private readonly IExecutionContext _executionContext;
         private readonly object _matchersLock = new object();
         private IssueMatcher[] _matchers = Array.Empty<IssueMatcher>();
         private bool _hasMatchers;
 
-        public HandlerOutputManager(IExecutionContext executionContext)
+        public OutputManager(IExecutionContext executionContext)
         {
             _executionContext = executionContext;
 
@@ -47,18 +48,55 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 foreach (var matcher in matchers);
                 {
                     // todo: add ReDoS mitigation: take the lock and compare reference when ejecting
-                    var issue = matcher.Match(line);
+                    Issue issue = null;
+                    for (var attempt = 1; attempt <= _maxAttempts; i++)
+                    {
+                        try
+                        {
+                            // Max
+                            issue = matcher.Match(line);
+                        }
+                        catch (MatchException ex) // todo: specific exception
+                        {
+                            if (attempt < _maxAttempts)
+                            {
+                                // Debug
+                                executionContext.Debug($"Error processing issue matcher '{matcher.Name}' against line '{line}'. Exception: {ex.ToString()}");
+                            }
+                            else
+                            {
+                                // Warn
+                                // todo: loc
+                                _executionContext.Warning($"Removing issue matcher '{matcher.Name}'. Matcher failed {_maxAttempts} times. Error: {ex.Message}");
+
+                                // Eject
+                                foreach ()
+                            }
+                        }
+                    }
 
                     if (issue != null)
                     {
-                        // todo: log the issue
+                        // Log the issue/line
+                        switch (issue.Severity)
+                        {
+                            case IssueSeverity.Warning:
+                                _executionContext.AddIssue(issue, line);
+                                context.Write($"{WellKnownTags.Warning}{line}");
+                                break;
 
-                        // todo: log the line
+                            default:
+                                context.Write($"{WellKnownTags.Error}{line}");
+                                break;
+                        }
 
-                        // reset each matcher
+                        // Reset each matcher
                         foreach (var matcher2 in matchers)
                         {
-                            matcher2.Reset();
+                            if (!object.ReferenceEquals(matcher, matcher2) || !matcher.Loop)
+                            {
+                                matcher2.Reset();
+                            }
                         }
 
                         return;
@@ -67,7 +105,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             }
 
             // Regular output
-            ExecutionContext.Output(line);
+            _executionContext.Output(line);
         }
 
         private void OnMatcherChanged(object sender, MatcherChangedEventArgs e)

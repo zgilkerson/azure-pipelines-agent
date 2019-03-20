@@ -287,19 +287,24 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             _jobServerQueue.QueueTimelineRecordUpdate(_mainTimelineId, _record);
         }
 
-        // This is not thread safe, the caller need to take lock before calling issue()
-        public void AddIssue(Issue issue)
+        public void AddIssue(Issue issue, string logMessage = null)
         {
             ArgUtil.NotNull(issue, nameof(issue));
+
+            if (string.IsNullOrEmpty(logMessage))
+            {
+                logMessage = issue.Message;
+            }
+
             issue.Message = HostContext.SecretMasker.MaskSecrets(issue.Message);
 
             if (issue.Type == IssueType.Error)
             {
                 // tracking line number for each issue in log file
                 // log UI use this to navigate from issue to log
-                if (!string.IsNullOrEmpty(issue.Message))
+                if (!string.IsNullOrEmpty(logMessage))
                 {
-                    long logLineNumber = Write(WellKnownTags.Error, issue.Message);
+                    long logLineNumber = Write(WellKnownTags.Error, logMessage);
                     issue.Data["logFileLineNumber"] = logLineNumber.ToString();
                 }
 
@@ -314,9 +319,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             {
                 // tracking line number for each issue in log file
                 // log UI use this to navigate from issue to log
-                if (!string.IsNullOrEmpty(issue.Message))
+                if (!string.IsNullOrEmpty(logMessage))
                 {
-                    long logLineNumber = Write(WellKnownTags.Warning, issue.Message);
+                    long logLineNumber = Write(WellKnownTags.Warning, logMessage);
                     issue.Data["logFileLineNumber"] = logLineNumber.ToString();
                 }
 
