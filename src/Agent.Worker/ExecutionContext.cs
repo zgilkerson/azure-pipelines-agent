@@ -57,7 +57,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         TaskResult Complete(TaskResult? result = null, string currentOperation = null, string resultCode = null);
         void SetVariable(string name, string value, bool isSecret = false, bool isOutput = false, bool isFilePath = false);
         void SetTimeout(TimeSpan? timeout);
-        void AddIssue(Issue issue);
+        void AddIssue(Issue issue, string message = null);
         void Progress(int percentage, string currentOperation = null);
         void UpdateDetailTimelineRecord(TimelineRecord record);
 

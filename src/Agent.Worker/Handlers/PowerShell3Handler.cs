@@ -58,8 +58,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             ArgUtil.NotNullOrEmpty(powerShellExe, nameof(powerShellExe));
 
             // Invoke the process.
-            StepHost.OutputDataReceived += OnDataReceived;
-            StepHost.ErrorDataReceived += OnDataReceived;
+            StepHost.OutputDataReceived += new OutputManager(ExecutionContext);
+            StepHost.ErrorDataReceived += new OutputManager(ExecutionContext);
 
             // Execute the process. Exit code 0 should always be returned.
             // A non-zero exit code indicates infrastructural failure.
@@ -73,16 +73,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                         killProcessOnCancel: false,
                                         inheritConsoleHandler: !ExecutionContext.Variables.Retain_Default_Encoding,
                                         cancellationToken: ExecutionContext.CancellationToken);
-        }
-
-        private void OnDataReceived(object sender, ProcessDataReceivedEventArgs e)
-        {
-            // This does not need to be inside of a critical section.
-            // The logging queues and command handlers are thread-safe.
-            if (!CommandManager.TryProcessCommand(ExecutionContext, e.Data))
-            {
-                ExecutionContext.Output(e.Data);
-            }
         }
     }
 }

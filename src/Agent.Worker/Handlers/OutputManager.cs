@@ -1,14 +1,9 @@
-using Microsoft.TeamFoundation.Build.WebApi;
-using Microsoft.TeamFoundation.DistributedTask.WebApi;
-using Microsoft.VisualStudio.Services.Agent.Util;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Linq;
-using System.IO;
-using Microsoft.VisualStudio.Services.WebApi;
 using System.Text.RegularExpressions;
-using Pipelines = Microsoft.TeamFoundation.DistributedTask.Pipelines;
+using Microsoft.VisualStudio.Services.Agent.Util;
+using Microsoft.VisualStudio.Services.WebApi;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 {
@@ -27,6 +22,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             _executionContext = executionContext;
 
             executionContext.OnMatcherChanged += OnMatcherChanged;
+
+            // todo: register known problem matcher
         }
 
         public void OnDataReceived(object sender, ProcessDataReceivedEventArgs e)
@@ -93,18 +90,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                                 context.Write($"{WellKnownTags.Warning}{stripped}");
                                 break;
 
-                            default:
+                            case IssueSeverity.Error:
                                 context.Write($"{WellKnownTags.Error}{stripped}");
                                 break;
+
+                            default:
+                                // todo
+                                throw new NotImplementedException();
                         }
 
-                        // Reset each matcher
-                        foreach (var matcher2 in matchers)
+                        // todo: handle if message is null or whitespace
+
+                        // Reset other matchers
+                        foreach (var otherMatcher in matchers.Where(!object.ReferenceEquals(x, matcher)))
                         {
-                            if (!object.ReferenceEquals(matcher, matcher2) || !matcher.Loop)
-                            {
-                                matcher2.Reset();
-                            }
+                            otherMatcher.Reset();
                         }
 
                         return;
@@ -121,7 +121,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             // Lock
             lock (_matchersLock)
             {
-                var newMatchers = new List<IssueMatcher>()
+                var newMatchers = new List<IssueMatcher>();
 
                 // Prepend
                 if (e.Configuration.Patterns.Count > 0)
