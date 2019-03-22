@@ -10,6 +10,7 @@
   - Fix workingDirectory/targetPath on container jobs #2121
   - Grant directory permission to auto logon account. #2139
   - Failing PTR on failed tests does not work with multiple result files #2144
+  - Fix publishing results in Batch. #2181
 
 ## Misc
   - Always disable git prompt. #2135
