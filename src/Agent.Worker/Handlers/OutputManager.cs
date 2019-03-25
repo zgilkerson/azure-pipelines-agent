@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.Services.Agent.Util;
@@ -42,8 +43,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             // Lock
             lock (_matchersLock)
             {
-                _executionContext.OnMatcherChanged += OnMatcherChanged;
-                _matchers = _executionContext.Matchers.Select(x => new IssueMatcher(x, _timeout)).ToArray();
+                _executionContext.Add(OnMatcherChanged);
+                _matchers = _executionContext.GetMatchers().Select(x => new IssueMatcher(x, _timeout)).ToArray();
             }
         }
 
@@ -51,7 +52,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
         {
             try
             {
-                _executionContext.OnMatcherChanged -= OnMatcherChanged;
+                _executionContext.Remove(OnMatcherChanged);
             }
             catch
             {
@@ -67,7 +68,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             {
                 // This does not need to be inside of a critical section.
                 // The logging queues and command handlers are thread-safe.
-                _commandManager.TryProcessCommand(ExecutionContext, line);
+                _commandManager.TryProcessCommand(_executionContext, line);
 
                 return;
             }
@@ -79,17 +80,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 var matchers = _matchers;
 
                 // Strip color codes
-                var stripped = line.Contains(_colorCodePrefix) ? _colorCodeRegex.Remove(line) : line;
+                var stripped = line.Contains(_colorCodePrefix) ? _colorCodeRegex.Replace(line, string.Empty) : line;
 
-                foreach (var matcher in matchers);
+                foreach (var matcher in matchers)
                 {
-                    Issue issue = null;
+                    IssueMatch match = null;
                     for (var attempt = 1; attempt <= _maxAttempts; i++)
                     {
                         // Match
                         try
                         {
-                            issue = matcher.Match(stripped);
+                            match = matcher.Match(stripped);
 
                             break;
                         }
@@ -112,34 +113,24 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                         }
                     }
 
-                    if (issue != null)
+                    if (match != null)
                     {
-                        // Log the issue/line
-                        switch (issue.Severity)
-                        {
-                            case IssueSeverity.Warning:
-                                _executionContext.AddIssue(issue, stripped);
-                                context.Write($"{WellKnownTags.Warning}{stripped}");
-                                break;
-
-                            case IssueSeverity.Error:
-                                context.Write($"{WellKnownTags.Error}{stripped}");
-                                break;
-
-                            default:
-                                // todo
-                                throw new NotImplementedException();
-                        }
-
-                        // todo: handle if message is null or whitespace
-
                         // Reset other matchers
                         foreach (var otherMatcher in matchers.Where(x => !object.ReferenceEquals(x, matcher)))
                         {
                             otherMatcher.Reset();
                         }
 
-                        return;
+                        // Convert to issue
+                        var issue = ConvertToIssue(match);
+
+                        if (issue != null)
+                        {
+                            // Log issue
+                            _executionContext.AddIssue(issue, stripped);
+
+                            return;
+                        }
                     }
                 }
             }
@@ -177,11 +168,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 var newMatchers = new List<IssueMatcher>();
 
                 // Match by object reference, not by owner name
-                newMatchers.AddRange(_matchers.Where(x => !object.Reference(x, matcer)));
+                newMatchers.AddRange(_matchers.Where(x => !object.Reference(x, matcher)));
 
                 // Store
                 _matchers = newMatchers.ToArray();
             }
+        }
+
+        private Issue ConvertToIssue(IssueMatch match)
+        {
+            // todo: handle if message is null or whitespace
+            // todo: validate severity
+            throw new NotImplementedException();
         }
     }
 }

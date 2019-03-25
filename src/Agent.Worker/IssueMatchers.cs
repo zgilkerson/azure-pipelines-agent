@@ -6,8 +6,10 @@ using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.WebApi;
 
-namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
+namespace Microsoft.VisualStudio.Services.Agent.Worker
 {
+    public delegate void OnMatcherChanged(object sender, MatcherChangedEventArgs e);
+
     public sealed class MatcherChangedEventArgs : EventArgs
     {
         public MatcherChangedEventArgs(IssueMatcherConfig config)
@@ -108,7 +110,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
         private static readonly RegexOptions _options = RegexOptions.CultureInvariant | RegexOptions.ECMAScript | RegexOptions.IgnoreCase;
         private Regex _regex;
 
-        public IssuePattern(IssuePattern config, TimeSpan timeout)
+        public IssuePattern(IssuePatternConfig config, TimeSpan timeout)
         {
             File = config.File;
             Line = config.Line;
@@ -117,7 +119,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             Code = config.Code;
             Message = config.Message;
             FromPath = config.FromPath;
-            Regex = new Regex(config.Pattern ?? String.Empty, _options, timeout ?? TimeSpan.FromSeconds(1));
+            Regex = new Regex(config.Pattern ?? String.Empty, _options, timeout);
         }
 
         public int? File { get; }
@@ -223,6 +225,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
                 return _owner;
             }
+
+            set
+            {
+                _owner = value;
+            }
         }
 
         public IssuePatternConfig[] Patterns
@@ -253,13 +260,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
     [DataContract]
     public sealed class IssuePatternConfig
     {
-        [DataMember(Name = "regexp")]
-        private string _pattern;
-
-        private Regex _regex;
-
-        private TimeSpan? _timeout;
-
         [DataMember(Name = "file")]
         public int? File { get; set; }
 

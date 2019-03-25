@@ -61,6 +61,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         void Progress(int percentage, string currentOperation = null);
         void UpdateDetailTimelineRecord(TimelineRecord record);
 
+        // matchers
+        void Add(OnMatcherChanged handler);
+        void Remove(OnMatcherChanged handler);
+        void AddMatcher(IssueMatcherConfig matcher);
+        void RemoveMatcher(string owner);
+        IEnumerable<IssueMatcherConfig> GetMatchers();
+
         // others
         void ForceTaskComplete();
     }
@@ -74,11 +81,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         private readonly object _loggerLock = new object();
         private readonly List<IAsyncCommandContext> _asyncCommands = new List<IAsyncCommandContext>();
         private readonly HashSet<string> _outputvariables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly object _matchersLock = new object();
 
         private IAgentLogPlugin _logPlugin;
         private IPagingLogger _logger;
         private IJobServerQueue _jobServerQueue;
-        private IExecutionContext _parentExecutionContext;
+        private ExecutionContext _parentExecutionContext;
 
         private bool _outputForward = false;
         private Guid _mainTimelineId;
@@ -90,6 +98,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
         // only job level ExecutionContext will track throttling delay.
         private long _totalThrottlingDelayInMilliseconds = 0;
+
+        private IssueMatcherConfig[] _matchers;
+        private event OnMatcherChanged _onMatcherChanged;
 
         public Guid Id => _record.Id;
         public Task ForceCompleted => _forceCompleted.Task;
@@ -136,6 +147,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         }
 
         public PlanFeatures Features { get; private set; }
+
+        private ExecutionContext Root
+        {
+            get
+            {
+                var result = this;
+
+                while (result._parentExecutionContext != null)
+                {
+                    result = result._parentExecutionContext;
+                }
+
+                return result;
+            }
+        }
 
         public override void Initialize(IHostContext hostContext)
         {
@@ -545,12 +571,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             }
 
             // write to job level execution context's log file.
-            var parentContext = _parentExecutionContext as ExecutionContext;
-            if (parentContext != null)
+            if (_parentExecutionContext != null)
             {
-                lock (parentContext._loggerLock)
+                lock (_parentExecutionContext._loggerLock)
                 {
-                    parentContext._logger.Write(msg);
+                    _parentExecutionContext._logger.Write(msg);
                 }
             }
 
@@ -581,6 +606,65 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             }
 
             _jobServerQueue.QueueFileUpload(_mainTimelineId, _record.Id, type, name, filePath, deleteSource: false);
+        }
+
+        // Add OnMatcherChanged
+        public void Add(OnMatcherChanged handler)
+        {
+            Root._onMatcherChanged += handler;
+        }
+
+        // Remove OnMatcherChanged
+        public void Remove(OnMatcherChanged handler)
+        {
+            Root._onMatcherChanged -= handler;
+        }
+
+        // Add Issue matcher
+        public void AddMatcher(IssueMatcherConfig config)
+        {
+            var root = Root;
+
+            // Lock
+            lock (root._matchersLock)
+            {
+                var newMatchers = new List<IssueMatcherConfig>();
+
+                // Prepend
+                newMatchers.Add(config);
+
+                // Add existing non-matching
+                newMatchers.AddRange(root._matchers.Where(x => !string.Equals(x.Owner, config.Owner, StringComparison.OrdinalIgnoreCase)));
+
+                // Store
+                root._matchers = newMatchers.ToArray();
+
+                // Fire event
+                root._onMatcherChanged(null, new MatcherChangedEventArgs(config));
+            }
+        }
+
+        // Remove issue matcher
+        public void RemoveMatcher(string owner)
+        {
+            var root = Root;
+
+            // Lock
+            lock (root._matchersLock)
+            {
+                // Store
+                root._matchers = root._matchers.Where(x => !string.Equals(x.Owner, owner, StringComparison.OrdinalIgnoreCase)).ToArray();
+
+                // Fire event
+                root._onMatcherChanged(null, new MatcherChangedEventArgs(new IssueMatcherConfig { Owner = owner }));
+            }
+        }
+
+        // Get issue matchers
+        public IEnumerable<IssueMatcherConfig> GetMatchers()
+        {
+            // Lock not required since the list is immutable
+            return Root._matchers;
         }
 
         private void InitializeTimelineRecord(Guid timelineId, Guid timelineRecordId, Guid? parentTimelineRecordId, string recordType, string displayName, string refName, int? order)
