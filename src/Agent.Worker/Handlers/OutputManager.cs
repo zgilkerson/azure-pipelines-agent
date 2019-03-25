@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.Services.WebApi;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 {
-    public sealed class OutputManager
+    public sealed class OutputManager : IDisposable
     {
         private const string _colorCodePrefix = "\033[";
         private const int _maxAttempts = 3;
@@ -16,52 +16,45 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
         private readonly IWorkerCommandManager _commandManager;
         private readonly IExecutionContext _executionContext;
         private readonly object _matchersLock = new object();
+        private readonly TimeSpan _timeout;
         private IssueMatcher[] _matchers = Array.Empty<IssueMatcher>();
 
-        public OutputManager(IExecutionContext executionContext)
+        public OutputManager(IExecutionContext executionContext, IWorkerCommandManager commandManager)
         {
             _executionContext = executionContext;
-            _commandManager = hostContext.GetService<IWorkerCommandManager>();
-
-            //executionContext.OnMatcherChanged += OnMatcherChanged;
-
-            // todo: register known problem matcher
+            _commandManager = commandManager;
 
             // Determine the timeout
-            TimeSpan timeout = null;
             var timeoutStr = _executionContext.Variables.Get(_timeoutKey);
             if (string.IsNullOrEmpty(timeoutStr) ||
-                !TimeSpan.TryParse(timeoutStr, CultureInfo.InvariantCulture, out timeout) ||
-                timeout <= TimeSpan.Zero)
+                !TimeSpan.TryParse(timeoutStr, CultureInfo.InvariantCulture, out _timeout) ||
+                _timeout <= TimeSpan.Zero)
             {
                 timeoutStr = Environment.GetEnvironmentVariable(_timeoutKey);
                 if (string.IsNullOrEmpty(timeoutStr) ||
-                    !TimeSpan.TryParse(timeoutStr, CultureInfo.InvariantCulture, out timeout) ||
-                    timeout <= TimeSpan.Zero)
+                    !TimeSpan.TryParse(timeoutStr, CultureInfo.InvariantCulture, out _timeout) ||
+                    _timeout <= TimeSpan.Zero)
                 {
-                    timeout = TimeSpan.FromSeconds(1);
+                    _timeout = TimeSpan.FromSeconds(1);
                 }
             }
 
             // Lock
             lock (_matchersLock)
             {
-                var matchers = _executionContext.Matchers; // Copy the reference
+                _executionContext.OnMatcherChanged += OnMatcherChanged;
+                _matchers = _executionContext.Matchers.Select(x => new IssueMatcher(x, _timeout)).ToArray();
+            }
+        }
 
-                _matchers = new IssueMatcher[matchers.Count];
-
-                for (var i = 0; i < matchers.Count; i++)
-                {
-                    _matchers[i] = new IssueMatcher(matchers[i], timeout); // Copy the matcher
-                }
-
-                _matchers = new IssueMatcher[]
-                var newMatchers = new List<IssueMatcher>();
-
-                newMatchers.AddRange(_executionContext.Matchers);
-
-                // Store
-                _matchers = newMatchers.ToArray();
+        public void Dispose()
+        {
+            try
+            {
+                _executionContext.OnMatcherChanged -= OnMatcherChanged;
+            }
+            catch
+            {
             }
         }
 
@@ -163,13 +156,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 var newMatchers = new List<IssueMatcher>();
 
                 // Prepend
-                if (e.Configuration.Patterns.Count > 0)
+                if (e.Config.Patterns.Count > 0)
                 {
-                    newMatchers.Add(new IssueMatcher(e.Configuration));
+                    newMatchers.Add(new IssueMatcher(e.Config, _timeout));
                 }
 
                 // Add existing non-matching
-                newMatchers.AddRange(_matchers.Where(x => !string.Equals(x.Owner, e.Configuration.Owner, OrdinalIgnoreCase)));
+                newMatchers.AddRange(_matchers.Where(x => !string.Equals(x.Owner, e.Config.Owner, OrdinalIgnoreCase)));
 
                 // Store
                 _matchers = newMatchers.ToArray();

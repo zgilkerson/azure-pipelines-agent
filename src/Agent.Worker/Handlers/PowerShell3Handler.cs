@@ -57,22 +57,26 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
             ArgUtil.NotNullOrEmpty(powerShellExe, nameof(powerShellExe));
 
-            // Invoke the process.
-            StepHost.OutputDataReceived += new OutputManager(ExecutionContext).OnDataReceived;
-            StepHost.ErrorDataReceived += new OutputManager(ExecutionContext).OnDataReceived;
+            using (var stdoutManager = new OutputManager(ExecutionContext, CommandManager))
+            using (var stderrManager = new OutputManager(ExecutionContext, CommandManager))
+            {
+                // Invoke the process.
+                StepHost.OutputDataReceived += stdoutManager.OnDataReceived;
+                StepHost.ErrorDataReceived += stderrManager.OnDataReceived;
 
-            // Execute the process. Exit code 0 should always be returned.
-            // A non-zero exit code indicates infrastructural failure.
-            // Task failure should be communicated over STDOUT using ## commands.
-            await StepHost.ExecuteAsync(workingDirectory: StepHost.ResolvePathForStepHost(scriptDirectory),
-                                        fileName: powerShellExe,
-                                        arguments: powerShellExeArgs,
-                                        environment: Environment,
-                                        requireExitCodeZero: true,
-                                        outputEncoding: null,
-                                        killProcessOnCancel: false,
-                                        inheritConsoleHandler: !ExecutionContext.Variables.Retain_Default_Encoding,
-                                        cancellationToken: ExecutionContext.CancellationToken);
+                // Execute the process. Exit code 0 should always be returned.
+                // A non-zero exit code indicates infrastructural failure.
+                // Task failure should be communicated over STDOUT using ## commands.
+                await StepHost.ExecuteAsync(workingDirectory: StepHost.ResolvePathForStepHost(scriptDirectory),
+                                            fileName: powerShellExe,
+                                            arguments: powerShellExeArgs,
+                                            environment: Environment,
+                                            requireExitCodeZero: true,
+                                            outputEncoding: null,
+                                            killProcessOnCancel: false,
+                                            inheritConsoleHandler: !ExecutionContext.Variables.Retain_Default_Encoding,
+                                            cancellationToken: ExecutionContext.CancellationToken);
+            }
         }
     }
 }
