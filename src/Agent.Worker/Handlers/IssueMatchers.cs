@@ -90,28 +90,62 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
         public IssueMatch Match(string line)
         {
-            if (_patterns.Length == 1)
+            if (_state == null)
             {
+                Reset();
             }
-            else
+
+            // Each pattern (iterate in reverse)
+            for (int i = _patterns.Length - 1; i >= 0; i--)
             {
-                if (_state == null)
-                {
-                    _state = new IssueMatch[_patterns.Length - 1];
-                }
+                var runningMatch = i > 0 ? _state[i - 1] : null;
 
-                for (int i = _patterns.Length - 1; i >= 0; i--)
+                // First pattern or a running match
+                if (i == 0 || runningMatch != null)
                 {
-                    var runningMatch = i > 0 ? _state[i - 1] : null;
+                    var pattern = _patterns[i];
+                    var regexMatch = pattern.Regex.Match(line);
 
-                    var match = _patterns[i].Match(line, runningMatch);
+                    // Matched
+                    if (regexMatch.Success)
+                    {
+                        // Last pattern
+                        if (i == _patterns.Length - 1)
+                        {
+                            // Multi-line non-loop
+                            if (i > 0 && !pattern.Loop)
+                            {
+                                // Clear the state
+                                Reset();
+                            }
+
+                            // Return
+                            return result;
+                        }
+                        // Not the last pattern
+                        else
+                        {
+                            // Store the match
+                            _state[i] = new IssueMatch(runningMatch, pattern, regexMatch);
+                        }
+                    }
+                    // Not matched
+                    else
+                    {
+                        // Not the last pattern
+                        if (i != patterns.Length - 1)
+                        {
+                            // Record not matched
+                            _state[i] = null;
+                        }
+                    }
                 }
             }
         }
 
         public void Reset()
         {
-            _matches = null;
+            _state = new IssueMatch[_patterns.Length - 1];
         }
 
         public void Validate()
@@ -122,6 +156,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             // todo: the same property may not be defined on more than one pattern
             // todo: the last pattern must define message
             // todo: validate at least one pattern
+            // todo: validate IssuePattern properties int32 values are >= 0 (or > 0? check vscode)
         }
     }
 
@@ -195,6 +230,17 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
     public sealed class IssueMatch
     {
+        public IssueMatch(IssueMatch runningMatch, IssuePattern pattern, GroupCollection groups)
+        {
+            File = runningMatch?.File ?? GetValue(groups, pattern.File);
+            Line = runningMatch?.Line ?? GetValue(groups, pattern.Line);
+            Column = runningMatch?.Column ?? GetValue(groups, pattern.Column);
+            Severity = runningMatch?.Severity ?? GetValue(groups, pattern.Severity);
+            Code = runningMatch?.Code ?? GetValue(groups, pattern.Code);
+            Message = runningMatch?.Message ?? GetValue(groups, pattern.Message);
+            FromPath = runningMatch?.FromPath ?? GetValue(groups, pattern.FromPath);
+        }
+
         public string File { get; set; }
 
         public string Line { get; set; }
@@ -208,5 +254,16 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
         public string Message { get; set; }
 
         public string FromPath { get; set; }
+
+        private string GetValue(GroupCollection groups, int? index)
+        {
+            if (index.HasValue && index.Value < groups.Count)
+            {
+                var group = groups[index.Value];
+                return group.Value;
+            }
+
+            return null;
+        }
     }
 }
