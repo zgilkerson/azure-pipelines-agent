@@ -58,8 +58,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             ArgUtil.NotNullOrEmpty(powerShellExe, nameof(powerShellExe));
 
             // Invoke the process.
-            StepHost.OutputDataReceived += new OutputManager(ExecutionContext);
-            StepHost.ErrorDataReceived += new OutputManager(ExecutionContext);
+            StepHost.OutputDataReceived += new OutputManager(ExecutionContext).OnDataReceived;
+            StepHost.ErrorDataReceived += new OutputManager(ExecutionContext).OnDataReceived;
 
             // Execute the process. Exit code 0 should always be returned.
             // A non-zero exit code indicates infrastructural failure.

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.WebApi;
+using Newtonsoft.Json;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 {
@@ -52,7 +54,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
         {
         }
 
-        public IssueMatcher(IssueMatcher copy, Timespan timeout)
+        public IssueMatcher(IssueMatcher copy, TimeSpan timeout)
         {
             _owner = copy._owner;
 
@@ -104,13 +106,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 if (i == 0 || runningMatch != null)
                 {
                     var pattern = _patterns[i];
+                    var isLast = i == _patterns.Length - 1;
                     var regexMatch = pattern.Regex.Match(line);
 
                     // Matched
                     if (regexMatch.Success)
                     {
                         // Last pattern
-                        if (i == _patterns.Length - 1)
+                        if (isLast)
                         {
                             // Multi-line non-loop
                             if (i > 0 && !pattern.Loop)
@@ -120,20 +123,20 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                             }
 
                             // Return
-                            return result;
+                            return new IssueMatch(runningMatch, pattern, regexMatch.Groups);
                         }
                         // Not the last pattern
                         else
                         {
                             // Store the match
-                            _state[i] = new IssueMatch(runningMatch, pattern, regexMatch);
+                            _state[i] = new IssueMatch(runningMatch, pattern, regexMatch.Groups);
                         }
                     }
                     // Not matched
                     else
                     {
                         // Not the last pattern
-                        if (i != patterns.Length - 1)
+                        if (isLast)
                         {
                             // Record not matched
                             _state[i] = null;
@@ -141,6 +144,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                     }
                 }
             }
+
+            return null;
         }
 
         public void Reset()
@@ -163,21 +168,21 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
     [DataContract]
     public sealed class IssuePattern
     {
-        private static readonly _options = RegexOptions.CultureInvariant | RegexOptions.ECMAScript | RegexOptions.IgnoreCase;
+        private static readonly RegexOptions _options = RegexOptions.CultureInvariant | RegexOptions.ECMAScript | RegexOptions.IgnoreCase;
 
         [DataMember(Name = "regexp")]
         private string _pattern;
 
         private Regex _regex;
 
-        private Timespan? _timeout;
+        private TimeSpan? _timeout;
 
         [JsonConstructor]
         public IssuePattern()
         {
         }
 
-        public IssuePattern(IssuePattern copy, Timespan timeout)
+        public IssuePattern(IssuePattern copy, TimeSpan timeout)
         {
             _pattern = copy._pattern;
             File = copy.File;
@@ -187,7 +192,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             Code = copy.Code;
             Message = copy.Message;
             FromPath = copy.FromPath;
-            _timespan = timeout;
+            _timeout = timeout;
         }
 
         [DataMember(Name = "file")]

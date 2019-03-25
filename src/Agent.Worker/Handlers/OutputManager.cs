@@ -9,21 +9,60 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 {
     public sealed class OutputManager
     {
-        private const int _maxAttempts = 3;
         private const string _colorCodePrefix = "\033[";
+        private const int _maxAttempts = 3;
+        private const string _timeoutKey = "VSTS_ISSUE_MATCHER_TIMEOUT";
         private static readonly Regex _colorCodeRegex = new Regex(@"\033\[[0-9;]*m?", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private readonly IWorkerCommandManager _commandManager;
         private readonly IExecutionContext _executionContext;
         private readonly object _matchersLock = new object();
         private IssueMatcher[] _matchers = Array.Empty<IssueMatcher>();
-        private bool _hasMatchers;
 
         public OutputManager(IExecutionContext executionContext)
         {
             _executionContext = executionContext;
+            _commandManager = hostContext.GetService<IWorkerCommandManager>();
 
-            executionContext.OnMatcherChanged += OnMatcherChanged;
+            //executionContext.OnMatcherChanged += OnMatcherChanged;
 
             // todo: register known problem matcher
+
+            // Determine the timeout
+            TimeSpan timeout = null;
+            var timeoutStr = _executionContext.Variables.Get(_timeoutKey);
+            if (string.IsNullOrEmpty(timeoutStr) ||
+                !TimeSpan.TryParse(timeoutStr, CultureInfo.InvariantCulture, out timeout) ||
+                timeout <= TimeSpan.Zero)
+            {
+                timeoutStr = Environment.GetEnvironmentVariable(_timeoutKey);
+                if (string.IsNullOrEmpty(timeoutStr) ||
+                    !TimeSpan.TryParse(timeoutStr, CultureInfo.InvariantCulture, out timeout) ||
+                    timeout <= TimeSpan.Zero)
+                {
+                    timeout = TimeSpan.FromSeconds(1);
+                }
+            }
+
+            // Lock
+            lock (_matchersLock)
+            {
+                var matchers = _executionContext.Matchers; // Copy the reference
+
+                _matchers = new IssueMatcher[matchers.Count];
+
+                for (var i = 0; i < matchers.Count; i++)
+                {
+                    _matchers[i] = new IssueMatcher(matchers[i], timeout); // Copy the matcher
+                }
+
+                _matchers = new IssueMatcher[]
+                var newMatchers = new List<IssueMatcher>();
+
+                newMatchers.AddRange(_executionContext.Matchers);
+
+                // Store
+                _matchers = newMatchers.ToArray();
+            }
         }
 
         public void OnDataReceived(object sender, ProcessDataReceivedEventArgs e)
@@ -35,13 +74,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             {
                 // This does not need to be inside of a critical section.
                 // The logging queues and command handlers are thread-safe.
-                CommandManager.TryProcessCommand(ExecutionContext, line);
+                _commandManager.TryProcessCommand(ExecutionContext, line);
 
                 return;
             }
 
             // Problem matchers
-            if (_hasMatchers)
+            if (_matchers.Length > 0)
             {
                 // Copy the reference
                 var matchers = _matchers;
@@ -102,7 +141,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                         // todo: handle if message is null or whitespace
 
                         // Reset other matchers
-                        foreach (var otherMatcher in matchers.Where(!object.ReferenceEquals(x, matcher)))
+                        foreach (var otherMatcher in matchers.Where(x => !object.ReferenceEquals(x, matcher)))
                         {
                             otherMatcher.Reset();
                         }
@@ -134,7 +173,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
                 // Store
                 _matchers = newMatchers.ToArray();
-                _hasMatchers = true;
             }
         }
 
@@ -150,7 +188,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
                 // Store
                 _matchers = newMatchers.ToArray();
-                _hasMatchers = _matchers.Length > 0;
             }
         }
     }
