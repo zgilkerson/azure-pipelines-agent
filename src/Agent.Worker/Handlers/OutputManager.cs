@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.WebApi;
+using DTWebApi = Microsoft.TeamFoundation.DistributedTask.WebApi;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 {
@@ -85,7 +86,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 foreach (var matcher in matchers)
                 {
                     IssueMatch match = null;
-                    for (var attempt = 1; attempt <= _maxAttempts; i++)
+                    for (var attempt = 1; attempt <= _maxAttempts; attempt++)
                     {
                         // Match
                         try
@@ -99,7 +100,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                             if (attempt < _maxAttempts)
                             {
                                 // Debug
-                                executionContext.Debug($"Timeout processing issue matcher '{matcher.Owner}' against line '{stripped}'. Exception: {ex.ToString()}");
+                                _executionContext.Debug($"Timeout processing issue matcher '{matcher.Owner}' against line '{stripped}'. Exception: {ex.ToString()}");
                             }
                             else
                             {
@@ -147,13 +148,13 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 var newMatchers = new List<IssueMatcher>();
 
                 // Prepend
-                if (e.Config.Patterns.Count > 0)
+                if (e.Config.Patterns.Length > 0)
                 {
                     newMatchers.Add(new IssueMatcher(e.Config, _timeout));
                 }
 
                 // Add existing non-matching
-                newMatchers.AddRange(_matchers.Where(x => !string.Equals(x.Owner, e.Config.Owner, OrdinalIgnoreCase)));
+                newMatchers.AddRange(_matchers.Where(x => !string.Equals(x.Owner, e.Config.Owner, StringComparison.OrdinalIgnoreCase)));
 
                 // Store
                 _matchers = newMatchers.ToArray();
@@ -168,14 +169,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 var newMatchers = new List<IssueMatcher>();
 
                 // Match by object reference, not by owner name
-                newMatchers.AddRange(_matchers.Where(x => !object.Reference(x, matcher)));
+                newMatchers.AddRange(_matchers.Where(x => !object.ReferenceEquals(x, matcher)));
 
                 // Store
                 _matchers = newMatchers.ToArray();
             }
         }
 
-        private Issue ConvertToIssue(IssueMatch match)
+        private DTWebApi.Issue ConvertToIssue(IssueMatch match)
         {
             // todo: handle if message is null or whitespace
             // todo: validate severity

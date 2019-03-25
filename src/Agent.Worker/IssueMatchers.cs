@@ -108,7 +108,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
     public sealed class IssuePattern
     {
         private static readonly RegexOptions _options = RegexOptions.CultureInvariant | RegexOptions.ECMAScript | RegexOptions.IgnoreCase;
-        private Regex _regex;
 
         public IssuePattern(IssuePatternConfig config, TimeSpan timeout)
         {
