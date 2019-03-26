@@ -11,6 +11,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 {
     public sealed class TaskCommandExtension : AgentService, IWorkerCommandExtension
     {
+        // todo: ?
         // Since we process all logging command in serialized order, everthing should be thread safe.
         private readonly Dictionary<Guid, TimelineRecord> _timelineRecordsTracker = new Dictionary<Guid, TimelineRecord>();
 
