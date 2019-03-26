@@ -105,8 +105,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                             else
                             {
                                 // Warn
-                                // todo: loc
-                                _executionContext.Warning($"Removing issue matcher '{matcher.Owner}'. Matcher failed {_maxAttempts} times. Error: {ex.Message}");
+                                _executionContext.Warning(StringUtil.Loc("RemovingIssueMatcher", matcher.Owner, _maxAttempts, ex.Message));
 
                                 // Remove
                                 Remove(matcher);
@@ -178,9 +177,36 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
         private DTWebApi.Issue ConvertToIssue(IssueMatch match)
         {
-            // todo: handle if message is null or whitespace
-            // todo: validate severity
-            throw new NotImplementedException();
+            // Validate the message
+            if (string.IsNullOrWhitespace(match.Message))
+            {
+                _executionContext.Debug("Skipping logging an issue for the matched line because the message is empty.");
+                return;
+            }
+
+            // Validate the severity
+            DTWebApi.IssueType issueType;
+            if (string.IsNullOrEmpty(match.Severity) || string.Equals(match.Severity, "error", StringComparison.OrdinalIgnoreCase))
+            {
+                issueType = DTWebApi.IssueType.Error;
+            }
+            else if (string.Equals(match.Severity, "warning", StringComparison.OrdinalIgnoreCase))
+            {
+                issueType = DTWebApi.IssueType.Warning;
+            }
+            else
+            {
+                _executionContext.Debug($"Skipping logging an issue for the matched line because the severity '{match.Severity}' is not supported.");
+                return;
+            }
+
+            // todo: map the other properties
+            // todo: deal with file path
+            return new DTWebApi.Issue
+            {
+                Message = match.Message,
+                Type = issueType,
+            };
         }
     }
 }

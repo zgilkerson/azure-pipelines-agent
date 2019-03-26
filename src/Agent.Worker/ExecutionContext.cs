@@ -83,6 +83,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         private readonly HashSet<string> _outputvariables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly object _matchersLock = new object();
 
+        private event OnMatcherChanged _onMatcherChanged;
+
+        private IssueMatcherConfig[] _matchers;
+
         private IAgentLogPlugin _logPlugin;
         private IPagingLogger _logger;
         private IJobServerQueue _jobServerQueue;
@@ -98,9 +102,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
         // only job level ExecutionContext will track throttling delay.
         private long _totalThrottlingDelayInMilliseconds = 0;
-
-        private IssueMatcherConfig[] _matchers;
-        private event OnMatcherChanged _onMatcherChanged;
 
         public Guid Id => _record.Id;
         public Task ForceCompleted => _forceCompleted.Task;

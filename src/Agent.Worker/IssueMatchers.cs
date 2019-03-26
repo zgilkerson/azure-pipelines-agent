@@ -107,8 +107,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
     public sealed class IssuePattern
     {
-        private static readonly RegexOptions _options = RegexOptions.CultureInvariant | RegexOptions.ECMAScript | RegexOptions.IgnoreCase;
-
         public IssuePattern(IssuePatternConfig config, TimeSpan timeout)
         {
             File = config.File;
@@ -118,7 +116,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             Code = config.Code;
             Message = config.Message;
             FromPath = config.FromPath;
-            Regex = new Regex(config.Pattern ?? String.Empty, _options, timeout);
+            Regex = new Regex(config.Pattern ?? string.Empty, IssuePatternConfig.RegexOptions, timeout);
         }
 
         public int? File { get; }
@@ -198,9 +196,24 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             }
         }
 
+        // todo: caller should catch
         public void Validate()
         {
-            // todo
+            var distinctOwners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (_matchers?.Count > 0)
+            {
+                foreach (var matcher in _matchers)
+                {
+                    matcher.Validate();
+
+                    if (!distinctOwners.Add(matcher.Owner))
+                    {
+                        // Not localized since this is a programming contract
+                        throw new ArgumentException($"Duplicate owner name '{matcher.Owner}'"));
+                    }
+                }
+            }
         }
     }
 
@@ -246,44 +259,153 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
         public void Validate()
         {
-            // todo: only last pattern may contain "loop=true"
-            // todo: pattern may not contain "loop=true" when it is the only pattern
-            // todo: only the last pattern may define message
-            // todo: the same property may not be defined on more than one pattern
-            // todo: the last pattern must define message
-            // todo: validate at least one pattern
-            // todo: validate IssuePattern properties int32 values are >= 0 (or > 0? check vscode)
+            // todo: allowed character set for owner name?
+
+            // Validate owner
+            if (string.IsNullOrEmpty(_owner))
+            {
+                throw new ArgumentException("Owner must not be empty");
+            }
+
+            // Validate at least one pattern
+            if (_patterns == null || _patterns.Length == 0)
+            {
+                throw new ArgumentException($"Matcher '{_owner}' does not contain any patterns");
+            }
+
+            int? file = null;
+            int? line = null;
+            int? column = null;
+            int? severity = null;
+            int? code = null;
+            int? message = null;
+            int? fromPath = null;
+
+            // Validate each pattern config
+            for (var i = 0; i < _patterns.Length; i++)
+            {
+                var isFirst = i == 0;
+                var isLast = i == _patterns.Length - 1;
+                var pattern = _patterns[i];
+                pattern.Validate(isFirst,
+                    isLast,
+                    ref file,
+                    ref line,
+                    ref column,
+                    ref severity,
+                    ref code,
+                    ref message,
+                    ref fromPath);
+            }
         }
     }
 
     [DataContract]
     public sealed class IssuePatternConfig
     {
-        [DataMember(Name = "file")]
+        private const string _file = "file";
+        private const string _line = "line";
+        private const string _column = "column";
+        private const string _severity = "severity";
+        private const string _code = "code";
+        private const string _message = "message";
+        private const string _fromPath = "fromPath";
+        private const string _loop = "loop";
+        private const string _regexp = "regexp";
+        internal static readonly RegexOptions RegexOptions = RegexOptions.CultureInvariant | RegexOptions.ECMAScript | RegexOptions.IgnoreCase;
+
+        [DataMember(Name = _file)]
         public int? File { get; set; }
 
-        [DataMember(Name = "line")]
+        [DataMember(Name = _line)]
         public int? Line { get; set; }
 
-        [DataMember(Name = "column")]
+        [DataMember(Name = _column)]
         public int? Column { get; set; }
 
-        [DataMember(Name = "severity")]
+        [DataMember(Name = _severity)]
         public int? Severity { get; set; }
 
-        [DataMember(Name = "code")]
+        [DataMember(Name = _code)]
         public int? Code { get; set; }
 
-        [DataMember(Name = "message")]
+        [DataMember(Name = _message)]
         public int? Message { get; set; }
 
-        [DataMember(Name = "fromPath")]
+        [DataMember(Name = _fromPath)]
         public int? FromPath { get; set; }
 
-        [DataMember(Name = "loop")]
+        [DataMember(Name = _loop)]
         public bool Loop { get; set; }
 
-        [DataMember(Name = "regexp")]
+        [DataMember(Name = _regexp)]
         public string Pattern { get; set; }
+
+        public void Validate(
+            bool isFirst,
+            bool isLast,
+            ref int? file,
+            ref int? line,
+            ref int? column,
+            ref int? severity,
+            ref int? code,
+            ref int? message,
+            ref int? fromPath)
+        {
+            // Only the last pattern in a multiline matcher may set 'loop'
+            if (Loop && (isFirst || !isLast))
+            {
+                throw new ArgumentException($"Only the last pattern in a multiline matcher may set '{_loop}'");
+            }
+
+            // Only the last pattern may set 'message'
+            if (Message != null && !isLast)
+            {
+                throw new ArgumentException($"Only the last pattern may set '{_message}'");
+            }
+
+            // The last pattern must set 'message'
+            if (Message == null && isLast)
+            {
+                throw new ArgumentException($"The last pattern must set '{_message}'");
+            }
+
+            var regex = new Regex(Pattern ?? string.Empty, RegexOptions);
+            var groupCount = regex.GetGroupNumbers().Length;
+
+            Validate(_file, groupCount, File, file);
+            Validate(_line, groupCount, Line, line);
+            Validate(_column, groupCount, Column, column);
+            Validate(_severity, groupCount, Severity, severity);
+            Validate(_code, groupCount, Code, code);
+            Validate(_message, groupCount, Message, message);
+            Validate(_fromPath, groupCount, FromPath, fromPath);
+        }
+
+        private void Validate(string propertyName, int groupCount, int? newValue, ref int? trackedValue)
+        {
+            if (newValue == null)
+            {
+                return;
+            }
+
+            // The property '___' is set twice
+            if (trackedValue != null)
+            {
+                throw new ArgumentException($"The property '{propertyName}' is set twice");
+            }
+
+            // Out of range
+            if (newValue.Value < 0 || newValue >= groupCount)
+            {
+                throw new ArgumentException($"The property '{propertyName}' is set to {newValue} which is out of range");
+            }
+
+            // Record the value
+            if (newValue != null)
+            {
+                trackedValue = newValue;
+            }
+        }
     }
 }
