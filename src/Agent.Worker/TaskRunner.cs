@@ -76,6 +76,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     break;
                 case JobRunStage.Main:
                     currentExecution = definition.Data?.Execution;
+                    if (definition.Data?.ProblemMatchers?.Count > 0)
+                    {
+                        ExecutionContext.AddMatchers(new IssueMatchersConfig { Matchers = definition.Data.ProblemMatchers });
+                    }
                     break;
                 case JobRunStage.PostJob:
                     currentExecution = definition.Data?.PostJobExecution;

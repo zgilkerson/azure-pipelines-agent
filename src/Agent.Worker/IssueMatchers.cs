@@ -194,6 +194,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
                 return _matchers;
             }
+
+            set
+            {
+                _matchers = value;
+            }
         }
 
         // todo: caller should catch

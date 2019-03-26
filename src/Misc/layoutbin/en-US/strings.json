@@ -274,6 +274,7 @@
   "FailedToOpenSCManager": "Failed to Open Service Control Manager",
   "FailedToPublishTestResults": "Failed to publish test results: {0}",
   "FailedToReadFile": "Failed to read {0}. Error : {1}.",
+  "FailedToRegisterMatchers": "Failed to register issue matchers. {0}",
   "FailedToReplaceAgent": "Failed to replace the agent.  Try again or ctrl-c to quit",
   "FailToRemoveGitConfig": "Unable to remove \"{0}\" from the git config. To remove the credential, execute \"git config --unset-all {0}\" from the repository root \"{1}\".",
   "FileContainerUploadFailed": "Unable to copy file to server StatusCode={0}: {1}. Source file path: {2}. Target server path: {3}",

@@ -621,9 +621,24 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             Root._onMatcherChanged -= handler;
         }
 
-        // Add Issue matcher
-        public void AddMatcher(IssueMatcherConfig config)
+        // Add Issue matchers
+        public void AddMatchers(IssueMatchersConfig config)
         {
+            if (config.Matchers.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                config.Validate();
+            }
+            catch (Exception ex)
+            {
+                this.Error(StringUtil.Loc("FailedToRegisterMatchers", ex.Message));
+                return;
+            }
+
             var root = Root;
 
             // Lock
@@ -632,16 +647,24 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 var newMatchers = new List<IssueMatcherConfig>();
 
                 // Prepend
-                newMatchers.Add(config);
+                var newOwners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var matcher in config.Matchers)
+                {
+                    newOwners.Add(matcher.Owner);
+                    newMatchers.Add(matcher);
+                }
 
                 // Add existing non-matching
-                newMatchers.AddRange(root._matchers.Where(x => !string.Equals(x.Owner, config.Owner, StringComparison.OrdinalIgnoreCase)));
+                newMatchers.AddRange(root._matchers.Where(x => !newOwners.Contains(x.Owner)));
 
                 // Store
                 root._matchers = newMatchers.ToArray();
 
-                // Fire event
-                root._onMatcherChanged(null, new MatcherChangedEventArgs(config));
+                // Fire events
+                foreach (var matcher in config.Matchers)
+                {
+                    root._onMatcherChanged(null, new MatcherChangedEventArgs(matcher));
+                }
             }
         }
 
