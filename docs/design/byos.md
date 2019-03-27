@@ -21,10 +21,8 @@ General themes are around:
 - VM specs (memory, CPU, disk) and network environment
 - Preinstalled software
 - Agent reuse
-
-Related, on-premises customers have often asked us for access to the Hosted pools.
-Pools using this feature should be available to Azure DevOps Server customers.
-By making our hosted images available in the Azure gallery, customers get an equivalent to the Hosted pools without having to worry about multi-tenancy, a new billing relationship, etc.
+- On-premises customers have often asked us for access to the Hosted pools.
+In lieu of that (which complicates billing and technical design), this feature must be available to Azure DevOps Server customers.
 
 ### VM specs and environment
 
@@ -41,8 +39,14 @@ By making our hosted images available in the Azure gallery, customers get an equ
 
 ### Agent reuse
 
-1. Customer wants to run several consecutive jobs on an agent to take advantage of things like incremental source and machine-level package caches. But, they don't want to run unnecessary VMs overnight when there's no load. They want to specify minimum and maximum # of agents associated with time ranges, but reuse agents within that span.
-2. Customer wants to run additional configuration or cache warmup before an agent beings accepting jobs. As additional agents are spun up, the customer has an opportunity to run a prep script that doesn't impact "pipeline runtime".
+1. Customer wants to run several consecutive jobs on an agent to take advantage of incremental source and machine-level package caches.
+They want to specify minimum and maximum # of agents associated with time ranges or # of builds, but reuse agents within that span.
+This can save money by not running unnecessary VMs overnight when there's no load.
+It can also increase reliability: we're aware of customers who need to blow away agents once every N builds because the accumulated "detritus" makes subsequent builds flaky.
+3. Customer wants to run additional configuration or cache warmup before an agent beings accepting jobs.
+As additional agents are spun up, the customer has an opportunity to run a prep script that doesn't impact "pipeline runtime".
+This is akin to the hosted pool's provisioner script.
+_While it's really nice to have, we could imagine shipping without it._
 
 ### On-premises customers
 
@@ -53,13 +57,20 @@ By making our hosted images available in the Azure gallery, customers get an equ
 Similar problem spaces:
 - [Jenkins can use Azure agents](https://docs.microsoft.com/en-us/azure/jenkins/jenkins-azure-vm-agents) this way
 - [AppVeyor](https://www.appveyor.com/docs/enterprise/running-builds-on-azure/) offers instructions for solving a similar problem on several cloud providers
-- [GitLab CI/CD](https://gitlab.com/gitlab-org/gitlab-runner/blob/master/docs/configuration/autoscale.md) offers auto-scaling of builder containers using Docker Machine.
+- GitLab CI/CD offers auto-scaling of builder containers using [Docker Machine](https://gitlab.com/gitlab-org/gitlab-runner/blob/master/docs/configuration/autoscale.md) or [Kubernetes](https://docs.gitlab.com/runner/executors/kubernetes.html).
 
 Not offered:
 - [Travis CI](https://docs.travis-ci.com/user/enterprise/setting-up-travis-ci-enterprise/) offers an enterprise product that you can install on your own infrastructure. While you can choose what kind of VM to run it on, there's no elasticity.
 - [CircleCI](https://circleci.com/docs/2.0/aws/#nomad-clients) offers an on-your-infrastructure product. You must scale up and down the workers manually, there's no elasticity.
 
 ## Solution
+
+For starters, this is about running agents on VMs in Azure.
+Primarily VM scale sets.
+Later, we may consider whether this same solution works for:
+- AKS
+- Any Kubernetes
+- Other clouds
 
 Under the hood, we need an image, an ARM template, an Azure subscription, and instructions about how much capacity to provision.
 That doesn't require us to expose the full complexity of ARM templates and Azure subscriptions to every customer.
@@ -77,10 +88,10 @@ For the advanced customer who really needs all the customization available, they
 
 _TODO_: draw pictures
 
-### Maintenance
+### Infrastructure problems
 
-_TODO_: is there any on-going maintenance?
-How will we let the adminstrator know of any problems that occur?
+_TODO_: How will we let the adminstrator know of any problems that occur?
+Azure Portal will report things, but the leading indicator is probably "my builds aren't running".
 
 ## Alternatives considered
 
