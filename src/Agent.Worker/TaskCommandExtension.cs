@@ -77,13 +77,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             {
                 ProcessTaskPrepandPathCommand(context, command.Data);
             }
-            else if (String.Equals(command.Event, WellKnownTaskCommand.Matchers, StringComparison.OrdinalIgnoreCase))
+            else if (String.Equals(command.Event, WellKnownTaskCommand.Match, StringComparison.OrdinalIgnoreCase))
             {
-                ProcessTaskMatchersCommand(context, command.Data);
-            }
-            else if (String.Equals(command.Event, WellKnownTaskCommand.RemoveMatcher, StringComparison.OrdinalIgnoreCase))
-            {
-                ProcessTaskRemoveMatcherCommand(context, command.Data);
+                ProcessTaskMatchCommand(context, command.Properties, command.Data);
             }
             else
             {
@@ -637,18 +633,66 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             context.PrependPath.Add(data);
         }
 
-        private void ProcessTaskMatchersCommand(IExecutionContext context, string data)
+        private void ProcessTaskMatchCommand(IExecutionContext context, Dictionary<string, string> eventProperties, string data)
         {
-            ArgUtil.NotNullOrEmpty(data, nameof(WellKnownTaskCommand.Matchers));
-            var json = File.ReadAllText(data);
-            var config = StringUtil.ConvertFromJson<IssueMatchersConfig>(json);
-            context.AddMatchers(config);
-        }
+            eventProperties.TryGetValue(TaskMatchEventProperties.Owner, out string owner);
+            eventProperties.TryGetValue(TaskMatchEventProperties.Remove, out string removeStr);
+            var remove = string.Equals(removeStr, bool.TrueString, StringComparison.OrdinalIgnoreCase);
+            var file = data;
 
-        private void ProcessTaskRemoveMatcherCommand(IExecutionContext context, string data)
-        {
-            ArgUtil.NotNullOrEmpty(data, nameof(WellKnownTaskCommand.RemoveMatcher));
-            context.RemoveMatcher(data);
+            if (remove)
+            {
+                // Owner and file are mutually exclusive
+                if (!string.IsNullOrEmpty(owner) && !string.IsNullOrEmpty(file))
+                {
+                    context.Warning("Either specify a matcher owner name or a file path. Both values cannot be set.");
+                    return;
+                }
+
+                // Owner or file is required
+                if (string.IsNullOrEmpty(owner) && string.IsNullOrEmpty(file))
+                {
+                    context.Warning("Either a matcher owner name or a file path must be specified.");
+                    return;
+                }
+
+                // Remove by owner
+                if (!string.IsNullOrEmpty(owner))
+                {
+                    context.RemoveMatcher(owner);
+                }
+                // Remove by file
+                else
+                {
+                    var json = File.ReadAllText(file);
+                    var config = StringUtil.ConvertFromJson<IssueMatchersConfig>(json);
+                    foreach (var matcher in config.Matchers)
+                    {
+                        context.RemoveMatcher(matcher.Owner);
+                    }
+                }
+            }
+            else
+            {
+                // Owner not allowed
+                if (!string.IsNullOrEmpty(owner))
+                {
+                    context.Warning("Owner name is not allowed when adding matchers.");
+                    return;
+                }
+
+                // File is required
+                if (string.IsNullOrEmpty(file))
+                {
+                    context.Warning("File path must be specified.");
+                    return;
+                }
+
+                // Add the matchers
+                var json = File.ReadAllText(file);
+                var config = StringUtil.ConvertFromJson<IssueMatchersConfig>(json);
+                context.AddMatchers(config);
+            }
         }
 
         private DateTime ParseDateTime(String dateTimeText, DateTime defaultValue)
@@ -682,9 +726,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         public static readonly String LogDetail = "logdetail";
         public static readonly String LogIssue = "logissue";
         public static readonly String LogIssue_xplatCompat = "issue";
-        public static readonly String Matchers = "matchers";
+        public static readonly String Match = "match";
         public static readonly String PrependPath = "prependpath";
-        public static readonly String RemoveMatcher = "removematcher";
         public static readonly String SetProgress = "setprogress";
         public static readonly String SetSecret = "setsecret";
         public static readonly String SetVariable = "setvariable";
@@ -744,6 +787,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         public static readonly String State = "state";
         public static readonly String Result = "result";
         public static readonly String Order = "order";
+    }
+
+    internal static class TaskMatchEventProperties
+    {
+        public static readonly String Remove = "remove";
+        public static readonly String Owner = "owner";
     }
 
     internal static class TaskSetTaskVariableEventProperties
