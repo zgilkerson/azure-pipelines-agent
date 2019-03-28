@@ -77,6 +77,14 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             {
                 ProcessTaskPrepandPathCommand(context, command.Data);
             }
+            else if (String.Equals(command.Event, WellKnownTaskCommand.Matchers, StringComparison.OrdinalIgnoreCase))
+            {
+                ProcessTaskMatchersCommand(context, command.Data);
+            }
+            else if (String.Equals(command.Event, WellKnownTaskCommand.RemoveMatcher, StringComparison.OrdinalIgnoreCase))
+            {
+                ProcessTaskRemoveMatcherCommand(context, command.Data);
+            }
             else
             {
                 throw new Exception(StringUtil.Loc("TaskCommandNotFound", command.Event));
@@ -629,6 +637,20 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             context.PrependPath.Add(data);
         }
 
+        private void ProcessTaskMatchersCommand(IExecutionContext context, string data)
+        {
+            ArgUtil.NotNullOrEmpty(data, nameof(WellKnownTaskCommand.Matchers));
+            var json = File.ReadAllText(data);
+            var config = StringUtil.ConvertFromJson<IssueMatchersConfig>(json);
+            context.AddMatchers(config);
+        }
+
+        private void ProcessTaskRemoveMatcherCommand(IExecutionContext context, string data)
+        {
+            ArgUtil.NotNullOrEmpty(data, nameof(WellKnownTaskCommand.RemoveMatcher));
+            context.RemoveMatcher(data);
+        }
+
         private DateTime ParseDateTime(String dateTimeText, DateTime defaultValue)
         {
             DateTime dateTime;
@@ -660,7 +682,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         public static readonly String LogDetail = "logdetail";
         public static readonly String LogIssue = "logissue";
         public static readonly String LogIssue_xplatCompat = "issue";
+        public static readonly String Matchers = "matchers";
         public static readonly String PrependPath = "prependpath";
+        public static readonly String RemoveMatcher = "removematcher";
         public static readonly String SetProgress = "setprogress";
         public static readonly String SetSecret = "setsecret";
         public static readonly String SetVariable = "setvariable";
