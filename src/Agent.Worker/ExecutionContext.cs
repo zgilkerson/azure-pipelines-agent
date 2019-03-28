@@ -64,7 +64,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         // matchers
         void Add(OnMatcherChanged handler);
         void Remove(OnMatcherChanged handler);
-        void AddMatcher(IssueMatcherConfig matcher);
+        void AddMatchers(IssueMatchersConfig matcher);
         void RemoveMatcher(string owner);
         IEnumerable<IssueMatcherConfig> GetMatchers();
 

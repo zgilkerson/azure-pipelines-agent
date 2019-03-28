@@ -178,10 +178,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
         private DTWebApi.Issue ConvertToIssue(IssueMatch match)
         {
             // Validate the message
-            if (string.IsNullOrWhitespace(match.Message))
+            if (string.IsNullOrWhiteSpace(match.Message))
             {
                 _executionContext.Debug("Skipping logging an issue for the matched line because the message is empty.");
-                return;
+                return null;
             }
 
             // Validate the severity
@@ -197,16 +197,20 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
             else
             {
                 _executionContext.Debug($"Skipping logging an issue for the matched line because the severity '{match.Severity}' is not supported.");
-                return;
+                return null;
             }
 
             // todo: map the other properties
             // todo: deal with file path
-            return new DTWebApi.Issue
+            // todo: validate line/column are numbers
+            var issue = new DTWebApi.Issue
             {
                 Message = match.Message,
                 Type = issueType,
             };
+            issue.Data["linenumber"] = match.Line;
+            issue.Data["columnnumber"] = match.Column;
+            return issue;
         }
     }
 }

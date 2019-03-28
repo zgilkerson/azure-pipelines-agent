@@ -215,7 +215,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     if (!distinctOwners.Add(matcher.Owner))
                     {
                         // Not localized since this is a programming contract
-                        throw new ArgumentException($"Duplicate owner name '{matcher.Owner}'"));
+                        throw new ArgumentException($"Duplicate owner name '{matcher.Owner}'");
                     }
                 }
             }
@@ -308,42 +308,42 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
     [DataContract]
     public sealed class IssuePatternConfig
     {
-        private const string _file = "file";
-        private const string _line = "line";
-        private const string _column = "column";
-        private const string _severity = "severity";
-        private const string _code = "code";
-        private const string _message = "message";
-        private const string _fromPath = "fromPath";
-        private const string _loop = "loop";
-        private const string _regexp = "regexp";
+        private const string _filePropertyName = "file";
+        private const string _linePropertyName = "line";
+        private const string _columnPropertyName = "column";
+        private const string _severityPropertyName = "severity";
+        private const string _codePropertyName = "code";
+        private const string _messagePropertyName = "message";
+        private const string _fromPathPropertyName = "fromPath";
+        private const string _loopPropertyName = "loop";
+        private const string _regexpPropertyName = "regexp";
         internal static readonly RegexOptions RegexOptions = RegexOptions.CultureInvariant | RegexOptions.ECMAScript | RegexOptions.IgnoreCase;
 
-        [DataMember(Name = _file)]
+        [DataMember(Name = _filePropertyName)]
         public int? File { get; set; }
 
-        [DataMember(Name = _line)]
+        [DataMember(Name = _linePropertyName)]
         public int? Line { get; set; }
 
-        [DataMember(Name = _column)]
+        [DataMember(Name = _columnPropertyName)]
         public int? Column { get; set; }
 
-        [DataMember(Name = _severity)]
+        [DataMember(Name = _severityPropertyName)]
         public int? Severity { get; set; }
 
-        [DataMember(Name = _code)]
+        [DataMember(Name = _codePropertyName)]
         public int? Code { get; set; }
 
-        [DataMember(Name = _message)]
+        [DataMember(Name = _messagePropertyName)]
         public int? Message { get; set; }
 
-        [DataMember(Name = _fromPath)]
+        [DataMember(Name = _fromPathPropertyName)]
         public int? FromPath { get; set; }
 
-        [DataMember(Name = _loop)]
+        [DataMember(Name = _loopPropertyName)]
         public bool Loop { get; set; }
 
-        [DataMember(Name = _regexp)]
+        [DataMember(Name = _regexpPropertyName)]
         public string Pattern { get; set; }
 
         public void Validate(
@@ -360,31 +360,31 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             // Only the last pattern in a multiline matcher may set 'loop'
             if (Loop && (isFirst || !isLast))
             {
-                throw new ArgumentException($"Only the last pattern in a multiline matcher may set '{_loop}'");
+                throw new ArgumentException($"Only the last pattern in a multiline matcher may set '{_loopPropertyName}'");
             }
 
             // Only the last pattern may set 'message'
             if (Message != null && !isLast)
             {
-                throw new ArgumentException($"Only the last pattern may set '{_message}'");
+                throw new ArgumentException($"Only the last pattern may set '{_messagePropertyName}'");
             }
 
             // The last pattern must set 'message'
             if (Message == null && isLast)
             {
-                throw new ArgumentException($"The last pattern must set '{_message}'");
+                throw new ArgumentException($"The last pattern must set '{_messagePropertyName}'");
             }
 
             var regex = new Regex(Pattern ?? string.Empty, RegexOptions);
             var groupCount = regex.GetGroupNumbers().Length;
 
-            Validate(_file, groupCount, File, file);
-            Validate(_line, groupCount, Line, line);
-            Validate(_column, groupCount, Column, column);
-            Validate(_severity, groupCount, Severity, severity);
-            Validate(_code, groupCount, Code, code);
-            Validate(_message, groupCount, Message, message);
-            Validate(_fromPath, groupCount, FromPath, fromPath);
+            Validate(_filePropertyName, groupCount, File, ref file);
+            Validate(_linePropertyName, groupCount, Line, ref line);
+            Validate(_columnPropertyName, groupCount, Column, ref column);
+            Validate(_severityPropertyName, groupCount, Severity, ref severity);
+            Validate(_codePropertyName, groupCount, Code, ref code);
+            Validate(_messagePropertyName, groupCount, Message, ref message);
+            Validate(_fromPathPropertyName, groupCount, FromPath, ref fromPath);
         }
 
         private void Validate(string propertyName, int groupCount, int? newValue, ref int? trackedValue)

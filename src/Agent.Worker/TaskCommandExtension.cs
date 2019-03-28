@@ -664,6 +664,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 // Remove by file
                 else
                 {
+                    // Translate file path back from container path
+                    if (context.Container != null)
+                    {
+                        file = context.Container.TranslateToHostPath(file);
+                    }
+
                     var json = File.ReadAllText(file);
                     var config = StringUtil.ConvertFromJson<IssueMatchersConfig>(json);
                     foreach (var matcher in config.Matchers)
@@ -686,6 +692,12 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 {
                     context.Warning("File path must be specified.");
                     return;
+                }
+
+                // Translate file path back from container path
+                if (context.Container != null)
+                {
+                    file = context.Container.TranslateToHostPath(file);
                 }
 
                 // Add the matchers
