@@ -1,4 +1,4 @@
-# BYOS: Bring Your Own Subscription Agent Pools
+# Elastic Private Agent Pools (formerly "BYOS: Bring Your Own Subscription Agent Pools")
 
 Hosted agents are extremely convenient: low/no cost, no infrastructure to maintain, and elastic with demand.
 In return, customers must give up control over tools, capacity, and speed.
