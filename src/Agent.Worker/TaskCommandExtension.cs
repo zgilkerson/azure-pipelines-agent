@@ -659,7 +659,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 // Remove by owner
                 if (!string.IsNullOrEmpty(owner))
                 {
-                    context.RemoveMatcher(owner);
+                    context.RemoveMatchers(new[] { owner });
                 }
                 // Remove by file
                 else
@@ -670,12 +670,19 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                         file = context.Container.TranslateToHostPath(file);
                     }
 
+                    // Root the path
+                    if (!Path.IsPathRooted(file))
+                    {
+                        var root = context.Variables.Get(Constants.Variables.System.DefaultWorkingDirectory);
+                        file = Path.Combine(root, file);
+                    }
+
+                    // Load the config
                     var json = File.ReadAllText(file);
                     var config = StringUtil.ConvertFromJson<IssueMatchersConfig>(json);
-                    foreach (var matcher in config.Matchers)
-                    {
-                        context.RemoveMatcher(matcher.Owner);
-                    }
+
+                    // Remove
+                    context.RemoveMatchers(config.Matchers.Select(x => x.Owner));
                 }
             }
             else
@@ -700,10 +707,23 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     file = context.Container.TranslateToHostPath(file);
                 }
 
-                // Add the matchers
+                // Root the path
+                if (!Path.IsPathRooted(file))
+                {
+                    var root = context.Variables.Get(Constants.Variables.System.DefaultWorkingDirectory);
+                    file = Path.Combine(root, file);
+                }
+
+                // Load the config
                 var json = File.ReadAllText(file);
                 var config = StringUtil.ConvertFromJson<IssueMatchersConfig>(json);
-                context.AddMatchers(config);
+
+                // Add
+                if (config.Matchers.Count > 0)
+                {
+                    config.Validate();
+                    context.AddMatchers(config);
+                }
             }
         }
 

@@ -65,7 +65,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         void Add(OnMatcherChanged handler);
         void Remove(OnMatcherChanged handler);
         void AddMatchers(IssueMatchersConfig matcher);
-        void RemoveMatcher(string owner);
+        void RemoveMatchers(IEnumerable<string> owners);
         IEnumerable<IssueMatcherConfig> GetMatchers();
 
         // others
@@ -624,21 +624,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         // Add Issue matchers
         public void AddMatchers(IssueMatchersConfig config)
         {
-            if (config.Matchers.Count == 0)
-            {
-                return;
-            }
-
-            try
-            {
-                config.Validate();
-            }
-            catch (Exception ex)
-            {
-                this.Error(StringUtil.Loc("FailedToRegisterMatchers", ex.Message));
-                return;
-            }
-
             var root = Root;
 
             // Lock
@@ -655,7 +640,8 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 }
 
                 // Add existing non-matching
-                newMatchers.AddRange(root._matchers.Where(x => !newOwners.Contains(x.Owner)));
+                var existingMatchers = root._matchers ?? Array.Empty<IssueMatcherConfig>();
+                newMatchers.AddRange(existingMatchers.Where(x => !newOwners.Contains(x.Owner)));
 
                 // Store
                 root._matchers = newMatchers.ToArray();
@@ -665,22 +651,54 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 {
                     root._onMatcherChanged(null, new MatcherChangedEventArgs(matcher));
                 }
+
+                // Output
+                var owners = config.Matchers.Select(x => $"'{x.Owner}'");
+                var joinedOwners = string.Join(", ", owners);
+                // todo: loc
+                this.Output($"Added matchers: {joinedOwners}");
             }
         }
 
         // Remove issue matcher
-        public void RemoveMatcher(string owner)
+        public void RemoveMatchers(IEnumerable<string> owners)
         {
             var root = Root;
+            var distinctOwners = new HashSet<string>(owners, StringComparer.OrdinalIgnoreCase);
+            var removedMatchers = new List<IssueMatcherConfig>();
+            var newMatchers = new List<IssueMatcherConfig>();
 
             // Lock
             lock (root._matchersLock)
             {
-                // Store
-                root._matchers = root._matchers.Where(x => !string.Equals(x.Owner, owner, StringComparison.OrdinalIgnoreCase)).ToArray();
+                // Remove
+                var existingMatchers = root._matchers ?? Array.Empty<IssueMatcherConfig>();
+                foreach (var matcher in existingMatchers)
+                {
+                    if (distinctOwners.Contains(matcher.Owner))
+                    {
+                        removedMatchers.Add(matcher);
+                    }
+                    else
+                    {
+                        newMatchers.Add(matcher);
+                    }
+                }
 
-                // Fire event
-                root._onMatcherChanged(null, new MatcherChangedEventArgs(new IssueMatcherConfig { Owner = owner }));
+                // Store
+                root._matchers = newMatchers.ToArray();
+
+                // Fire events
+                foreach (var removedMatcher in removedMatchers)
+                {
+                    root._onMatcherChanged(null, new MatcherChangedEventArgs(new IssueMatcherConfig { Owner = removedMatcher.Owner }));
+                }
+
+                // Output
+                owners = removedMatchers.Select(x => $"'{x.Owner}'");
+                var joinedOwners = string.Join(", ", owners);
+                // todo: loc
+                this.Output($"Removed matchers: {joinedOwners}");
             }
         }
 
@@ -688,7 +706,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
         public IEnumerable<IssueMatcherConfig> GetMatchers()
         {
             // Lock not required since the list is immutable
-            return Root._matchers;
+            return Root._matchers ?? Array.Empty<IssueMatcherConfig>();
         }
 
         private void InitializeTimelineRecord(Guid timelineId, Guid timelineRecordId, Guid? parentTimelineRecordId, string recordType, string displayName, string refName, int? order)

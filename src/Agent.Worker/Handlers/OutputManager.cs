@@ -23,30 +23,38 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
         public OutputManager(IExecutionContext executionContext, IWorkerCommandManager commandManager)
         {
+//executionContext.Debug("ENTERING OutputManager ctor");
             _executionContext = executionContext;
             _commandManager = commandManager;
 
+//_executionContext.Debug("OutputManager ctor - determine timeout from variable");
             // Determine the timeout
             var timeoutStr = _executionContext.Variables.Get(_timeoutKey);
             if (string.IsNullOrEmpty(timeoutStr) ||
                 !TimeSpan.TryParse(timeoutStr, CultureInfo.InvariantCulture, out _timeout) ||
                 _timeout <= TimeSpan.Zero)
             {
+//_executionContext.Debug("OutputManager ctor - determine timeout from env var");
                 timeoutStr = Environment.GetEnvironmentVariable(_timeoutKey);
                 if (string.IsNullOrEmpty(timeoutStr) ||
                     !TimeSpan.TryParse(timeoutStr, CultureInfo.InvariantCulture, out _timeout) ||
                     _timeout <= TimeSpan.Zero)
                 {
+//_executionContext.Debug("OutputManager ctor - set timeout to default");
                     _timeout = TimeSpan.FromSeconds(1);
                 }
             }
 
+//_executionContext.Debug("OutputManager ctor - adding matchers");
             // Lock
             lock (_matchersLock)
             {
+//_executionContext.Debug("OutputManager ctor - adding OnMatcherChanged");
                 _executionContext.Add(OnMatcherChanged);
+//_executionContext.Debug("OutputManager ctor - getting matchers");
                 _matchers = _executionContext.GetMatchers().Select(x => new IssueMatcher(x, _timeout)).ToArray();
             }
+//_executionContext.Debug("LEAVING OutputManager ctor");
         }
 
         public void Dispose()
@@ -62,6 +70,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
         public void OnDataReceived(object sender, ProcessDataReceivedEventArgs e)
         {
+//_executionContext.Debug("ENTERING OutputManager OnDataReceived");
             var line = e.Data;
 
             // ##vso commands
@@ -71,6 +80,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 // The logging queues and command handlers are thread-safe.
                 _commandManager.TryProcessCommand(_executionContext, line);
 
+//_executionContext.Debug("LEAVING OutputManager OnDataReceived - command processed");
                 return;
             }
 
@@ -129,6 +139,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                             // Log issue
                             _executionContext.AddIssue(issue, stripped);
 
+//_executionContext.Debug("LEAVING OutputManager OnDataReceived - issue logged");
                             return;
                         }
                     }
@@ -137,6 +148,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 
             // Regular output
             _executionContext.Output(line);
+//_executionContext.Debug("LEAVING OutputManager OnDataReceived");
         }
 
         private void OnMatcherChanged(object sender, MatcherChangedEventArgs e)
@@ -200,16 +212,46 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 return null;
             }
 
-            // todo: map the other properties
-            // todo: deal with file path
-            // todo: validate line/column are numbers
             var issue = new DTWebApi.Issue
             {
                 Message = match.Message,
                 Type = issueType,
             };
-            issue.Data["linenumber"] = match.Line;
-            issue.Data["columnnumber"] = match.Column;
+
+            // Line
+            if (!string.IsNullOrEmpty(match.Line))
+            {
+                if (int.TryParse(match.Line, NumberStyles.None, CultureInfo.InvariantCulture, out var line))
+                {
+                    issue.Data["linenumber"] = line.ToString(CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    _executionContext.Debug($"Unable to parse line number '{match.Line}'");
+                }
+            }
+
+            // Column
+            if (!string.IsNullOrEmpty(match.Column))
+            {
+                if (int.TryParse(match.Column, NumberStyles.None, CultureInfo.InvariantCulture, out var column))
+                {
+                    issue.Data["columnnumber"] = column.ToString(CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    _executionContext.Debug($"Unable to parse column number '{match.Column}'");
+                }
+            }
+
+            // Code
+            if (!string.IsNullOrWhiteSpace(match.Code))
+            {
+                issue.Data["code"] = match.Code.Trim();
+            }
+
+            // todo: add "repo" and "sourcepath"
+
             return issue;
         }
     }

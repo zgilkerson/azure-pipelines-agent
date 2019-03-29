@@ -87,7 +87,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     else
                     {
                         // Not the last pattern
-                        if (isLast)
+                        if (!isLast)
                         {
                             // Record not matched
                             _state[i] = null;
