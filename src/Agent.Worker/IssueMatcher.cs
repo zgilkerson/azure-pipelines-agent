@@ -260,6 +260,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
                 return _patterns;
             }
+
+            set
+            {
+                _patterns = value;
+            }
         }
 
         public void Validate()

@@ -11,13 +11,13 @@ using Microsoft.VisualStudio.Services.Agent.Worker.Handlers;
 using Moq;
 using Xunit;
 
-namespace Microsoft.VisualStudio.Services.Agent.Tests
+namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.Handlers
 {
     public sealed class NodeHandlerL0
     {
         [Fact]
         [Trait("Level", "L0")]
-        [Trait("Category", "Common")]
+        [Trait("Category", "Worker")]
         public void UseNodeForNodeHandlerEnvVarNotSet()
         {
             using (TestHostContext thc = CreateTestHostContext())
@@ -42,7 +42,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
 
         [Fact]
         [Trait("Level", "L0")]
-        [Trait("Category", "Common")]
+        [Trait("Category", "Worker")]
         public void UseNode10ForNode10Handler()
         {
             using (TestHostContext thc = CreateTestHostContext())
@@ -67,7 +67,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
 
         [Fact]
         [Trait("Level", "L0")]
-        [Trait("Category", "Common")]
+        [Trait("Category", "Worker")]
         public void UseNode10ForNodeHandlerEnvVarSet()
         {
             try
@@ -101,7 +101,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
 
         [Fact]
         [Trait("Level", "L0")]
-        [Trait("Category", "Common")]
+        [Trait("Category", "Worker")]
         public void UseNode10ForNodeHandlerHostContextVarSet()
         {
             using (TestHostContext thc = CreateTestHostContext())
@@ -130,7 +130,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests
 
         [Fact]
         [Trait("Level", "L0")]
-        [Trait("Category", "Common")]
+        [Trait("Category", "Worker")]
         public void UseNode10ForNode10HandlerHostContextVarUnset()
         {
             using (TestHostContext thc = CreateTestHostContext())
