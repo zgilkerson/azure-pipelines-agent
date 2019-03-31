@@ -176,9 +176,156 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             config.Validate();
         }
 
-        // todo: Only the last pattern may set 'message'
-        // todo: The last pattern must set 'message'
-        // todo: The property '___' is set twice
-        // todo: The property '___' is set twice
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_Message_OnlyAllowedOnLastPattern()
+        {
+            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": """",
+      ""pattern"": [
+        {
+          ""regexp"": ""^file: (.+)$"",
+          ""message"": 1
+        },
+        {
+          ""regexp"": ""^error: (.+)$"",
+          ""file"": 1
+        }
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Patterns[0].File = 1;
+            config.Matchers[0].Patterns[0].Message = null;
+            config.Matchers[0].Patterns[1].File = null;
+            config.Matchers[0].Patterns[1].Message = 1;
+            config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_Message_Required()
+        {
+            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": """",
+      ""pattern"": [
+        {
+          ""regexp"": ""^error: (.+)$"",
+          ""file"": 1
+        }
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Patterns[0].File = null;
+            config.Matchers[0].Patterns[0].Message = 1;
+            config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_PropertyMayNotBeSetTwice()
+        {
+            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": """",
+      ""pattern"": [
+        {
+          ""regexp"": ""^severity: (.+)$"",
+          ""file"": 1
+        },
+        {
+          ""regexp"": ""^file: (.+)$"",
+          ""file"": 1
+        },
+        {
+          ""regexp"": ""^(.+)$"",
+          ""message"": 1
+        },
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Patterns[0].File = null;
+            config.Matchers[0].Patterns[0].Severity = 1;
+            config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_PropertyOutOfRange()
+        {
+            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": """",
+      ""pattern"": [
+        {
+          ""regexp"": ""^(.+)$"",
+          ""message"": 2
+        },
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Patterns[0].Message = 1;
+            config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_PropertyOutOfRange_LessThanZero()
+        {
+            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": """",
+      ""pattern"": [
+        {
+          ""regexp"": ""^(.+)$"",
+          ""message"": -1
+        },
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Patterns[0].Message = 1;
+            config.Validate();
+        }
     }
 }
