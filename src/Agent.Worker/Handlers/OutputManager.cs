@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.Services.Agent.Util;
 using Microsoft.VisualStudio.Services.WebApi;
 using DTWebApi = Microsoft.TeamFoundation.DistributedTask.WebApi;
+using Pipelines = Microsoft.TeamFoundation.DistributedTask.Pipelines;
 
 namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
 {
@@ -250,7 +252,80 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker.Handlers
                 issue.Data["code"] = match.Code.Trim();
             }
 
-            // todo: add "repo" and "sourcepath"
+            // File
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(match.File))
+                {
+                    var file = match.File;
+
+                    // Root using fromPath
+                    if (!string.IsNullOrWhiteSpace(match.FromPath) && !Path.IsPathRooted(file))
+                    {
+                        file = Path.Combine(match.FromPath, file);
+                    }
+
+                    // Root using system.defaultWorkingDirectory
+                    if (!Path.IsPathRooted(file))
+                    {
+                        var root = _executionContext.Variables.Get(Constants.Variables.System.DefaultWorkingDirectory);
+                        file = Path.Combine(root, file);
+                    }
+
+                    // Normalize slashes
+                    file = file.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
+                    // File exists
+                    if (File.Exists(file))
+                    {
+                        bool found = false;
+                        foreach (var repository in _executionContext.Repositories)
+                        {
+                            // Repository path
+                            var repositoryPath = repository.Properties.Get<string>(Pipelines.RepositoryPropertyNames.Path);
+                            if (string.IsNullOrEmpty(repositoryPath))
+                            {
+                                continue;
+                            }
+
+                            // Normalize slashes
+                            repositoryPath = repositoryPath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+                            // File is not under repo
+                            if (!file.StartsWith(repositoryPath, IOUtil.FilePathStringComparison))
+                            {
+                                continue;
+                            }
+
+                            // Repository found
+                            var repositoryName = repository.Properties.Get<string>(Pipelines.RepositoryPropertyNames.Name);
+                            if (!string.IsNullOrEmpty(repositoryName))
+                            {
+                                issue.Data["sourcepath"] = file.Substring(repositoryPath.Length).TrimStart(Path.DirectorySeparatorChar);
+                                issue.Data["repo"] = repositoryName;
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        // Repository not found
+                        if (!found)
+                        {
+                            _executionContext.Debug($"Dropping file value '{file}'. Matching repository not found.");
+                        }
+                    }
+                    // File does not exist
+                    else
+                    {
+                        _executionContext.Debug($"Dropping file value '{file}'. Path does not exist");
+                    }
+                }
+                // todo: add "repo" and "sourcepath"
+            }
+            catch (Exception ex)
+            {
+                _executionContext.Debug($"Dropping file value '{match.File}' and fromPath value '{match.FromPath}'. Exception during validation: {ex.ToString()}");
+            }
 
             return issue;
         }
