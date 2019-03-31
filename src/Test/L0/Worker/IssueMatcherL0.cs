@@ -13,7 +13,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_RequiresDistinctOwner()
+        public void Validate_Owner_Distinct()
         {
             var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
 {
@@ -21,15 +21,19 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
     {
       ""owner"": ""myMatcher"",
       ""pattern"": [
-        ""regexp"": ""^error: (.+)$"",
-        ""message"": 1
+        {
+          ""regexp"": ""^error: (.+)$"",
+          ""message"": 1
+        }
       ]
     },
     {
       ""owner"": ""MYmatcher"",
       ""pattern"": [
-        ""regexp"": ""^ERR: (.+)$"",
-        ""message"": 1
+        {
+          ""regexp"": ""^ERR: (.+)$"",
+          ""message"": 1
+        }
       ]
     }
   ]
@@ -45,7 +49,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_RequiresOwner()
+        public void Validate_Owner_Required()
         {
             var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
 {
@@ -53,8 +57,10 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
     {
       ""owner"": """",
       ""pattern"": [
-        ""regexp"": ""^error: (.+)$"",
-        ""message"": 1
+        {
+          ""regexp"": ""^error: (.+)$"",
+          ""message"": 1
+        }
       ]
     }
   ]
@@ -70,7 +76,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_RequiresAtLeastOnePattern()
+        public void Validate_Pattern_Required()
         {
             var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
 {
@@ -100,7 +106,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_TODO()
+        public void Validate_Loop_RequiresMultiplePatterns()
         {
             var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
 {
@@ -108,8 +114,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
     {
       ""owner"": """",
       ""pattern"": [
-        ""regexp"": ""^error: (.+)$"",
-        ""message"": 1
+        {
+          ""regexp"": ""^error: (.+)$"",
+          ""message"": 1,
+          ""loop"": true
+        }
       ]
     }
   ]
@@ -118,11 +127,55 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             Assert.Throws<ArgumentException>(() => config.Validate());
 
             // Sanity test
-            config.Matchers[0].Owner = "asdf";
+            config.Matchers[0].Patterns = new[]
+            {
+                new IssuePatternConfig
+                {
+                    Pattern = "^file: (.+)$",
+                    File = 1,
+                }
+                config.Matchers[0].Patterns[0],
+            };
             config.Validate();
         }
 
-        // todo: Only the last pattern in a multiline matcher may set 'loop'
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_Loop_OnlyAllowedOnLastPattern()
+        {
+            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": """",
+      ""pattern"": [
+        {
+          ""regexp"": ""^(error)$"",
+          ""severity"": 1
+        },
+        {
+          ""regexp"": ""^file: (.+)$"",
+          ""file"": 1,
+          ""loop"": true
+        },
+        {
+          ""regexp"": ""^error: (.+)$"",
+          ""message"": 1
+        }
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Patterns[1].Loop = false;
+            config.Matchers[0].Patterns[2].Loop = true;
+            config.Validate();
+        }
+
         // todo: Only the last pattern may set 'message'
         // todo: The last pattern must set 'message'
         // todo: The property '___' is set twice
