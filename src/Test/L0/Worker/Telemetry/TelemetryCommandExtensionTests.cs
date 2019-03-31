@@ -191,9 +191,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.Telemetry
             _ec.Setup(x => x.Variables).Returns(variables);
             var asyncCommands = new List<IAsyncCommandContext>();
             _ec.Setup(x => x.AsyncCommands).Returns(asyncCommands);
-            _ec.Setup(x => x.AddIssue(It.IsAny<Issue>()))
-            .Callback<Issue>
-            ((issue) =>
+            _ec.Setup(x => x.AddIssue(It.IsAny<Issue>(), It.IsAny<string>()))
+            .Callback<Issue, string>
+            ((issue, line) =>
             {
                 if (issue.Type == IssueType.Warning)
                 {

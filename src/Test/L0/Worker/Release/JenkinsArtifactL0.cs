@@ -45,7 +45,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.Release
                 artifact.Initialize(tc);
                 await artifact.DownloadCommitsAsync(_ec.Object, _artifactDefinition, "test");
 
-                _ec.Verify(x => x.AddIssue(It.Is<Issue>(y => y.Type == IssueType.Warning)), Times.Never);
+                _ec.Verify(x => x.AddIssue(It.Is<Issue>(y => y.Type == IssueType.Warning), It.IsAny<string>()), Times.Never);
             }
         }
 
@@ -64,7 +64,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.Release
                 artifact.Initialize(tc);
                 await artifact.DownloadCommitsAsync(_ec.Object, _artifactDefinition, "test");
 
-                _ec.Verify(x => x.AddIssue(It.Is<Issue>(y => y.Type == IssueType.Warning)), Times.Once);
+                _ec.Verify(x => x.AddIssue(It.Is<Issue>(y => y.Type == IssueType.Warning), It.IsAny<string>()), Times.Once);
             }
         }
 
@@ -146,7 +146,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.Release
 
                 await artifact.DownloadCommitsAsync(_ec.Object, _artifactDefinition, tc.GetDirectory(WellKnownDirectory.Root));
 
-                _ec.Verify(x => x.AddIssue(It.Is<Issue>(y => y.Type == IssueType.Warning)), Times.Once);
+                _ec.Verify(x => x.AddIssue(It.Is<Issue>(y => y.Type == IssueType.Warning), It.IsAny<string>()), Times.Once);
             }
         }
 

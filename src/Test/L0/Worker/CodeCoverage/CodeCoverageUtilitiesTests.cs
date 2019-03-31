@@ -111,9 +111,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.CodeCoverage
                     _outputMessages.Add(message);
                 });
 
-            _ec.Setup(x => x.AddIssue(It.IsAny<Issue>()))
-            .Callback<Issue>
-            ((issue) =>
+            _ec.Setup(x => x.AddIssue(It.IsAny<Issue>(), It.IsAny<string>()))
+            .Callback<Issue, string>
+            ((issue, line) =>
             {
                 if (issue.Type == IssueType.Warning)
                 {

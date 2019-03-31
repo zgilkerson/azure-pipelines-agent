@@ -169,9 +169,9 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.CodeCoverage
         {
             TestHostContext hc = new TestHostContext(this, name);
             _ec = new Mock<IExecutionContext>();
-            _ec.Setup(x => x.AddIssue(It.IsAny<Issue>()))
-            .Callback<Issue>
-            ((issue) =>
+            _ec.Setup(x => x.AddIssue(It.IsAny<Issue>(), It.IsAny<string>()))
+            .Callback<Issue, string>
+            ((issue, line) =>
             {
                 if (issue.Type == IssueType.Warning)
                 {

@@ -1,9 +1,11 @@
-using Microsoft.TeamFoundation.DistributedTask.WebApi;
-using Microsoft.VisualStudio.Services.Agent.Util;
-using Microsoft.VisualStudio.Services.Agent.Worker;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Microsoft.TeamFoundation.DistributedTask.WebApi;
+using Microsoft.VisualStudio.Services.Agent.Util;
+using Microsoft.VisualStudio.Services.Agent.Worker;
+using Microsoft.VisualStudio.Services.WebApi;
 using Xunit;
 
 namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
@@ -15,7 +17,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_Owner_Distinct()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
@@ -51,7 +53,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_Owner_Required()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
@@ -78,7 +80,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_Pattern_Required()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
@@ -108,11 +110,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_Loop_RequiresMultiplePatterns()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
-      ""owner"": """",
+      ""owner"": ""myMatcher"",
       ""pattern"": [
         {
           ""regexp"": ""^error: (.+)$"",
@@ -133,7 +135,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
                 {
                     Pattern = "^file: (.+)$",
                     File = 1,
-                }
+                },
                 config.Matchers[0].Patterns[0],
             };
             config.Validate();
@@ -144,11 +146,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_Loop_OnlyAllowedOnLastPattern()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
-      ""owner"": """",
+      ""owner"": ""myMatcher"",
       ""pattern"": [
         {
           ""regexp"": ""^(error)$"",
@@ -181,11 +183,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_Message_OnlyAllowedOnLastPattern()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
-      ""owner"": """",
+      ""owner"": ""myMatcher"",
       ""pattern"": [
         {
           ""regexp"": ""^file: (.+)$"",
@@ -215,11 +217,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_Message_Required()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
-      ""owner"": """",
+      ""owner"": ""myMatcher"",
       ""pattern"": [
         {
           ""regexp"": ""^error: (.+)$"",
@@ -243,11 +245,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_PropertyMayNotBeSetTwice()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
-      ""owner"": """",
+      ""owner"": ""myMatcher"",
       ""pattern"": [
         {
           ""regexp"": ""^severity: (.+)$"",
@@ -279,11 +281,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_PropertyOutOfRange()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
-      ""owner"": """",
+      ""owner"": ""myMatcher"",
       ""pattern"": [
         {
           ""regexp"": ""^(.+)$"",
@@ -306,11 +308,11 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Trait("Category", "Worker")]
         public void Validate_PropertyOutOfRange_LessThanZero()
         {
-            var config = JSONUtility.Deserialize<IssueMatchersConfig>(@"
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
   ""problemMatcher"": [
     {
-      ""owner"": """",
+      ""owner"": ""myMatcher"",
       ""pattern"": [
         {
           ""regexp"": ""^(.+)$"",
