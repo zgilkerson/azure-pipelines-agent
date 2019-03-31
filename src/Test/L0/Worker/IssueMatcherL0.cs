@@ -15,7 +15,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_Loop_MayNotBeSetOnSinglePattern()
+        public void Config_Validate_Loop_MayNotBeSetOnSinglePattern()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -51,7 +51,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_Loop_OnlyAllowedOnLastPattern()
+        public void Config_Validate_Loop_OnlyAllowedOnLastPattern()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -88,7 +88,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_Message_OnlyAllowedOnLastPattern()
+        public void Config_Validate_Message_OnlyAllowedOnLastPattern()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -122,7 +122,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_Message_Required()
+        public void Config_Validate_Message_Required()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -150,7 +150,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_Owner_Distinct()
+        public void Config_Validate_Owner_Distinct()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -186,7 +186,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_Owner_Required()
+        public void Config_Validate_Owner_Required()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -213,7 +213,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_Pattern_Required()
+        public void Config_Validate_Pattern_Required()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -243,7 +243,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_PropertyMayNotBeSetTwice()
+        public void Config_Validate_PropertyMayNotBeSetTwice()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -279,7 +279,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_PropertyOutOfRange()
+        public void Config_Validate_PropertyOutOfRange()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -306,7 +306,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_PropertyOutOfRange_LessThanZero()
+        public void Config_Validate_PropertyOutOfRange_LessThanZero()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -328,6 +328,69 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             // Sanity test
             config.Matchers[0].Patterns[0].Message = 1;
             config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Matcher_ExtractsProperties_SinglePattern()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^file:(.+) line:(.+) column:(.+) severity:(.+) code:(.+) message:(.+) fromPath:(.+)$"",
+          ""file"": 1,
+          ""line"": 2,
+          ""column"": 3,
+          ""severity"": 4,
+          ""code"": 5,
+          ""message"": 6,
+          ""fromPath"": 7
+        },
+      ]
+    }
+  ]
+}
+");
+            config.Validate();
+            var matcher = new IssueMatcher(config, TimeSpan.FromSeconds(1));
+            var match = matcher.Match("file:my-file.cs line:123 column:45 severity:real-bad code:uh-oh message:not-working fromPath:my-project.proj");
+            Assert.Equal("my-file.cs", matcher.File);
+            Assert.Equal("123", matcher.Line);
+            Assert.Equal("45", matcher.Column);
+            Assert.Equal("real-bad", matcher.Severity);
+            Assert.Equal("uh-oh", matcher.Code);
+            Assert.Equal("not-working", matcher.Message);
+            Assert.Equal("my-project.proj", matcher.FromPath);
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Matcher_SetsOwner()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^(.+)$"",
+          ""message"": 1
+        },
+      ]
+    }
+  ]
+}
+");
+            config.Validate();
+            var matcher = new IssueMatcher(config, TimeSpan.FromSeconds(1));
+            Assert.Equal("myMatcher", matcher.Owner);
         }
     }
 }
