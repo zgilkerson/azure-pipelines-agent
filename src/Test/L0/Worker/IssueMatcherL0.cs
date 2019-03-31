@@ -15,100 +15,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Validate_Owner_Distinct()
-        {
-            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
-{
-  ""problemMatcher"": [
-    {
-      ""owner"": ""myMatcher"",
-      ""pattern"": [
-        {
-          ""regexp"": ""^error: (.+)$"",
-          ""message"": 1
-        }
-      ]
-    },
-    {
-      ""owner"": ""MYmatcher"",
-      ""pattern"": [
-        {
-          ""regexp"": ""^ERR: (.+)$"",
-          ""message"": 1
-        }
-      ]
-    }
-  ]
-}
-");
-            Assert.Throws<ArgumentException>(() => config.Validate());
-
-            // Sanity test
-            config.Matchers[0].Owner = "asdf";
-            config.Validate();
-        }
-
-        [Fact]
-        [Trait("Level", "L0")]
-        [Trait("Category", "Worker")]
-        public void Validate_Owner_Required()
-        {
-            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
-{
-  ""problemMatcher"": [
-    {
-      ""owner"": """",
-      ""pattern"": [
-        {
-          ""regexp"": ""^error: (.+)$"",
-          ""message"": 1
-        }
-      ]
-    }
-  ]
-}
-");
-            Assert.Throws<ArgumentException>(() => config.Validate());
-
-            // Sanity test
-            config.Matchers[0].Owner = "asdf";
-            config.Validate();
-        }
-
-        [Fact]
-        [Trait("Level", "L0")]
-        [Trait("Category", "Worker")]
-        public void Validate_Pattern_Required()
-        {
-            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
-{
-  ""problemMatcher"": [
-    {
-      ""owner"": ""myMatcher"",
-      ""pattern"": [
-      ]
-    }
-  ]
-}
-");
-            Assert.Throws<ArgumentException>(() => config.Validate());
-
-            // Sanity test
-            config.Matchers[0].Patterns = new[]
-            {
-                new IssuePatternConfig
-                {
-                    Pattern = "^error: (.+)$",
-                    Message = 1,
-                }
-            };
-            config.Validate();
-        }
-
-        [Fact]
-        [Trait("Level", "L0")]
-        [Trait("Category", "Worker")]
-        public void Validate_Loop_RequiresMultiplePatterns()
+        public void Validate_Loop_MayNotBeSetOnSinglePattern()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -237,6 +144,99 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             // Sanity test
             config.Matchers[0].Patterns[0].File = null;
             config.Matchers[0].Patterns[0].Message = 1;
+            config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_Owner_Distinct()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^error: (.+)$"",
+          ""message"": 1
+        }
+      ]
+    },
+    {
+      ""owner"": ""MYmatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^ERR: (.+)$"",
+          ""message"": 1
+        }
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Owner = "asdf";
+            config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_Owner_Required()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": """",
+      ""pattern"": [
+        {
+          ""regexp"": ""^error: (.+)$"",
+          ""message"": 1
+        }
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Owner = "asdf";
+            config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Validate_Pattern_Required()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+      ]
+    }
+  ]
+}
+");
+            Assert.Throws<ArgumentException>(() => config.Validate());
+
+            // Sanity test
+            config.Matchers[0].Patterns = new[]
+            {
+                new IssuePatternConfig
+                {
+                    Pattern = "^error: (.+)$",
+                    Message = 1,
+                }
+            };
             config.Validate();
         }
 
