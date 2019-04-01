@@ -116,6 +116,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
             Code = config.Code;
             Message = config.Message;
             FromPath = config.FromPath;
+            Loop = config.Loop;
             Regex = new Regex(config.Pattern ?? string.Empty, IssuePatternConfig.RegexOptions, timeout);
         }
 

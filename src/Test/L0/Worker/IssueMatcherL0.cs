@@ -262,7 +262,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         {
           ""regexp"": ""^(.+)$"",
           ""message"": 1
-        },
+        }
       ]
     }
   ]
@@ -290,7 +290,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         {
           ""regexp"": ""^(.+)$"",
           ""message"": 2
-        },
+        }
       ]
     }
   ]
@@ -317,7 +317,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         {
           ""regexp"": ""^(.+)$"",
           ""message"": -1
-        },
+        }
       ]
     }
   ]
@@ -328,6 +328,121 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             // Sanity test
             config.Matchers[0].Patterns[0].Message = 1;
             config.Validate();
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Matcher_ExtractsProperties_MultiplePatterns()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^file:(.+) fromPath:(.+)$"",
+          ""file"": 1,
+          ""fromPath"": 2
+        },
+        {
+          ""regexp"": ""^severity:(.+)$"",
+          ""severity"": 1
+        },
+        {
+          ""regexp"": ""^line:(.+) column:(.+) code:(.+) message:(.+)$"",
+          ""line"": 1,
+          ""column"": 2,
+          ""code"": 3,
+          ""message"": 4
+        }
+      ]
+    }
+  ]
+}
+");
+            config.Validate();
+            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
+            var match = matcher.Match("file:my-file.cs fromPath:my-project.proj");
+            Assert.Null(match);
+            match = matcher.Match("severity:real-bad");
+            Assert.Null(match);
+            match = matcher.Match("line:123 column:45 code:uh-oh message:not-working");
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("my-project.proj", match.FromPath);
+            Assert.Equal("real-bad", match.Severity);
+            Assert.Equal("123", match.Line);
+            Assert.Equal("45", match.Column);
+            Assert.Equal("uh-oh", match.Code);
+            Assert.Equal("not-working", match.Message);
+            match = matcher.Match("line:123 column:45 code:uh-oh message:not-working");
+            Assert.Null(match); // !loop
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Matcher_ExtractsProperties_MultiplePatterns_Loop()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^file:(.+) fromPath:(.+)$"",
+          ""file"": 1,
+          ""fromPath"": 2
+        },
+        {
+          ""regexp"": ""^severity:(.+)$"",
+          ""severity"": 1
+        },
+        {
+          ""regexp"": ""^line:(.+) column:(.+) code:(.+) message:(.+)$"",
+          ""line"": 1,
+          ""column"": 2,
+          ""code"": 3,
+          ""message"": 4,
+          ""loop"": true
+        }
+      ]
+    }
+  ]
+}
+");
+            config.Validate();
+            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
+            var match = matcher.Match("file:my-file.cs fromPath:my-project.proj");
+            Assert.Null(match);
+            match = matcher.Match("severity:real-bad");
+            Assert.Null(match);
+            match = matcher.Match("line:123 column:45 code:uh-oh message:not-working");
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("my-project.proj", match.FromPath);
+            Assert.Equal("real-bad", match.Severity);
+            Assert.Equal("123", match.Line);
+            Assert.Equal("45", match.Column);
+            Assert.Equal("uh-oh", match.Code);
+            Assert.Equal("not-working", match.Message);
+            match = matcher.Match("line:234 column:56 code:yikes message:broken");
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("my-project.proj", match.FromPath);
+            Assert.Equal("real-bad", match.Severity);
+            Assert.Equal("234", match.Line);
+            Assert.Equal("56", match.Column);
+            Assert.Equal("yikes", match.Code);
+            Assert.Equal("broken", match.Message);
+            match = matcher.Match("line:345 column:67 code:failed message:cant-do-that");
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("my-project.proj", match.FromPath);
+            Assert.Equal("real-bad", match.Severity);
+            Assert.Equal("345", match.Line);
+            Assert.Equal("67", match.Column);
+            Assert.Equal("failed", match.Code);
+            Assert.Equal("cant-do-that", match.Message);
         }
 
         [Fact]
@@ -350,7 +465,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
           ""code"": 5,
           ""message"": 6,
           ""fromPath"": 7
-        },
+        }
       ]
     }
   ]
@@ -382,7 +497,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         {
           ""regexp"": ""^(.+)$"",
           ""message"": 1
-        },
+        }
       ]
     }
   ]
