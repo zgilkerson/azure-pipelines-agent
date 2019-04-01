@@ -357,15 +357,15 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
 }
 ");
             config.Validate();
-            var matcher = new IssueMatcher(config, TimeSpan.FromSeconds(1));
+            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
             var match = matcher.Match("file:my-file.cs line:123 column:45 severity:real-bad code:uh-oh message:not-working fromPath:my-project.proj");
-            Assert.Equal("my-file.cs", matcher.File);
-            Assert.Equal("123", matcher.Line);
-            Assert.Equal("45", matcher.Column);
-            Assert.Equal("real-bad", matcher.Severity);
-            Assert.Equal("uh-oh", matcher.Code);
-            Assert.Equal("not-working", matcher.Message);
-            Assert.Equal("my-project.proj", matcher.FromPath);
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("123", match.Line);
+            Assert.Equal("45", match.Column);
+            Assert.Equal("real-bad", match.Severity);
+            Assert.Equal("uh-oh", match.Code);
+            Assert.Equal("not-working", match.Message);
+            Assert.Equal("my-project.proj", match.FromPath);
         }
 
         [Fact]
@@ -389,7 +389,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
 }
 ");
             config.Validate();
-            var matcher = new IssueMatcher(config, TimeSpan.FromSeconds(1));
+            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
             Assert.Equal("myMatcher", matcher.Owner);
         }
     }
