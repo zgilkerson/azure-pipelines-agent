@@ -333,57 +333,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Matcher_ExtractsProperties_MultiplePatterns()
-        {
-            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
-{
-  ""problemMatcher"": [
-    {
-      ""owner"": ""myMatcher"",
-      ""pattern"": [
-        {
-          ""regexp"": ""^file:(.+) fromPath:(.+)$"",
-          ""file"": 1,
-          ""fromPath"": 2
-        },
-        {
-          ""regexp"": ""^severity:(.+)$"",
-          ""severity"": 1
-        },
-        {
-          ""regexp"": ""^line:(.+) column:(.+) code:(.+) message:(.+)$"",
-          ""line"": 1,
-          ""column"": 2,
-          ""code"": 3,
-          ""message"": 4
-        }
-      ]
-    }
-  ]
-}
-");
-            config.Validate();
-            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
-            var match = matcher.Match("file:my-file.cs fromPath:my-project.proj");
-            Assert.Null(match);
-            match = matcher.Match("severity:real-bad");
-            Assert.Null(match);
-            match = matcher.Match("line:123 column:45 code:uh-oh message:not-working");
-            Assert.Equal("my-file.cs", match.File);
-            Assert.Equal("my-project.proj", match.FromPath);
-            Assert.Equal("real-bad", match.Severity);
-            Assert.Equal("123", match.Line);
-            Assert.Equal("45", match.Column);
-            Assert.Equal("uh-oh", match.Code);
-            Assert.Equal("not-working", match.Message);
-            match = matcher.Match("line:123 column:45 code:uh-oh message:not-working");
-            Assert.Null(match); // !loop
-        }
-
-        [Fact]
-        [Trait("Level", "L0")]
-        [Trait("Category", "Worker")]
-        public void Matcher_ExtractsProperties_MultiplePatterns_Loop()
+        public void Matcher_MultiplePatterns_Loop_ExtractsProperties()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -448,7 +398,164 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         [Fact]
         [Trait("Level", "L0")]
         [Trait("Category", "Worker")]
-        public void Matcher_ExtractsProperties_SinglePattern()
+        public void Matcher_MultiplePatterns_Loop_TODO()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^(.+)$"",
+          ""file"": 1
+        },
+        {
+          ""regexp"": ""^(.+)$"",
+          ""severity"": 1
+        },
+        {
+          ""regexp"": ""^message:(.+)$"",
+          ""message"": 1,
+          ""loop"": true
+        }
+      ]
+    }
+  ]
+}
+");
+            config.Validate();
+            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
+            var match = matcher.Match("my-file.cs"); // file
+            Assert.Null(match);
+            match = matcher.Match("real-bad"); // severity
+            Assert.Null(match);
+            match = matcher.Match("message:not-working"); // message
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("real-bad", match.Severity);
+            Assert.Equal("not-working", match.Message);
+            match = matcher.Match("other-file.cs");
+            Assert.Null(match);
+            match = matcher.Match("message:not-good");
+            Assert.Null(match);
+            match = matcher.Match("message:broken");
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("message:not-good", match.Severity);
+            Assert.Equal("broken", match.Message);
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Matcher_MultiplePatterns_NonLoop_ExtractsProperties()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^file:(.+) fromPath:(.+)$"",
+          ""file"": 1,
+          ""fromPath"": 2
+        },
+        {
+          ""regexp"": ""^severity:(.+)$"",
+          ""severity"": 1
+        },
+        {
+          ""regexp"": ""^line:(.+) column:(.+) code:(.+) message:(.+)$"",
+          ""line"": 1,
+          ""column"": 2,
+          ""code"": 3,
+          ""message"": 4
+        }
+      ]
+    }
+  ]
+}
+");
+            config.Validate();
+            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
+            var match = matcher.Match("file:my-file.cs fromPath:my-project.proj");
+            Assert.Null(match);
+            match = matcher.Match("severity:real-bad");
+            Assert.Null(match);
+            match = matcher.Match("line:123 column:45 code:uh-oh message:not-working");
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("my-project.proj", match.FromPath);
+            Assert.Equal("real-bad", match.Severity);
+            Assert.Equal("123", match.Line);
+            Assert.Equal("45", match.Column);
+            Assert.Equal("uh-oh", match.Code);
+            Assert.Equal("not-working", match.Message);
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Matcher_MultiplePatterns_NonLoop_DoesNotLoop()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^file:(.+)$"",
+          ""file"": 1
+        },
+        {
+          ""regexp"": ""^message:(.+)$"",
+          ""message"": 1
+        }
+      ]
+    }
+  ]
+}
+");
+            config.Validate();
+            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
+            var match = matcher.Match("file:my-file.cs");
+            Assert.Null(match);
+            match = matcher.Match("message:not-working");
+            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("not-working", match.Message);
+            match = matcher.Match("message:not-working");
+            Assert.Null(match);
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Matcher_SetsOwner()
+        {
+            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
+{
+  ""problemMatcher"": [
+    {
+      ""owner"": ""myMatcher"",
+      ""pattern"": [
+        {
+          ""regexp"": ""^(.+)$"",
+          ""message"": 1
+        }
+      ]
+    }
+  ]
+}
+");
+            config.Validate();
+            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
+            Assert.Equal("myMatcher", matcher.Owner);
+        }
+
+        [Fact]
+        [Trait("Level", "L0")]
+        [Trait("Category", "Worker")]
+        public void Matcher_SinglePattern_ExtractsProperties()
         {
             var config = JsonUtility.FromString<IssueMatchersConfig>(@"
 {
@@ -481,31 +588,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             Assert.Equal("uh-oh", match.Code);
             Assert.Equal("not-working", match.Message);
             Assert.Equal("my-project.proj", match.FromPath);
-        }
-
-        [Fact]
-        [Trait("Level", "L0")]
-        [Trait("Category", "Worker")]
-        public void Matcher_SetsOwner()
-        {
-            var config = JsonUtility.FromString<IssueMatchersConfig>(@"
-{
-  ""problemMatcher"": [
-    {
-      ""owner"": ""myMatcher"",
-      ""pattern"": [
-        {
-          ""regexp"": ""^(.+)$"",
-          ""message"": 1
-        }
-      ]
-    }
-  ]
-}
-");
-            config.Validate();
-            var matcher = new IssueMatcher(config.Matchers[0], TimeSpan.FromSeconds(1));
-            Assert.Equal("myMatcher", matcher.Owner);
         }
     }
 }
