@@ -351,7 +351,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
         },
         {
           ""regexp"": ""^message:(.+)$"",
-          ""message"": 1
+          ""message"": 1,
           ""loop"": true
         }
       ]
@@ -442,7 +442,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             match = matcher.Match("message:not-good"); // severity - also matches the message pattern, therefore
             Assert.Null(match);                        // guarantees sufficient previous state has been cleared
             match = matcher.Match("message:broken"); // message
-            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("other-file.cs", match.File);
             Assert.Equal("message:not-good", match.Severity);
             Assert.Equal("broken", match.Message);
         }
@@ -701,7 +701,7 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker
             match = matcher.Match("not-good"); // severity
             Assert.Null(match);
             match = matcher.Match("broken"); // message
-            Assert.Equal("my-file.cs", match.File);
+            Assert.Equal("other-file.cs", match.File);
             Assert.Equal("not-good", match.Severity);
             Assert.Equal("broken", match.Message);
         }

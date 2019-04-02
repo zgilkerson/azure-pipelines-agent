@@ -48,62 +48,85 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
 
         public IssueMatch Match(string line)
         {
-            // Each pattern (iterate in reverse)
-            for (int i = _patterns.Length - 1; i >= 0; i--)
+            // Single pattern
+            if (_patterns.Length == 1)
             {
-                var runningMatch = i > 0 ? _state[i - 1] : null;
+                var pattern = _patterns[0];
+                var regexMatch = pattern.Regex.Match(line);
 
-                // First pattern or a running match
-                if (i == 0 || runningMatch != null)
+                if (regexMatch.Success)
                 {
-                    var pattern = _patterns[i];
-                    var isLast = i == _patterns.Length - 1;
-                    var regexMatch = pattern.Regex.Match(line);
+                    return new IssueMatch(null, pattern, regexMatch.Groups);
+                }
 
-                    // Matched
-                    if (regexMatch.Success)
+                return null;
+            }
+            // Multiple patterns
+            else
+            {
+                // Each pattern (iterate in reverse)
+                for (int i = _patterns.Length - 1; i >= 0; i--)
+                {
+                    var runningMatch = i > 0 ? _state[i - 1] : null;
+
+                    // First pattern or a running match
+                    if (i == 0 || runningMatch != null)
                     {
-                        // Last pattern
-                        if (isLast)
-                        {
-                            // Multi-line
-                            if (i > 0)
-                            {
-                                // Clear the state
-                                Reset();
+                        var pattern = _patterns[i];
+                        var isLast = i == _patterns.Length - 1;
+                        var regexMatch = pattern.Regex.Match(line);
 
+                        // Matched
+                        if (regexMatch.Success)
+                        {
+                            // Last pattern
+                            if (isLast)
+                            {
                                 // Loop
                                 if (pattern.Loop)
                                 {
-                                    // Preserve the last state only
+                                    // Clear most state, but preserve the running match
+                                    Reset();
                                     _state[i - 1] = runningMatch;
                                 }
-                            }
+                                // Not loop
+                                else
+                                {
+                                    // Clear the state
+                                    Reset();
+                                }
 
-                            // Return
-                            return new IssueMatch(runningMatch, pattern, regexMatch.Groups);
+                                // Return
+                                return new IssueMatch(runningMatch, pattern, regexMatch.Groups);
+                            }
+                            // Not the last pattern
+                            else
+                            {
+                                // Store the match
+                                _state[i] = new IssueMatch(runningMatch, pattern, regexMatch.Groups);
+                            }
                         }
-                        // Not the last pattern
+                        // Not matched
                         else
                         {
-                            // Store the match
-                            _state[i] = new IssueMatch(runningMatch, pattern, regexMatch.Groups);
-                        }
-                    }
-                    // Not matched
-                    else
-                    {
-                        // Not the last pattern
-                        if (!isLast)
-                        {
-                            // Record not matched
-                            _state[i] = null;
+                            // Last pattern
+                            if (isLast)
+                            {
+                                // Break the running match
+                                _state[i - 1] = null;
+                            }
+                            // Not the last pattern
+                            else
+                            {
+                                // Record not matched
+                                _state[i] = null;
+                            }
                         }
                     }
                 }
-            }
 
-            return null;
+                return null;
+            }
         }
 
         public void Reset()
