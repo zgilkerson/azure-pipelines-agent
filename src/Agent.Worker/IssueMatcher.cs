@@ -66,11 +66,18 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                         // Last pattern
                         if (isLast)
                         {
-                            // Multi-line non-loop
-                            if (i > 0 && !pattern.Loop)
+                            // Multi-line
+                            if (i > 0)
                             {
                                 // Clear the state
                                 Reset();
+
+                                // Loop
+                                if (pattern.Loop)
+                                {
+                                    // Preserve the last state only
+                                    _state[i - 1] = runningMatch;
+                                }
                             }
 
                             // Return
