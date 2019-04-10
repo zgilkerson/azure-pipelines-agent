@@ -9,6 +9,7 @@
   - Fixing issue where project name is known for DownloadArtifact but project Id is used and error occurs #2188
   - Maintenance job recover from case where git repo is corrupt #2201
   - Prepend workaround to dotnet issue to ps setup script #2197
+  - Change variable downloadPath to targetPath - to match task.json change #2205
 
 ## Misc
   - Consume MinGit 2.21 #2166
